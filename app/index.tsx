@@ -8,6 +8,7 @@ export default function Index() {
         justifyContent: "center",
         alignItems: "center",
       }}
+      className="bg-blue-300"
     >
       <Text>Edit app/index.tsx to edit this screen.</Text>
     </View>
