@@ -4,7 +4,8 @@ import { ContextConfiguration } from "../types/context";
 /**
  * The DressipiContext is a React context that provides data
  * for the Dressipi application, including the namespace ID, domain,
- * client ID, tracker instance, and a queue for events.
+ * client ID, tracker instance, authentication credentials 
+ * and a queue for events.
  */
 export const DressipiContext: Context<ContextConfiguration> = 
   createContext<ContextConfiguration>({
@@ -13,5 +14,6 @@ export const DressipiContext: Context<ContextConfiguration> =
     clientId: "",
     tracker: null,
     queue: null,
+    credentials: null,
     refresh: () => {},
   });

@@ -1,5 +1,6 @@
 import type { ReactNativeTracker } from "@snowplow/react-native-tracker";
 import { RefObject, useMemo, useRef } from "react";
+import { useAuth } from "../hooks/useAuth";
 import { createTracker } from "../tracking/tracker";
 import { ProviderProps } from "../types/context";
 import { Queue, QueueableEvents, QueuedEvent } from "../types/tracking";
@@ -18,14 +19,23 @@ const DressipiProvider = ({
   const queue: RefObject<Queue<QueueableEvents> | null> 
     = useRef<Queue<QueueableEvents> | null>([]);
 
+  const { networkUserId, credentials, refresh } = useAuth(clientId, domain);
+
   const tracker: ReactNativeTracker | null = useMemo(() => {
+    /**
+     * If the networkUserId is not available, return null.
+     */
+    if (!networkUserId) {
+      return null;
+    }
+
     /**
      * Create a tracker instance using the provided namespaceId, domain 
      * and clientId.
      * This tracker will be used to send events to Snowplow.
      */
     const trackerInstance: ReactNativeTracker | null = 
-      createTracker(namespaceId, domain, clientId);
+      createTracker(namespaceId, domain, networkUserId);
 
     /**
      * If the tracker instance is created successfully,
@@ -52,7 +62,7 @@ const DressipiProvider = ({
     queue.current = [];
 
     return trackerInstance;
-  }, [namespaceId, domain, clientId]);
+  }, [namespaceId, domain, networkUserId]);
 
   return (
     <DressipiContext.Provider value={{
@@ -61,7 +71,8 @@ const DressipiProvider = ({
       clientId,
       tracker,
       queue,
-      refresh: () => {}
+      credentials,
+      refresh,
     }}>
       {children}
     </DressipiContext.Provider>

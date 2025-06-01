@@ -1,5 +1,6 @@
 import { ReactNativeTracker } from '@snowplow/react-native-tracker';
 import { PropsWithChildren, RefObject } from 'react';
+import { AuthCredentials } from './auth';
 import { Queue, QueueableEvents } from './tracking';
 
 /**
@@ -12,6 +13,7 @@ export type ContextConfiguration = {
   clientId: string;
   tracker: ReactNativeTracker | null;
   queue: RefObject<Queue<QueueableEvents> | null> | null;
+  credentials: AuthCredentials | null;
   refresh: () => void;
 }
 
