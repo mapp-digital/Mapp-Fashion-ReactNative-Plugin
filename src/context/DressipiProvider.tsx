@@ -6,7 +6,7 @@ import { ProviderProps } from "../types/context";
 import { Queue, QueueableEvents, QueuedEvent } from "../types/tracking";
 import { DressipiContext } from "./DressipiContext";
 
-const DressipiProvider = ({ 
+export const DressipiProvider = ({ 
   children,
   namespaceId, 
   domain, 
@@ -78,5 +78,3 @@ const DressipiProvider = ({
     </DressipiContext.Provider>
   )
 };
-
-export default DressipiProvider;
