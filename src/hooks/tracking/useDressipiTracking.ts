@@ -7,15 +7,18 @@ import {
   productListPageView as productListPageViewEventFunction,
   removeFromBasket as removeFromBasketEventFunction,
 } from "@/src/tracking/trackerEvents";
-import { Queue, QueueableEvents, QueueableFunction, QueuedEvent, Tracking } from "@/src/types/tracking";
+import { Queue, QueueableEvents, QueueableFunction, QueuedEvent, Tracking, TrackingItem } from "@/src/types/tracking";
 import { ReactNativeTracker } from "@snowplow/react-native-tracker";
 import { useContext } from "react";
+import useDeepCompareEffect from "use-deep-compare-effect";
 
 /**
  * Hook to access the Dressipi tracking functions.
  * This hook provides access to the tracking functions
  * for order tracking, basket management, user identification,
  * and product page views.
+ * 
+ * @returns {Tracking} - An object containing the tracking functions.
  */
 export const useDressipiTracking = (): Tracking => {
   /**
@@ -52,6 +55,43 @@ export const useDressipiTracking = (): Tracking => {
       queue?.current
     ),
   }
+}
+
+/**
+ * Hook to track product display page views.
+ * This hook takes a tracking item and tracks the product display page view event.
+ * It uses a deep compare hook to ensure that the event is only tracked when
+ * the item changes.
+ * 
+ * @param {TrackingItem} item - The item to track on the product display page.
+ * @returns {void} - This hook does not return anything.
+ */
+export const useDressipiProductDisplayPageTracking = (
+  item: TrackingItem
+): void => {
+  /**
+   * Get the queue and tracker from the Dressipi context.
+   */
+  const { queue, tracker } = useContext(DressipiContext);
+
+  /**
+   * Uses a deep compare hook to check for changes in the `item` object.
+   * If the `item` object changes, it triggers the tracking of
+   * a product display page view event.
+   */
+  useDeepCompareEffect(() => {
+    const productDisplayPageViewEventHandler: (item: TrackingItem) => void 
+      = queueable(
+        productDisplayPageViewEventFunction, 
+        tracker, 
+        queue?.current
+      );
+    
+    /**
+     * Calls the product display page view event handler.
+     */
+    productDisplayPageViewEventHandler(item);
+  }, [item])
 }
 
 /**
