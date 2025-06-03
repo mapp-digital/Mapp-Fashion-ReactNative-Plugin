@@ -4,6 +4,19 @@ import { AuthCredentials } from "../types/auth";
 import { accessTokenHasExpired, getNetworkUserId } from "../utils/jwt";
 import { getCredentialsFromKeychain, setCredentialsToKeychain } from "../utils/keychain";
 
+interface AuthError {
+  message: string;
+  code?: string;
+}
+
+interface AuthState {
+  credentials: AuthCredentials | null;
+  networkUserId: string | null;
+  isAuthenticating: boolean;
+  isAuthenticated: boolean;
+  error: AuthError | null;
+}
+
 /**
  * Custom hook to handle authentication with the Dressipi API.
  *
@@ -12,132 +25,190 @@ import { getCredentialsFromKeychain, setCredentialsToKeychain } from "../utils/k
  */
 export const useAuth = (clientId: string, domain: string) => {
   /**
-   * State variables to manage authentication status and credentials.
-   * - `credentials`: Stores the authentication credentials.
-   * - `networkUserId`: Stores the user ID from the access token.
-   * - `isAuthenticating`: Indicates whether the authentication process is ongoing.
-   * - `isAuthenticated`: Indicates whether the user is authenticated.
+   * State to manage authentication status, credentials, and errors.
+   * This state includes:
+   * - credentials: The authentication credentials if available.
+   * - networkUserId: The user ID from the access token.
+   * - isAuthenticating: A boolean indicating if authentication is in progress.
+   * - isAuthenticated: A boolean indicating if the user is authenticated.
+   * - error: Any error that occurred during authentication.
    */
-  const [credentials, setCredentials] = useState<AuthCredentials | null>(null);
-  const [networkUserId, setNetworkUserId] = useState<string | null>(null);
-  const [isAuthenticating, setIsAuthenticating] = useState<boolean>(false);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-
-  const refreshTokenCallback = useCallback(() => {
-    /**
-     * Function to handle the refresh token process.
-     */
-    const handleRefreshTokenProcess = async () => {
-      if (!credentials) {
-        return;
-      }
-
-      /**
-       * Fetch the refreshed authentication credentials using the
-       * existing credentials, client ID, and domain.
-       */
-      const refreshedAuthCredentials = 
-        await refreshToken(credentials, clientId, domain);
-
-      /**
-       * Set the state to indicate that the user is authenticated,
-       * update the credentials and user ID, and store the refreshed
-       * credentials in the keychain.
-       */
-      setIsAuthenticated(true);
-      setCredentials(refreshedAuthCredentials);
-      setNetworkUserId(getNetworkUserId(refreshedAuthCredentials));
-      setCredentialsToKeychain(
-        clientId,
-        domain,
-        JSON.stringify(refreshedAuthCredentials)
-      );
-    };
-
-    /**
-     * Call the function to handle the refresh token process.
-     */
-    handleRefreshTokenProcess();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [credentials])
+  const [state, setState] = useState<AuthState>({
+    credentials: null,
+    networkUserId: null,
+    isAuthenticating: false,
+    isAuthenticated: false,
+    error: null,
+  });
 
   /**
-   * This effect will run when the clientId or domain changes.
+   * Callback to set the authentication state as successful.
+   * This function updates the state with the provided credentials,
+   * extracts the user ID from the credentials, and resets any error.
    */
-  useEffect(() => {
-    setIsAuthenticating(true);
-    
-    /**
-     * Create an function to handle the async authentication process inside
-     * the useEffect hook.
-     */
-    const handleAuthenticationProcess = async () => {
-      if (isAuthenticating) {
-        return;
-      }
+  const setAuthenticationSuccess = useCallback(
+    (credentials: AuthCredentials) => {
+      const userId = getNetworkUserId(credentials);
 
-      /**
-       * Retrieve existing credentials from the keychain.
-       */
-      const existingAuthCredentials: AuthCredentials | null = 
-        await getCredentialsFromKeychain(clientId, domain);
+      setState((prevState) => ({
+        ...prevState,
+        isAuthenticated: true,
+        credentials,
+        networkUserId: userId,
+        error: null,
+      }));
+    }, []
+  );
 
-      /**
-       * If existing credentials are found and the access token has not expired,
-       * set the credentials and user ID and mark as authenticated, 
-       * finishing the authentication process early.
-       */
-      if (
-        existingAuthCredentials 
-        && !accessTokenHasExpired(existingAuthCredentials)
-      ) {
-        /**
-         * Set the state to indicate that the user is authenticated
-         * and store the existing credentials and user ID.
-         */
-        setIsAuthenticated(true);
-        setCredentials(existingAuthCredentials);
-        setNetworkUserId(getNetworkUserId(existingAuthCredentials));
+  /**
+   * Callback to set the authentication state as failed.
+   * This function updates the state with the provided error,
+   * sets isAuthenticating to false, and resets credentials and user ID.
+   */
+  const setAuthenticationError = useCallback(
+    (error: AuthError) => {
+      setState(prev => ({
+        ...prev,
+        isAuthenticating: false,
+        error,
+      }));
+    }, []
+  );
 
-        return existingAuthCredentials;
-      }
-      
-      /**
-       * This block will run if no existing credentials are found or if the
-       * access token has expired.
-       * In case there are existing credentials, we will refresh the token,
-       * otherwise we will authenticate the user.
-       */
-      const resultingAuthCredentials: AuthCredentials = existingAuthCredentials
-        ? await refreshToken(existingAuthCredentials, clientId, domain)
-        : await authenticate(clientId, domain);
-
-      /**
-       * Set the resulting credentials and user ID, mark as authenticated,
-       * and store the credentials in the keychain.
-       */
-      setIsAuthenticated(true);
-      setCredentials(resultingAuthCredentials);
-      setNetworkUserId(getNetworkUserId(resultingAuthCredentials));
+  /**
+   * Callback to save the authentication credentials to the keychain.
+   * This function serializes the credentials and stores them using
+   * the provided client ID and domain.
+   */
+  const saveCredentialsToKeychain = useCallback(
+    (authCredentials: AuthCredentials) => {
       setCredentialsToKeychain(
         clientId, 
         domain, 
-        JSON.stringify(resultingAuthCredentials)
+        JSON.stringify(authCredentials)
       );
-    };
+    },
+    [clientId, domain]
+  );
 
+  /**
+   * Function to refresh the authentication token.
+   * This function checks if credentials are available, attempts to
+   * refresh the token using the provided client ID and domain,
+   * and updates the state with the refreshed credentials.
+   */
+  const refresh = useCallback(async() => {
     /**
-     * Call the async function to handle the authentication process.
+     * Check if credentials are available before attempting to refresh.
+     * If not, set an error indicating that no credentials are available.
      */
-    handleAuthenticationProcess();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientId, domain]);
+    if (!state.credentials) {
+      setAuthenticationError({ message: "No credentials available for refresh" });
+      return;
+    }
+
+    try {
+      /**
+       * Attempt to refresh the authentication token using the
+       * provided client ID and domain. This function is expected to
+       * return new credentials if successful.
+       */
+      const refreshedCredentials = await refreshToken(
+        state.credentials, 
+        clientId, 
+        domain
+      );
+
+      /**
+       * If the refresh is successful, update the state with the
+       * refreshed credentials, and save the credentials to the keychain.
+       */
+      setAuthenticationSuccess(refreshedCredentials);
+      saveCredentialsToKeychain(refreshedCredentials);
+    } catch (error) {
+      /**
+       * If an error occurs during the refresh process, set the
+       * authentication error with the error message and code.
+       */
+      setAuthenticationError({
+        message: error instanceof Error 
+          ? error.message 
+          : "Token refresh failed",
+        code: "REFRESH_ERROR",
+      });
+    } finally {
+      /**
+       * Regardless of success or failure, set isAuthenticating to false
+       * to indicate that the refresh process has completed.
+       */
+      setState(prev => ({ ...prev, isAuthenticating: false }));
+    }
+  }, [
+    state.credentials, 
+    clientId,
+    domain,
+    setAuthenticationSuccess,
+    setAuthenticationError,
+    saveCredentialsToKeychain,
+  ])
+
+  /**
+   * Effect hook to handle the authentication process 
+   * when the component mounts.
+   */
+  useEffect(() => {
+    /**
+     * Function to handle the authentication process.
+     */
+    const handleAuthentication = async () => {
+      setState(previous => ({ ...previous, isAuthenticating: true }));
+
+      try {
+        const existingAuthCredentials = 
+          await getCredentialsFromKeychain(clientId, domain);
+
+          if (
+            existingAuthCredentials
+            && !accessTokenHasExpired(existingAuthCredentials)
+          ) {
+            setAuthenticationSuccess(existingAuthCredentials);
+            return;
+          }
+
+          const resultingCredentials = existingAuthCredentials
+            ? await refreshToken(existingAuthCredentials, clientId, domain)
+            : await authenticate(clientId, domain);
+
+          setAuthenticationSuccess(resultingCredentials);
+          saveCredentialsToKeychain(resultingCredentials);
+      } catch (error) {
+        setAuthenticationError({
+          message: error instanceof Error 
+            ? error.message
+             : "Authentication failed",
+          code: "AUTH_ERROR",
+        });
+      } finally {
+        setState(previous => ({ ...previous, isAuthenticating: false }));
+      }
+    }
+
+    handleAuthentication();
+  }, [
+    clientId, 
+    domain, 
+    setAuthenticationSuccess, 
+    setAuthenticationError, 
+    saveCredentialsToKeychain,
+    setState
+  ]);
 
   return {
-    isAuthenticating, 
-    isAuthenticated, 
-    credentials, 
-    networkUserId, 
-    refresh: refreshTokenCallback,
+    isAuthenticating: state.isAuthenticating, 
+    isAuthenticated: state.isAuthenticated, 
+    credentials: state.credentials, 
+    networkUserId: state.networkUserId, 
+    error: state.error,
+    refresh,
   };
 };
