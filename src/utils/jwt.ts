@@ -7,13 +7,21 @@ import { AccessToken, AuthCredentials } from "../types/auth";
  * @returns {AccessToken | false} - Returns the decoded access token if valid, otherwise false.
  */
 const decodeAccessToken = (token: string): AccessToken | false => {
-  const parts = token.split('.');
+  try {
+    const parts = token.split('.');
 
-  if (parts.length !== 3) {
+    if (parts.length !== 3) {
+      return false;
+    }
+  
+    return JSON.parse(atob(parts[1])) as AccessToken;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (error) {
+    /**
+     * An error occurs during decoding, probably an invalid token format.
+     */
     return false;
   }
-
-  return JSON.parse(atob(parts[1])) as AccessToken;
 }
 
 /**
