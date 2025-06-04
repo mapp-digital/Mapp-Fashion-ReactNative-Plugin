@@ -1,11 +1,19 @@
 import type { ReactNativeTracker } from "@snowplow/react-native-tracker";
-import { RefObject, useMemo, useRef } from "react";
+import { RefObject, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { createTracker } from "../tracking/tracker";
 import { ProviderProps } from "../types/context";
 import { Queue, QueueableEvents, QueuedEvent } from "../types/tracking";
 import { DressipiContext } from "./DressipiContext";
 
+/**
+ * The DressipiProvider component is a React context provider
+ * that initializes and provides the Snowplow tracker instance,
+ * authentication credentials, and a queue for events to be sent.
+ * 
+ * @param {ProviderProps} props - The properties for the provider.
+ * @returns {JSX.Element} The DressipiContext provider.
+ */
 export const DressipiProvider = ({ 
   children,
   namespaceId, 
@@ -16,44 +24,34 @@ export const DressipiProvider = ({
    * Create a reference object to the queue of events 
    * to be sent to the tracker.
    */
-  const queue: RefObject<Queue<QueueableEvents> | null> 
-    = useRef<Queue<QueueableEvents> | null>([]);
+  const queue: RefObject<Queue<QueueableEvents>> 
+    = useRef<Queue<QueueableEvents>>([]);
 
   const { networkUserId, credentials, refresh } = useAuth(clientId, domain);
 
   const tracker: ReactNativeTracker | null = useMemo(() => {
     /**
-     * If the networkUserId is not available, return null.
-     */
-    if (!networkUserId) {
-      return null;
-    }
-
-    /**
      * Create a tracker instance using the provided namespaceId, domain 
      * and clientId.
      * This tracker will be used to send events to Snowplow.
+     * If the networkUserId is not available, return null.
      */
-    const trackerInstance: ReactNativeTracker | null = 
-      createTracker(namespaceId, domain, networkUserId);
+    return networkUserId 
+      ? createTracker(namespaceId, domain, networkUserId)
+      : null;
+  }, [namespaceId, domain, networkUserId]);
 
+  useEffect(() => {
     /**
      * If the tracker instance is created successfully,
      * process queued events and return the tracker. Otherwise, return null.
      */
-    if (!trackerInstance) {
-      return null;
-    }
+    if (!tracker) return;
 
     /**
-     * Process the queued events by iterating over each event
-     * and calling the corresponding method of the tracker instance.
-     * Each queued event contains the event name and the data to be sent.
+     * Retrieve the queued events from the queue.
      */
-    queue.current?.forEach((queuedEvent: QueuedEvent<QueueableEvents>) => {
-      (trackerInstance[queuedEvent.event] as Function)
-        .apply(trackerInstance, queuedEvent.data);
-    });
+    const eventsToProcess: QueuedEvent<QueueableEvents>[] = [...queue.current];
 
     /**
      * Clear the queue after processing the events.
@@ -61,9 +59,23 @@ export const DressipiProvider = ({
      */
     queue.current = [];
 
-    return trackerInstance;
-  }, [namespaceId, domain, networkUserId]);
+    /**
+     * Process the queued events by iterating over each event
+     * and calling the corresponding method of the tracker instance.
+     * Each queued event contains the event name and the data to be sent.
+     */
+    eventsToProcess.forEach((queuedEvent: QueuedEvent<QueueableEvents>) => {
+      (tracker[queuedEvent.event] as Function)
+        .apply(tracker, queuedEvent.data);
+    });
+  }, [tracker]);
 
+  /**
+   * The DressipiProvider component provides the DressipiContext
+   * to its children, allowing them to access the namespaceId, domain,
+   * clientId, tracker instance, queue of events, authentication credentials,
+   * and a refresh function for updating the authentication state.
+   */
   return (
     <DressipiContext.Provider value={{
       namespaceId,
