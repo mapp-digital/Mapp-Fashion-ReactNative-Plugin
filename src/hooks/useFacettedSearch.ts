@@ -1,4 +1,4 @@
-import { isEqual, pick } from "lodash-es";
+import { isEqual } from "lodash-es";
 import { useContext, useRef, useState } from "react";
 import useDeepCompareEffect from "use-deep-compare-effect";
 import { DressipiContext } from "../context/DressipiContext";
@@ -23,15 +23,24 @@ export const useFacettedSearch = (request: FacettedSearchApiRequest = {}) => {
     domain, 
     refreshAuthentication 
   } = useContext(DressipiContext);
-
+  /**
+   * State to hold the items, loading status, and error of the facetted search.
+   */
   const [state, setState] = useState<FacetedSearchState>({
     items: null,
     loading: false,
     error: null
   });
 
-  const requestHasFetched = useRef<FacettedSearchApiRequest | null>(null); // This is to prevent the hook from fetching data when credentials change
-  const isRefreshingAuthentication = useRef(false); // This is to prevent the hook from fetching data when credentials change
+  /**
+   * This ref is used to keep track of the last request that was made.
+   */
+  const requestHasFetched = useRef<FacettedSearchApiRequest | null>(null);
+  
+  /**
+   * This ref is used to keep track of whether the authentication is being refreshed.
+   */
+  const isRefreshingAuthentication = useRef(false);
 
   useDeepCompareEffect(() => {
     /**
@@ -50,22 +59,36 @@ export const useFacettedSearch = (request: FacettedSearchApiRequest = {}) => {
     }
 
     /**
+     * While the authentication is being refreshed,
+     * do not perform the facetted search.
+     * This is to prevent multiple requests being sent
+     * while the authentication is being refreshed.
+     */
+    if (isRefreshingAuthentication.current) {
+      return;
+    }
+
+    /**
      * Function to handle the facetted search.
      * It will perform the facetted search and update the state accordingly.
      */
     const handleFacettedSearch = async () => {
+      /**
+       * Set the loading state to true.
+       */
+      setState(previous => ({ ...previous, loading: true, error: null }));
+
       try {
         /**
          * Create query parameters from the request object.
          * It will only include the response format and pagination parameters.
          */
-        const parameters: Record<string, string> = createQueryParameters(
-          pick({
-            ...request,
-            response_format: request.response_format 
-              || FacettedSearchResponseFormat.Detailed,
-          }, ['response_format', 'per_page', 'page']),
-        );
+        const parameters: Record<string, string> = createQueryParameters({
+          response_format: 
+            request.response_format || FacettedSearchResponseFormat.Detailed,
+          per_page: request.per_page,
+          page: request.page,
+        });
 
         /**
          * Perform the facetted search.
@@ -89,34 +112,66 @@ export const useFacettedSearch = (request: FacettedSearchApiRequest = {}) => {
         });
       } catch (error) {
         /**
-         * If the error is an AuthenticationError, refresh the authentication.
+         * If an error occurs, handle it.
          */
-        if (error instanceof AuthenticationError) {
-          if (isRefreshingAuthentication.current) {
-            return setState({
-              items: null,
-              loading: false,
-              error: new Error(error.message),
-            });
-          }
+        await handleFacettedSearchError(error);
+      }
+    }
 
-          isRefreshingAuthentication.current = true;
-          return refreshAuthentication();
+    /**
+     * Function to handle errors from the facetted search.
+     * 
+     * @param error - The error thrown by the facetted search.
+     */
+    const handleFacettedSearchError = async (
+      error: unknown
+    ): Promise<void> => {
+      /**
+       * If the error is an instance of AuthenticationError,
+       * and we are not currently refreshing the authentication,
+       * attempt to refresh the authentication.
+       */
+      if (
+        error instanceof AuthenticationError 
+        && !isRefreshingAuthentication.current
+      ) {
+        /**
+         * Set the refreshing authentication flag to true.
+         */
+        isRefreshingAuthentication.current = true;
+
+        try {
+          /**
+           * Attempt to refresh the authentication.
+           * If it succeeds, the useEffect will re-run
+           * and the facetted search will be performed again.
+           */
+          await refreshAuthentication();
+        } catch (authenticationError) {
+          /**
+           * If the refresh authentication fails,
+           * set the state with the error.
+           */
+          setState({ 
+            items: null, 
+            loading: false, 
+            error: authenticationError as Error,
+          });
+        } finally {
+          /**
+           * Reset the refreshing authentication flag.
+           */
+          isRefreshingAuthentication.current = false;
         }
-
+      } else {
         /**
          * If the error is not an AuthenticationError, 
-         * set the refreshing authentication flag to false;
+         * set the state with the error.
          */
-        isRefreshingAuthentication.current = false;
-
-        /**
-         * Set the state with the error.
-         */
-        setState({
-          items: null,
-          loading: false,
-          error: (error as Error),
+        setState({ 
+          items: null, 
+          loading: false, 
+          error: error as Error 
         });
       }
     }
@@ -125,7 +180,7 @@ export const useFacettedSearch = (request: FacettedSearchApiRequest = {}) => {
      * Run the facetted search handler.
      */
     handleFacettedSearch();
-  }, [credentials, request])
+  }, [credentials, request, domain, refreshAuthentication]);
   
   return state;
 }
