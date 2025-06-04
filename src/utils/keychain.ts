@@ -96,7 +96,9 @@ export const setCredentialsToKeychain = async (
  * @param serverUrl - The server URL for the Dressipi API.
  * @return {Promise<void>} - A promise that resolves when the credentials are deleted.
  */
-export const resetCredentialsFromKeychain = async (serverUrl: string): Promise<void> => {
+export const resetCredentialsFromKeychain = async (
+  serverUrl: string
+): Promise<void> => {
   /**
    * Deletes the credentials from the keychain using the provided serverUrl. 
    * This will remove the credentials associated with the server.
