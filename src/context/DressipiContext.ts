@@ -15,5 +15,5 @@ export const DressipiContext: Context<ContextConfiguration> =
     tracker: null,
     queue: null,
     credentials: null,
-    refresh: () => {},
+    refreshAuthentication: () => {},
   });

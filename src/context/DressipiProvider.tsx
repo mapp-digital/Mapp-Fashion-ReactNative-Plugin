@@ -84,7 +84,7 @@ export const DressipiProvider = ({
       tracker,
       queue,
       credentials,
-      refresh,
+      refreshAuthentication: refresh,
     }}>
       {children}
     </DressipiContext.Provider>

@@ -14,7 +14,7 @@ export type ContextConfiguration = {
   tracker: ReactNativeTracker | null;
   queue: RefObject<Queue<QueueableEvents> | null> | null;
   credentials: AuthCredentials | null;
-  refresh: () => void;
+  refreshAuthentication: () => void;
 }
 
 /**
