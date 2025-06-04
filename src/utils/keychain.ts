@@ -84,7 +84,7 @@ export const setCredentialsToKeychain = async (
      * If there was an error setting the credentials to the keychain, throw it.
      */
     throw new Error(
-      `Could not set Dressipi credentials: ${(error as Error).message}`
+      `Could not set Dressipi credentials to keychain: ${(error as Error).message}`
     );
   }
 }

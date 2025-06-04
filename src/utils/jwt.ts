@@ -93,9 +93,7 @@ export const getNetworkUserId = (
   }
 
   /**
-   * If the access token could not be decoded, return null
-   * indicating that the user ID is not available.
-   * Otherwise, return the user ID from the decoded access token.
+   * Return the user ID from the decoded access token.
    */
   return decodedAccessToken.subn || null;
 }
