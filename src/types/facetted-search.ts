@@ -1,4 +1,4 @@
-import { FacettedSearchResponseFormat } from "../enums/FacettedSearchResponseFormat";
+import { ResponseFormat } from "../enums/ResponseFormat";
 import { DetailedItem } from "./shared";
 
 /**
@@ -15,7 +15,7 @@ export type FacetedSearchState = {
  */
 export type FacettedSearchApiRequest = {
   facets?: (FacetSingleFilter | FacetMultipleFilter)[];
-  response_format?: FacettedSearchResponseFormat;
+  response_format?: ResponseFormat;
   page?: number;
   per_page?: number;
 }

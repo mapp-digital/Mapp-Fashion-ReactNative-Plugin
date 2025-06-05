@@ -4,20 +4,13 @@ import useDeepCompareEffect from "use-deep-compare-effect";
 import { DressipiContext } from "../context/DressipiContext";
 import { ResponseFormat } from "../enums/ResponseFormat";
 import { AuthenticationError } from "../errors/AuthenticationError";
-import { mapFacettedSearchApiResponse } from "../mapping/mapFacettedSearchApiResponse";
-import { performFacettedSearch } from "../services/facetted-search";
-import { FacetedSearchState, FacettedSearchApiRequest, FacettedSearchApiResponse } from "../types/facetted-search";
+import { RelatedItemsGarmentNotFoundError } from "../errors/RelatedItemsGarmentNotFoundError";
+import { mapRelatedItemsApiResponse } from "../mapping/mapRelatedItemsApiResponse";
+import { getRelatedItems } from "../services/related-items";
+import { RelatedItemsApiRequest, RelatedItemsApiResponse, RelatedItemsState } from "../types/related-items";
 import { createQueryParameters } from "../utils/http";
 
-/**
- * Custom hook to perform a facetted search.
- * It will return the state of the facetted search including items, 
- * loading status, and error.
- * 
- * @param request - The request object for the facetted search API.
- * @returns {FacetedSearchState} The state of the facetted search.
- */
-export const useFacettedSearch = (request: FacettedSearchApiRequest = {}) => {
+export const useRelatedItems = (request: RelatedItemsApiRequest) => {
   /**
    * Get the credentials, domain, and refreshAuthentication function
    * from the DressipiContext.
@@ -29,19 +22,20 @@ export const useFacettedSearch = (request: FacettedSearchApiRequest = {}) => {
   } = useContext(DressipiContext);
 
   /**
-   * State to hold the items, loading status, and error of the facetted search.
+   * State to hold the items, loading status, and error of the related items
+   * feature.
    */
-  const [state, setState] = useState<FacetedSearchState>({
-    items: null,
-    loading: false,
-    error: null
+  const [state, setState] = useState<RelatedItemsState>({
+    relatedItems: null,
+    loading: true,
+    error: null,
   });
 
   /**
    * This ref is used to keep track of the last request that was made.
    */
-  const requestHasFetched = useRef<FacettedSearchApiRequest | null>(null);
-  
+  const requestHasFetched = useRef<RelatedItemsApiRequest | null>(null);
+    
   /**
    * This ref is used to keep track of whether the authentication 
    * is being refreshed.
@@ -65,20 +59,22 @@ export const useFacettedSearch = (request: FacettedSearchApiRequest = {}) => {
     }
 
     /**
-     * While the authentication is being refreshed,
-     * do not perform the facetted search.
-     * This is to prevent multiple requests being sent
-     * while the authentication is being refreshed.
+     * Function to handle fetching related items.
+     * It will perform the request and update the state accordingly.
      */
-    if (isRefreshingAuthentication.current) {
-      return;
-    }
+    const handleRelatedItems = async () => {
+      /**
+       * If the request does not have an item_id,
+       * set the state to an error.
+       */
+      if (!request.item_id) {
+        return setState({
+          relatedItems: null,
+          loading: false,
+          error: new Error("You must pass an item_id to get related items. This is the item + variant (i.e. style + color) identifier for the product."),
+        });
+      }
 
-    /**
-     * Function to handle the facetted search.
-     * It will perform the facetted search and update the state accordingly.
-     */
-    const handleFacettedSearch = async () => {
       /**
        * Set the loading state to true.
        */
@@ -90,17 +86,19 @@ export const useFacettedSearch = (request: FacettedSearchApiRequest = {}) => {
          * It will only include the response format and pagination parameters.
          */
         const parameters: Record<string, string> = createQueryParameters({
-          response_format: 
-            request.response_format || ResponseFormat.Detailed,
-          per_page: request.per_page,
-          page: request.page,
+          ...request,
+          response_format: ResponseFormat.Detailed,
         });
 
         /**
-         * Perform the facetted search.
+         * Fetch the related items of the item on the request.
          */
-        const response: FacettedSearchApiResponse = 
-          await performFacettedSearch(domain, parameters, request, credentials);
+        const response: RelatedItemsApiResponse = await getRelatedItems(
+          domain, 
+          parameters, 
+          request.item_id, 
+          credentials
+        );
 
         /**
          * Set the request that has been fetched to the current request.
@@ -112,7 +110,10 @@ export const useFacettedSearch = (request: FacettedSearchApiRequest = {}) => {
          * usable format.
          */
         setState({
-          items: mapFacettedSearchApiResponse(response),
+          relatedItems: mapRelatedItemsApiResponse(
+            response, 
+            ResponseFormat.Detailed
+          ),
           loading: false,
           error: null,
         });
@@ -120,37 +121,37 @@ export const useFacettedSearch = (request: FacettedSearchApiRequest = {}) => {
         /**
          * If an error occurs, handle it.
          */
-        await handleFacettedSearchError(error);
+        await handleRelatedItemsError(error);
       }
-    }
+    };
 
     /**
-     * Function to handle errors from the facetted search.
+     * Function to handle errors from fetching the related items.
      * 
-     * @param error - The error thrown by the facetted search.
+     * @param error - The error thrown by the related items API call.
      */
-    const handleFacettedSearchError = async (
+    const handleRelatedItemsError = async (
       error: unknown
     ): Promise<void> => {
       /**
        * If the error is an instance of AuthenticationError,
        * and we are not currently refreshing the authentication,
        * attempt to refresh the authentication.
-       */
+      */
       if (
-        error instanceof AuthenticationError 
+        error instanceof AuthenticationError
         && !isRefreshingAuthentication.current
       ) {
         /**
          * Set the refreshing authentication flag to true.
          */
         isRefreshingAuthentication.current = true;
-
+      
         try {
           /**
            * Attempt to refresh the authentication.
            * If it succeeds, the useEffect will re-run
-           * and the facetted search will be performed again.
+           * and the related items request will be performed again.
            */
           await refreshAuthentication();
         } catch (authenticationError) {
@@ -159,7 +160,7 @@ export const useFacettedSearch = (request: FacettedSearchApiRequest = {}) => {
            * set the state with the error.
            */
           setState({ 
-            items: null, 
+            relatedItems: null, 
             loading: false, 
             error: authenticationError as Error,
           });
@@ -169,13 +170,25 @@ export const useFacettedSearch = (request: FacettedSearchApiRequest = {}) => {
            */
           isRefreshingAuthentication.current = false;
         }
+      } else if (error instanceof RelatedItemsGarmentNotFoundError) {
+        /**
+         * If the error is a RelatedItemsGarmentNotFoundError,
+         * it means the item was not found in the related items API,
+         * but we don't consider this an error in the 
+         * context of the application.
+         */
+        setState({ 
+          relatedItems: null,
+          loading: false,
+          error: null,
+        });
       } else {
         /**
          * If the error is not an AuthenticationError, 
          * set the state with the error.
          */
         setState({ 
-          items: null, 
+          relatedItems: null, 
           loading: false, 
           error: error as Error 
         });
@@ -183,10 +196,10 @@ export const useFacettedSearch = (request: FacettedSearchApiRequest = {}) => {
     }
 
     /**
-     * Run the facetted search handler.
+     * Run the related items handler.
      */
-    handleFacettedSearch();
+    handleRelatedItems();
   }, [credentials, request, domain, refreshAuthentication]);
-  
+
   return state;
-}
+};

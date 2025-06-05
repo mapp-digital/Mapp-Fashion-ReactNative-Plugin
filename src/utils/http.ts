@@ -1,4 +1,5 @@
 import { FacettedSearchApiRequest } from "../types/facetted-search";
+import { RelatedItemsApiRequest } from "../types/related-items";
 
 /**
  * Creates a query parameters object from a request object, to be used for the
@@ -8,7 +9,7 @@ import { FacettedSearchApiRequest } from "../types/facetted-search";
  * @returns An object containing the query parameters as key-value pairs.
  */
 export const createQueryParameters = (
-  req: FacettedSearchApiRequest
+  req: FacettedSearchApiRequest | RelatedItemsApiRequest
 ): Record<string, string> => {
   /**
    * Loop through the request object and convert each key-value pair 

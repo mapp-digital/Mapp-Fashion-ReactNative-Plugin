@@ -9,6 +9,7 @@
     "Ecommerce",
     "iglu",
     "Queueable",
+    "reparentable",
     "snakecase"
   ]
 }
