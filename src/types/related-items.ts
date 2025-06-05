@@ -111,7 +111,7 @@ export type RelatedItemsMappedResponse = {
 /**
  * Represents an outfit with a list of items for an occasion.
  */
-type Outfit = {
+export type Outfit = {
   content_id: string;
   occasion: string;
   items: DetailedItem[];
