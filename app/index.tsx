@@ -14,11 +14,8 @@ export default function Home() {
     <View className="flex-1 bg-neutral-50 p-page">
       <View className="justify-center flex-1">
         {/* Welcome Card */}
-        <Card 
-          variant="elevated" 
-          className="items-center justify-center h-32 mb-8"
-        >
-          <Body color="neutral" weight="medium">
+        <Card className="items-center justify-center h-32 mb-8 border border-neutral-100">
+          <Body className="font-medium text-neutral-600">
             Welcome to the Store.
           </Body>
         </Card>
@@ -26,9 +23,8 @@ export default function Home() {
         {/* Navigation Button */}
         <Button
           title="Browse Products"
-          variant="primary"
-          size="lg"
-          fullWidth
+          className="w-full px-8 py-4 bg-primary-500 active:bg-primary-600"
+          textClassName="text-white text-lg"
           onPress={handleNavigateToPLP}
         />
 
@@ -36,9 +32,8 @@ export default function Home() {
         <View className="mt-4">
           <Button
             title="View Categories"
-            variant="outline"
-            size="md"
-            fullWidth
+            className="w-full bg-transparent border-2 border-primary-500 active:bg-primary-50"
+            textClassName="text-primary-500"
             onPress={() => {
               // Placeholder for future functionality
               console.log('Categories pressed');
@@ -49,7 +44,7 @@ export default function Home() {
 
       {/* Footer Section */}
       <View className="items-center mt-8">
-        <Body color="neutral" className="text-sm text-center">
+        <Body className="text-sm text-center text-neutral-600">
           Discover amazing products tailored just for you
         </Body>
       </View>
