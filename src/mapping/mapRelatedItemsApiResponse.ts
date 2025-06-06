@@ -12,53 +12,108 @@ import { DetailedItem } from "../types/shared";
 export const mapRelatedItemsApiResponse = (
   response: RelatedItemsApiResponse,
   format: ResponseFormat,
-) => {
-  const formatter = getItemFormatter(
-    format, 
-    indexResponseItems(response.garment_data),
-  );
+): RelatedItemsMappedResponse => {
+  /**
+   * Throws an error if the format is not supported.
+   */
+  if (format !== ResponseFormat.Detailed) {
+    throw new Error(`[Dressipi] Unknown format ${format}`);
+  }
 
-  return formatRelatedItemResponse(formatter)(response);
-}
+  /**
+   * Indexes the items from the related items API response
+   * to a Map for quick lookup by item ID.
+   */
+  const itemsIndex = indexResponseItems(response.garment_data);
 
-/**
- * Type for a function that formats an item from the related items API response
- * to a DetailedItem object.
- */
-type ItemFormatter = (data: RelatedItemsAPIResponseItemIDsOnly) => DetailedItem;
+  /**
+   * Maps the related items API response to a structured format
+   * that can be used in the application.
+   */
+  const result: RelatedItemsMappedResponse = {
+    response_id: response.event_id,
+  };
 
-const getItemFormatter = (
-  format: ResponseFormat, 
-  items: Record<number, RelatedItemsAPIResponseItem>
-): ItemFormatter => (data: RelatedItemsAPIResponseItemIDsOnly) => {
-    switch (format) {
-      case ResponseFormat.Detailed: {
-        return mapResponseItemToDetailedItem(items[data.raw_garment_id])
-      }
-    default:
-      throw new Error(`[Dressipi] Unknown format ${format}`)
+  /**
+   * Maps outfits from the related items API response.
+   */
+  if (response.outfits) {
+    result.outfits = response.outfits.map(outfit => 
+      formatRelatedItemsOutfit(outfit, response.source, itemsIndex)
+    );
+  }
+
+  /**
+   * Maps partner outfits if they exist.
+   */
+  if (response.partner_outfits) {
+    result.partner_outfits = response.partner_outfits.map(outfit =>
+      formatRelatedItemsOutfit(outfit, response.source, itemsIndex)
+    );
+  }
+
+  /**
+   * Maps similar items if they exist and have a valid content ID.
+   */
+  if (response.similar_items) {
+    if (
+      response.similar_items.content_id 
+      && response.similar_items.content_id !== '000000000000000000000000'
+    ) {
+      result.similar_items = {
+        content_id: response.similar_items.content_id,
+        items: response.similar_items.items.map(item => 
+          mapItemIDsOnlyToDetailedItem(item, itemsIndex)
+        ),
+      };
     }
   }
 
+  return result;
+};
+
 /**
  * Maps the list of items from the related items API response
- * to a record indexed by item ID.
+ * to a Map indexed by item ID for quick lookup.
+ * 
+ * @param data - Array of items from the API response.
+ * @returns A Map indexed by item ID.
  */
 const indexResponseItems = (
   data: RelatedItemsAPIResponseItem[],
-): Record<number, RelatedItemsAPIResponseItem> => {
-  return (data || []).reduce((acc, item) => {
-    acc[item.id] = item
-    return acc
-  }, {} as Record<number, RelatedItemsAPIResponseItem>);
-}
+): Map<number, RelatedItemsAPIResponseItem> => {
+  return new Map(
+    (data || []).map(item => [item.id, item])
+  );
+};
+
+/**
+ * Maps an item ID reference to a DetailedItem object by looking it up
+ * in the indexed items Map.
+ * 
+ * @param itemIdData - The item ID reference from the API response.
+ * @param itemsIndex - The Map of indexed items for quick lookup.
+ * @returns A DetailedItem object containing the mapped data.
+ */
+const mapItemIDsOnlyToDetailedItem = (
+  itemIdData: RelatedItemsAPIResponseItemIDsOnly,
+  itemsIndex: Map<number, RelatedItemsAPIResponseItem>
+): DetailedItem => {
+  const responseItem = itemsIndex.get(itemIdData.raw_garment_id);
+  
+  if (!responseItem) {
+    throw new Error(`[Dressipi] Item with ID ${itemIdData.raw_garment_id} not found in response data`);
+  }
+  
+  return mapResponseItemToDetailedItem(responseItem);
+};
 
 /**
  * Maps a single item from the related items API response
  * to a DetailedItem object.
  * 
  * @param responseItem - The item from the related items API response.
- * @returns {DetailedItem} A DetailedItem object containing the mapped data.
+ * @returns A DetailedItem object containing the mapped data.
  */
 const mapResponseItemToDetailedItem = (
   responseItem: RelatedItemsAPIResponseItem
@@ -82,57 +137,22 @@ const mapResponseItemToDetailedItem = (
 });
 
 /**
- * Formats the related items API response to a mapped response
- * that can be used in the application.
- * 
- * @param formatter - The function to format the items.
- * @returns {RelatedItemsMappedResponse} The mapped response containing outfits and similar items.
- */
-const formatRelatedItemResponse = (formatter: ItemFormatter) =>
-  (data: RelatedItemsApiResponse): RelatedItemsMappedResponse => {
-    const result: RelatedItemsMappedResponse = {
-      response_id: data.event_id,
-    };
-
-    if (data.outfits) {
-      result.outfits = 
-        data.outfits.map(formatRelatedItemsOutfit(formatter, data.source));
-    }
-
-    if (data.partner_outfits) {
-      result.partner_outfits = 
-        data.partner_outfits.map(
-          formatRelatedItemsOutfit(formatter, data.source)
-        );
-    }
-
-    if (data.similar_items) {
-      if (
-        data.similar_items.content_id 
-        && data.similar_items.content_id !== '000000000000000000000000'
-      ) {
-        result.similar_items = {
-          content_id: data.similar_items.content_id,
-          items: data.similar_items.items.map(formatter),
-        };
-      }
-    }
-
-    return result;
-  }
-
-/**
  * Formats an outfit from the related items API response
  * to a format that can be used in the application.
  * 
- * @param formatter - The function to format the items.
+ * @param outfit - The outfit from the API response.
  * @param source - The source item from the related items API response.
+ * @param itemsIndex - The Map of indexed items for quick lookup.
+ * @returns A formatted outfit object.
  */
 const formatRelatedItemsOutfit = (
-  formatter: ItemFormatter, 
-  source: RelatedItemsAPIResponseItemIDsOnly
-) => (outfit: RelatedItemsApiResponseOutfit) => ({
-    content_id: outfit.content_id,
-    occasion: outfit.occasion,
-    items: [source].concat(outfit.items).map(formatter),
-  });
+  outfit: RelatedItemsApiResponseOutfit,
+  source: RelatedItemsAPIResponseItemIDsOnly,
+  itemsIndex: Map<number, RelatedItemsAPIResponseItem>
+) => ({
+  content_id: outfit.content_id,
+  occasion: outfit.occasion,
+  items: [source, ...outfit.items].map(item => 
+    mapItemIDsOnlyToDetailedItem(item, itemsIndex)
+  ),
+});
