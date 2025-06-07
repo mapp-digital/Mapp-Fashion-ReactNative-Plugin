@@ -8,7 +8,7 @@ export type FacetedSearchState = {
   items: FacettedSearchMappedResponse | null;
   loading: boolean;
   error: Error | null;
-}
+};
 
 /**
  * Type for a facetted search request that can be sent to the Dressipi API.
@@ -18,7 +18,7 @@ export type FacettedSearchApiRequest = {
   response_format?: ResponseFormat;
   page?: number;
   per_page?: number;
-}
+};
 
 /**
  * Type for a facetted search request that includes a single filter.
@@ -33,14 +33,14 @@ export type FacetSingleFilter = {
 export type FacetMultipleFilter = {
   name: FacettedSearchParameterDimension
   filters: (ValueFacetFilter | RangeFacetFilter)[];
-}
+};
 
 /**
  * Type of filter for a facetted search request that uses an array of values.
  */
 type ValueFacetFilter = {
   value: unknown[];
-}
+};
 
 /**
  * Type of filter for a facetted search request that uses a range of values.
@@ -48,7 +48,7 @@ type ValueFacetFilter = {
 type RangeFacetFilter = {
   from?: number;
   to?: number;
-}
+};
 
 /**
  * Type for the response from the Dressipi API for facetted search.
@@ -62,7 +62,7 @@ export type FacettedSearchApiResponse = {
     total_entries: number;
     current_page: number;
   };
-}
+};
 
 /**
  * Type for a single item in the facetted search API response.
@@ -94,11 +94,18 @@ export type FacettedSearchMappedResponse = {
     current_page: number;
     total_items: number;
   };
-}
+};
 
+/**
+ * Options for the dimensions of the facetted search parameters.
+ */
 export type FacettedSearchParameterDimension = 'garment_category' | 'brand' 
   | 'occasion' | 'must_have' | 'retailer_labels' | 'store' | 'feature_ids' 
-  | 'not_feature_ids' | 'price' | 'reduced_by'
+  | 'not_feature_ids' | 'price' | 'reduced_by';
 
+/**
+ * Options for the garment status of the facetted search parameters.
+ */
 export type FacettedSearchApiResponseItemGarmentStatus = 
   'in stock' | 'out of stock';
+  

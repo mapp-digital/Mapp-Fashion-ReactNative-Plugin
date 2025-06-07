@@ -18,7 +18,7 @@ export type DetailedItem = {
   has_outfits: boolean;
   status: DetailedItemStatus;
   style_id?: string;
-}
+};
 
 /**
  * Type for the status of a Dressipi API item.

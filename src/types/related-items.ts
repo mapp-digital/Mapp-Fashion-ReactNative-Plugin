@@ -40,7 +40,7 @@ export type RelatedItemsApiResponse = {
     content_id: string
     items: RelatedItemsAPIResponseItemIDsOnly[]
   }
-}
+};
 
 /**
  * Type for an item in the related items API response.

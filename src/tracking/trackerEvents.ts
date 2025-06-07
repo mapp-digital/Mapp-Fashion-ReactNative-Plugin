@@ -2,13 +2,20 @@ import type { EcommerceTransactionProps } from '@snowplow/react-native-tracker';
 import CryptoJS from 'crypto-js';
 import { isNil, omitBy } from 'lodash-es';
 import snakecaseKeys from "snakecase-keys";
-import { Identification, ProductListPageEvent, QueueableEvents, QueuedEvent, TrackingItem } from '../types/tracking';
+import {
+  Identification,
+  ProductListPageEvent,
+  QueueableEvents,
+  QueuedEvent,
+  TrackingItem
+} from '../types/tracking';
 
 /**
  * Create a queued event for tracking an order.
  * 
  * @param order - The order details to be tracked.
- * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to a queued event object.
+ * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to 
+ * a queued event object.
  */
 export const order = async (
   order: EcommerceTransactionProps
@@ -22,8 +29,10 @@ export const order = async (
 /**
  * Creates a queued event for tracking an "add to basket" action.
  * 
- * @param item - The item added to the basket, containing properties like sku, quantity, etc.
- * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to a queued event object.
+ * @param item - The item added to the basket, containing properties 
+ * like sku, quantity, etc.
+ * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to 
+ * a queued event object.
  */
 export const addToBasket = async (
   item: TrackingItem
@@ -60,7 +69,8 @@ export const addToBasket = async (
  * Creates a queued event for tracking an "remove from basket" action.
  * 
  * @param item - The item removed from the basket.
- * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to a queued event object.
+ * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to 
+ * a queued event object.
  */
 export const removeFromBasket = async (
   item: TrackingItem
@@ -96,8 +106,10 @@ export const removeFromBasket = async (
 /**
  * Creates a queued event for tracking a product list page view.
  * 
- * @param event - The product list page event containing page number, items, and filters.
- * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to a queued event object.
+ * @param event - The product list page event containing page number, items 
+ * and filters.
+ * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to 
+ * a queued event object.
  */
 export const productListPageView = async (
   event: ProductListPageEvent
@@ -123,7 +135,8 @@ export const productListPageView = async (
  * Creates a queued event for tracking a product detail page view.
  * 
  * @param item - The item being viewed on the product detail page.
- * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to a queued event object.
+ * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to 
+ * a queued event object.
  */
 export const productDetailPageView = async (
   item: TrackingItem
@@ -157,7 +170,8 @@ export const identify = (namespaceId: string) =>
   async (data: Identification): Promise<QueuedEvent<QueueableEvents>> => {    
     /**
      * If the data object does not contain either an email or customerId,
-     * throw an error indicating that at least one of these identifiers is required.
+     * throw an error indicating that at least one of these identifiers 
+     * is required.
      */
     if (!data || !data.customerId || !data.email) {
       throw new Error(
@@ -170,16 +184,25 @@ export const identify = (namespaceId: string) =>
      * For emails (containing '@'), hash them with namespaceId.
      * For other values, use them directly.
      */
-    const identifiers = Object.entries(data).map(([key, value]) => {
-      if (value.indexOf('@') === -1) {
-        // Not an email - use value directly
-        return { key, value };
-      }
+    const identifiers: Record<string, string>[] 
+      = Object.entries(data).map(([key, value]) => {
+        if (value.indexOf('@') === -1) {
+          /**
+           * If the value does not contain an '@', return it as is.
+           */
+          return { key, value };
+        }
       
-      // Email detected - hash it with namespaceId for privacy
-      const hashedValue = CryptoJS.SHA256(value + '_' + namespaceId).toString();
-      return { key, value: hashedValue };
-    });
+        /**
+         * Hash the email value with the namespaceId to create 
+         * a unique identifier.
+         */
+        const hashedValue: string = CryptoJS
+          .SHA256(value + '_' + namespaceId)
+          .toString();
+        
+        return { key, value: hashedValue };
+      });
 
     return {
       event: 'trackSelfDescribingEvent',

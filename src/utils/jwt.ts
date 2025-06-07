@@ -4,19 +4,19 @@ import { AccessToken, AuthCredentials } from "../types/auth";
  * Decodes the access token from the provided JWT string.
  * 
  * @param {string} token - The JWT access token to decode.
- * @returns {AccessToken | false} - Returns the decoded access token if valid, otherwise false.
+ * @returns {AccessToken | false} - Returns the decoded access token if valid, 
+ * otherwise false.
  */
 const decodeAccessToken = (token: string): AccessToken | false => {
   try {
-    const parts = token.split('.');
+    const parts: string[] = token.split('.');
 
     if (parts.length !== 3) {
       return false;
     }
   
     return JSON.parse(atob(parts[1])) as AccessToken;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (error) {
+  } catch {
     /**
      * An error occurs during decoding, probably an invalid token format.
      */
@@ -27,8 +27,10 @@ const decodeAccessToken = (token: string): AccessToken | false => {
 /**
  * Checks if the provided credentials' access token has expired.
  * 
- * @param {AuthCredentials} credentials - The authentication credentials containing the access token.
- * @returns {boolean} - Returns true if the token has expired or is not available, otherwise false.
+ * @param {AuthCredentials} credentials - The authentication credentials 
+ * containing the access token.
+ * @returns {boolean} - Returns true if the token has expired or 
+ * is not available, otherwise false.
  */
 export const accessTokenHasExpired = (
   credentials: AuthCredentials
@@ -64,8 +66,10 @@ export const accessTokenHasExpired = (
 /**
  * Retrieves the user ID from the access token in the provided credentials.
  * 
- * @param {AuthCredentials} credentials - The authentication credentials containing the access token.
- * @returns {string | undefined | null} - Returns the user ID if available, otherwise null.
+ * @param {AuthCredentials} credentials - The authentication credentials 
+ * containing the access token.
+ * @returns {string | null} - Returns the user ID if available, 
+ * otherwise null.
  */
 export const getNetworkUserId = (
   credentials: AuthCredentials

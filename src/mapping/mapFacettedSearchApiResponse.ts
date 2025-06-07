@@ -1,4 +1,8 @@
-import { FacettedSearchApiResponse, FacettedSearchApiResponseItem, FacettedSearchMappedResponse } from "../types/facetted-search";
+import {
+  FacettedSearchApiResponse,
+  FacettedSearchApiResponseItem,
+  FacettedSearchMappedResponse
+} from "../types/facetted-search";
 import { DetailedItem } from "../types/shared";
 
 /**

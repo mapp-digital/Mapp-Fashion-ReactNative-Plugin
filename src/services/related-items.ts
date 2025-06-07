@@ -1,6 +1,8 @@
-import axios, { AxiosError } from "axios";
+import axios, { AxiosError, AxiosResponse } from "axios";
 import { AuthenticationError } from "../errors/AuthenticationError";
-import { RelatedItemsGarmentNotFoundError } from "../errors/RelatedItemsGarmentNotFoundError";
+import {
+  RelatedItemsGarmentNotFoundError
+} from "../errors/RelatedItemsGarmentNotFoundError";
 import { AuthCredentials } from "../types/auth";
 import { RelatedItemsApiResponse } from "../types/related-items";
 
@@ -11,9 +13,11 @@ import { RelatedItemsApiResponse } from "../types/related-items";
  * @param parameters - The query parameters to include in the request.
  * @param itemId - The ID of the item for which related items are requested.
  * @param credentials - The authentication credentials to use for the request.
- * @returns {Promise<RelatedItemsApiResponse>} A promise that resolves to the response from the related items API.
+ * @returns {Promise<RelatedItemsApiResponse>} A promise that resolves to 
+ * the response from the related items API.
  * @throws {AuthenticationError} If the authentication fails (401 or 403).
- * @throws {RelatedItemsGarmentNotFoundError} If the garment is not found in the related items API.
+ * @throws {RelatedItemsGarmentNotFoundError} If the garment is not found in 
+ * the related items API.
  * @throws {Error} For other errors that occur during the API call.
  */
 export const getRelatedItems = async (
@@ -32,7 +36,8 @@ export const getRelatedItems = async (
     /**
      * Make the API call to the related items endpoint.
      */
-    const response = await axios.get(
+    const response: AxiosResponse<RelatedItemsApiResponse> = 
+      await axios.get<RelatedItemsApiResponse>(
       `https://${domain}/api/items/${encodeURIComponent(itemId)}/related?${queryString}`,
       {
         headers: {
@@ -49,7 +54,7 @@ export const getRelatedItems = async (
     /**
      * Convert the error to an AxiosError type.
      */
-    const axiosError = error as AxiosError;
+    const axiosError: AxiosError = error as AxiosError;
     
     if (axiosError.status === 401 || axiosError.status === 403) {
       /**
@@ -67,7 +72,7 @@ export const getRelatedItems = async (
        * throw a RelatedItemsGarmentNotFoundError.
        */
       if (errorPayload && errorPayload.error.message === 'Garment not found') {
-        throw new RelatedItemsGarmentNotFoundError('Garment not found')
+        throw new RelatedItemsGarmentNotFoundError('Garment not found');
       }
 
       /**

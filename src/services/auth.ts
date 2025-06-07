@@ -1,7 +1,7 @@
 import axios, { AxiosResponse } from 'axios';
 import uuid from 'react-native-uuid';
 import { AuthCredentials, AuthorizationResponse } from "../types/auth";
-import { pkceChallenge } from '../utils/pkce';
+import { PKCEChallenge, pkceChallenge } from '../utils/pkce';
 
 /**
  * This function handles the authentication process with the Dressipi API.
@@ -10,7 +10,8 @@ import { pkceChallenge } from '../utils/pkce';
  * 
  * @param {string} clientId - The client ID for the Dressipi API.
  * @param {string} domain - The domain of the Dressipi API.
- * @returns {Promise<AuthCredentials>} - A promise that resolves to the authentication credentials.
+ * @returns {Promise<AuthCredentials>} - A promise that resolves to 
+ * the authentication credentials.
  */
 export const authenticate = async (
   clientId: string, 
@@ -20,7 +21,7 @@ export const authenticate = async (
    * Create a PKCE challenge and also an unique state UUID 
    * to use in the authentication flow.
    */
-  const challenge = pkceChallenge();
+  const challenge: PKCEChallenge = pkceChallenge();
   const stateUuid: string = uuid.v4().toString();
 
   /**
@@ -57,7 +58,9 @@ export const authenticate = async (
     /**
      * If there was an error sending the request, throw an error.
      */
-    throw new Error(`There was an error authenticating with Dressipi: ${(error as Error).message}`);
+    throw new Error(
+      `There was an error authenticating with Dressipi: ${(error as Error).message}`
+    );
   }
 
   if (authorizationResponse.state !== stateUuid) {
@@ -76,7 +79,7 @@ export const authenticate = async (
   /**
    * Construct the Query String for the token request's URL.
    */
-  const tokenRequestQueryString = new URLSearchParams({
+  const tokenRequestQueryString: string = new URLSearchParams({
     redirect_uri: "urn:ietf:wg:oauth:2.0:oob:auto",
     grant_type: "authorization_code",
     client_id: clientId,
@@ -101,7 +104,9 @@ export const authenticate = async (
     /**
      * If there was an error sending the request, throw an error.
      */
-    throw new Error(`There was an error authenticating with Dressipi: ${(error as Error).message}`);
+    throw new Error(
+      `There was an error authenticating with Dressipi: ${(error as Error).message}`
+    );
   }
 
   return tokenResponse;
@@ -110,20 +115,22 @@ export const authenticate = async (
 /**
  * Refreshes the authentication token using the refresh token.
  * 
- * @param {AuthCredentials} outdatedCredentials - The current authentication credentials.
+ * @param {AuthCredentials} outdatedCredentials - The current authentication 
+ * credentials.
  * @param {string} clientId - The client ID for the Dressipi API.
  * @param {string} domain - The domain of the Dressipi API.
- * @returns {Promise<AuthCredentials>} - A promise that resolves to the new authentication credentials.
+ * @returns {Promise<AuthCredentials>} - A promise that resolves to the new
+ * authentication credentials.
  */
 export const refreshToken = async (
   outdatedCredentials: AuthCredentials, 
   clientId: string, 
   domain: string
-) => {
+): Promise<AuthCredentials> => {
   /**
    * Construct the Query String for the refresh token request's URL.
    */
-  const refreshTokenRequestQueryString = new URLSearchParams({
+  const refreshTokenRequestQueryString: string = new URLSearchParams({
     redirect_uri: "urn:ietf:wg:oauth:2.0:oob:auto",
     grant_type: "refresh_token",
     client_id: clientId,
@@ -147,6 +154,8 @@ export const refreshToken = async (
     /**
      * If there was an error sending the request, throw an error.
      */
-    throw new Error(`There was an error authenticating with Dressipi: ${(error as Error).message}`);
+    throw new Error(
+      `There was an error authenticating with Dressipi: ${(error as Error).message}`
+    );
   }
 }

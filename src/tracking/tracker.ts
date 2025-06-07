@@ -30,6 +30,8 @@ const baseTrackerConfiguration = {
  * namespace ID from the Provider.
  * @param domain - The domain for the tracker.
  * @param networkUserId - The user ID for the tracker.
+ * @return {ReactNativeTracker} A Snowplow React Native Tracker instance or 
+ * null if the networkUserId is not provided.
  */
 export const createTracker = (
   appId: string, 

@@ -5,8 +5,10 @@ import { RelatedItemsApiRequest } from "../types/related-items";
  * Creates a query parameters object from a request object, to be used for the
  * query string of an API request.
  * 
- * @param req - The request object containing the parameters for the facetted search.
- * @returns An object containing the query parameters as key-value pairs.
+ * @param req - The request object containing the parameters for the 
+ * facetted search.
+ * @returns {Record<string, string>} An object containing the query parameters 
+ * as key-value pairs.
  */
 export const createQueryParameters = (
   req: FacettedSearchApiRequest | RelatedItemsApiRequest
@@ -65,16 +67,23 @@ export const createQueryParameters = (
  * Converts a value to a string, handling undefined, null, and boolean values.
  * 
  * @param value - The value to convert.
- * @returns The string representation of the value, or undefined if the value is null or undefined.
+ * @returns {string | undefined} The string representation of the value, 
+ * or undefined if the value is null or undefined.
  */
 const convertToString = (value: unknown): string | undefined => {
   if (value === undefined || value === null) {
     return undefined;
   }
 
+  /**
+   * If the value is a boolean, we convert it to 'true' or 'false'.
+   */
   if (typeof value === 'boolean') {
     return value ? 'true' : 'false';
   }
 
+  /**
+   * For all other types, we convert the value to a string.
+   */
   return String(value);
 }

@@ -15,7 +15,7 @@ export type ContextConfiguration = {
   queue: RefObject<Queue<QueueableEvents> | null> | null;
   credentials: AuthCredentials | null;
   refreshAuthentication: () => void;
-}
+};
 
 /**
  * Additional properties required for the Dressipi context provider.
@@ -24,9 +24,9 @@ type ProviderAdditionalProps = {
   namespaceId: string;
   domain: string;
   clientId: string;
-}
+};
 
 /**
  * Props for the Dressipi context provider.
  */
-export type ProviderProps = PropsWithChildren<ProviderAdditionalProps>
+export type ProviderProps = PropsWithChildren<ProviderAdditionalProps>;

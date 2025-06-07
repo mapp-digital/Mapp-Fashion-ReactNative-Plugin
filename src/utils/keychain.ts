@@ -18,7 +18,8 @@ export const getCredentialsFromKeychain = async (
      * Retrieve the Dressipi credentials from the keychain using the provided
      * serverUrl.
      */
-    const credentials = await KeyChain.getInternetCredentials(serverUrl);
+    const credentials: KeyChain.UserCredentials | false = 
+      await KeyChain.getInternetCredentials(serverUrl);
 
     /**
      * If the credentials are not found or the username does not match the
@@ -34,8 +35,7 @@ export const getCredentialsFromKeychain = async (
      * into the AuthCredentials type.
      */
     return JSON.parse(credentials.password) as AuthCredentials;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (error) {
+  } catch {
     /**
      * If there was an error retrieving the credentials from the keychain,
      * return null.
@@ -50,7 +50,8 @@ export const getCredentialsFromKeychain = async (
  * @param clientId - The client ID for the Dressipi API.
  * @param serverUrl - The server URL for the Dressipi API.
  * @param token - The access token for the Dressipi API.
- * @return {Promise<void>} - A promise that resolves when the credentials are set.
+ * @return {Promise<void>} - A promise that resolves when the 
+ * credentials are set.
  */
 export const setCredentialsToKeychain = async (
   clientId: string, 
@@ -94,7 +95,8 @@ export const setCredentialsToKeychain = async (
  * the provided serverUrl.
  * 
  * @param serverUrl - The server URL for the Dressipi API.
- * @return {Promise<void>} - A promise that resolves when the credentials are deleted.
+ * @return {Promise<void>} - A promise that resolves when the 
+ * credentials are deleted.
  */
 export const resetCredentialsFromKeychain = async (
   serverUrl: string
