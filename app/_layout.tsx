@@ -1,10 +1,15 @@
 import { Stack } from "expo-router";
 import { StatusBar } from 'expo-status-bar';
+import { DressipiProvider } from '../src';
 import './global.css';
 
 export default function RootLayout() {
   return (
-    <>
+    <DressipiProvider 
+      namespaceId="00000000-0000-0000-0000-000000000000"
+      domain="dressipi-production.countryroad.com.au"
+      clientId="cr-mobile-app-test"
+    >
       <StatusBar style="auto" />
       <Stack
         screenOptions={{
@@ -45,6 +50,6 @@ export default function RootLayout() {
           }} 
         />
       </Stack>
-    </>
+    </DressipiProvider>
   );
 }

@@ -1,31 +1,23 @@
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback } from 'react';
 import { View } from 'react-native';
 import { Body, Button, Card, Heading3, ProductGrid } from '../components';
-import { mockFacettedSearchResponse, simulateLoading } from '../data/mockData';
-import { DetailedItem, FacettedSearchMappedResponse } from '../src';
+import { DetailedItem, useFacettedSearch } from '../src';
 
 export default function PLP() {
-  const [searchData, setSearchData] = useState<FacettedSearchMappedResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { loading, error, items } = useFacettedSearch({
+    facets: [{
+      name: 'garment_category',
+      value: [1],
+    }]
+  });
 
   const handleNavigateHome = () => {
     router.push('/' as any);
   };
 
-  const handleNavigateToPDP = (item: DetailedItem) => {
+  const handleNavigateToPDP = useCallback((item: DetailedItem) => {
     router.push(`/pdp/${item.id}` as any);
-  };
-
-  useEffect(() => {
-    const loadProducts = async () => {
-      setLoading(true);
-      await simulateLoading(1500); // Simulate network delay
-      setSearchData(mockFacettedSearchResponse);
-      setLoading(false);
-    };
-
-    loadProducts();
   }, []);
 
   return (
@@ -48,9 +40,21 @@ export default function PLP() {
           <View className="items-center justify-center flex-1">
             <Body className="text-neutral-500">Loading products...</Body>
           </View>
+        ) : error ? (
+          <View className="items-center justify-center flex-1 p-page">
+            <Body className="mb-4 text-center text-error-600">
+              Error loading products: {error.message}
+            </Body>
+            <Button
+              title="Try Again"
+              className="bg-primary-500 active:bg-primary-600"
+              textClassName="text-white"
+              onPress={handleNavigateHome}
+            />
+          </View>
         ) : (
           <ProductGrid 
-            items={searchData?.items} 
+            items={items?.items} 
             onPress={handleNavigateToPDP}
             loading={loading}
           />
