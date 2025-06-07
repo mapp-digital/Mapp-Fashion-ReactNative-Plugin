@@ -1,6 +1,6 @@
 import type { EcommerceTransactionProps } from '@snowplow/react-native-tracker';
+import CryptoJS from 'crypto-js';
 import { isNil, omitBy } from 'lodash-es';
-import { sha256 } from "react-native-sha256";
 import snakecaseKeys from "snakecase-keys";
 import { Identification, ProductListPageEvent, QueueableEvents, QueuedEvent, TrackingItem } from '../types/tracking';
 
@@ -154,7 +154,7 @@ export const productDetailPageView = async (
  * @param namespaceId - The namespace ID used for hashing the email.
  */
 export const identify = (namespaceId: string) => 
-  async (data: Identification): Promise<QueuedEvent<QueueableEvents>> => {
+  async (data: Identification): Promise<QueuedEvent<QueueableEvents>> => {    
     /**
      * If the data object does not contain either an email or customerId,
      * throw an error indicating that at least one of these identifiers is required.
@@ -166,42 +166,20 @@ export const identify = (namespaceId: string) =>
     }
 
     /**
-     * 
-     * The identifiers object is created by iterating over the data object,
-     * where each key-value pair is transformed into a promise that resolves
-     * to an object containing the key and a value (hashed, if it's an email).
+     * Create identifiers array by processing each data entry.
+     * For emails (containing '@'), hash them with namespaceId.
+     * For other values, use them directly.
      */
-    const identifiers = Object.entries(data).reduce((acc, [key, value]) => {
-      /**
-       * If the value does not contain an '@' character, 
-       * it is likely not a valid email.
-       */
+    const identifiers = Object.entries(data).map(([key, value]) => {
       if (value.indexOf('@') === -1) {
-        /**
-         * In this case, we set as a promise to be resolved immediately 
-         * with the key and value.
-         */
-        acc[key] = Promise.resolve({ key, value });
-
-        return acc;
+        // Not an email - use value directly
+        return { key, value };
       }
-
-      /**
-       * If the value is a valid email, we hash it using sha256
-       * and append the namespaceId to ensure uniqueness.
-       */
-      acc[key] = sha256(value + '_' + namespaceId)
-        .then((hashed: string) => ({ key, value: hashed }));
-
-      return acc;
-    }, {} as Record<string, Promise<{ key: string; value: string }>>);
-
-    /**
-     * We wait for all promises in the identifiers object to resolve.
-     */
-    const resolvedIdentifiers = await Promise.all(
-      Object.values(identifiers)
-    );
+      
+      // Email detected - hash it with namespaceId for privacy
+      const hashedValue = CryptoJS.SHA256(value + '_' + namespaceId).toString();
+      return { key, value: hashedValue };
+    });
 
     return {
       event: 'trackSelfDescribingEvent',
@@ -209,7 +187,7 @@ export const identify = (namespaceId: string) =>
         {
           schema: 'iglu:com.dressipi/identify/jsonschema/1-0-0',
           data: {
-            identifiers: resolvedIdentifiers,
+            identifiers,
           },
         },
       ],
