@@ -1,7 +1,7 @@
 import axios, { AxiosResponse } from 'axios';
-import pkceChallenge from 'react-native-pkce-challenge';
 import uuid from 'react-native-uuid';
 import { AuthCredentials, AuthorizationResponse } from "../types/auth";
+import { pkceChallenge } from '../utils/pkce';
 
 /**
  * This function handles the authentication process with the Dressipi API.
