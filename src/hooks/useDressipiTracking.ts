@@ -11,7 +11,14 @@ import { QueueableEvents, QueueableFunction, QueuedEvent, Tracking, TrackingItem
 import { useCallback, useContext, useMemo } from "react";
 import useDeepCompareEffect from "use-deep-compare-effect";
 
-
+/**
+ * Custom hook to access and manage Dressipi tracking events.
+ * This hook provides methods to track various events such as
+ * orders, adding/removing items from the basket, identifying users,
+ * and tracking product display and list page views.
+ * 
+ * @returns {Tracking} An object containing methods to track different events.
+ */
 export const useDressipiTracking = (): Tracking => {
   const { namespaceId, queue, tracker } = useContext(DressipiContext);
 
@@ -48,6 +55,13 @@ export const useDressipiTracking = (): Tracking => {
   }), [namespaceId, trackEvent]);
 }
 
+/**
+ * Custom hook to track product display page views.
+ * This hook uses the `useDressipiTracking` hook to
+ * send tracking data for a product display page view.
+ * 
+ * @param {TrackingItem} item - The item to track on the product display page.
+ */
 export const useDressipiProductDisplayPageTracking = (
   item: TrackingItem
 ): void => {
