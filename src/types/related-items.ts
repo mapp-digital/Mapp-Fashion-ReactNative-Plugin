@@ -1,7 +1,7 @@
-import { RelatedItemsIdentifierType } from "../enums/RelatedItemsIdentifierType";
-import { RelatedItemsMethod } from "../enums/RelatedItemsMethod";
-import { ResponseFormat } from "../enums/ResponseFormat";
-import { DetailedItem } from "./shared";
+import { RelatedItemsIdentifierType } from '../enums/RelatedItemsIdentifierType';
+import { RelatedItemsMethod } from '../enums/RelatedItemsMethod';
+import { ResponseFormat } from '../enums/ResponseFormat';
+import { DetailedItem } from './shared';
 
 /**
  * Type for the state of the related items feature.
@@ -30,16 +30,16 @@ export type RelatedItemsApiRequest = {
  * Type for the response from the Dressipi API for the related items.
  */
 export type RelatedItemsApiResponse = {
-  event_id: string
-  source: RelatedItemsAPIResponseItemIDsOnly
-  garment_data: RelatedItemsAPIResponseItem[]
-  reparentable: boolean
-  outfits: RelatedItemsApiResponseOutfit[]
-  partner_outfits: RelatedItemsApiResponseOutfit[]
+  event_id: string;
+  source: RelatedItemsAPIResponseItemIDsOnly;
+  garment_data: RelatedItemsAPIResponseItem[];
+  reparentable: boolean;
+  outfits: RelatedItemsApiResponseOutfit[];
+  partner_outfits: RelatedItemsApiResponseOutfit[];
   similar_items: {
-    content_id: string
-    items: RelatedItemsAPIResponseItemIDsOnly[]
-  }
+    content_id: string;
+    items: RelatedItemsAPIResponseItemIDsOnly[];
+  };
 };
 
 /**
@@ -95,7 +95,7 @@ export type RelatedItemsApiResponseOutfit = {
 };
 
 /**
- * Type for the mapped response data based on the 
+ * Type for the mapped response data based on the
  * Dressipi API related items response.
  */
 export type RelatedItemsMappedResponse = {

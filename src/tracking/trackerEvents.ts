@@ -1,20 +1,20 @@
 import type { EcommerceTransactionProps } from '@snowplow/react-native-tracker';
 import CryptoJS from 'crypto-js';
 import { isNil, omitBy } from 'lodash-es';
-import snakecaseKeys from "snakecase-keys";
+import snakecaseKeys from 'snakecase-keys';
 import {
   Identification,
   ProductListPageEvent,
   QueueableEvents,
   QueuedEvent,
-  TrackingItem
+  TrackingItem,
 } from '../types/tracking';
 
 /**
  * Create a queued event for tracking an order.
- * 
+ *
  * @param order - The order details to be tracked.
- * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to 
+ * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to
  * a queued event object.
  */
 export const order = async (
@@ -23,15 +23,15 @@ export const order = async (
   return {
     event: 'trackEcommerceTransactionEvent',
     data: [order],
-  }
+  };
 };
 
 /**
  * Creates a queued event for tracking an "add to basket" action.
- * 
- * @param item - The item added to the basket, containing properties 
+ *
+ * @param item - The item added to the basket, containing properties
  * like sku, quantity, etc.
- * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to 
+ * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to
  * a queued event object.
  */
 export const addToBasket = async (
@@ -43,7 +43,7 @@ export const addToBasket = async (
    */
   if (!item.sku || !item.quantity) {
     throw new Error(
-      "Dressipi addToBasket event requires a `sku` and quantity to be provided. This is the style+variant+size identifier and must match the product feed."
+      'Dressipi addToBasket event requires a `sku` and quantity to be provided. This is the style+variant+size identifier and must match the product feed.'
     );
   }
 
@@ -51,25 +51,26 @@ export const addToBasket = async (
     event: 'trackSelfDescribingEvent',
     data: [
       {
-        schema: "iglu:com.snowplowanalytics.snowplow/add_to_cart/jsonschema/1-0-0",
+        schema:
+          'iglu:com.snowplowanalytics.snowplow/add_to_cart/jsonschema/1-0-0',
         data: {
           sku: item.sku,
           name: item.name,
           category: item.category,
           unitPrice: item.price,
           quantity: item.quantity,
-          currency: item.currency
-        }
-      }
+          currency: item.currency,
+        },
+      },
     ],
   };
 };
 
 /**
  * Creates a queued event for tracking an "remove from basket" action.
- * 
+ *
  * @param item - The item removed from the basket.
- * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to 
+ * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to
  * a queued event object.
  */
 export const removeFromBasket = async (
@@ -81,7 +82,7 @@ export const removeFromBasket = async (
    */
   if (!item.sku || !item.quantity) {
     throw new Error(
-      "Dressipi removeFromBasket event requires a `sku` and quantity to be provided. This is the style+variant+size identifier and must match the product feed."
+      'Dressipi removeFromBasket event requires a `sku` and quantity to be provided. This is the style+variant+size identifier and must match the product feed.'
     );
   }
 
@@ -89,26 +90,27 @@ export const removeFromBasket = async (
     event: 'trackSelfDescribingEvent',
     data: [
       {
-        schema: "iglu:com.snowplowanalytics.snowplow/remove_from_cart/jsonschema/1-0-0",
+        schema:
+          'iglu:com.snowplowanalytics.snowplow/remove_from_cart/jsonschema/1-0-0',
         data: {
           sku: item.sku,
           name: item.name,
           category: item.category,
           unitPrice: item.price,
           quantity: item.quantity,
-          currency: item.currency
-        }
-      }
+          currency: item.currency,
+        },
+      },
     ],
   };
 };
 
 /**
  * Creates a queued event for tracking a product list page view.
- * 
- * @param event - The product list page event containing page number, items 
+ *
+ * @param event - The product list page event containing page number, items
  * and filters.
- * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to 
+ * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to
  * a queued event object.
  */
 export const productListPageView = async (
@@ -123,19 +125,19 @@ export const productListPageView = async (
           page: {
             number: event.page.number,
           },
-          items: event.items.map((item) => snakecaseKeys(item)),
+          items: event.items.map(item => snakecaseKeys(item)),
           filters: event.filters,
-        }
-      }
+        },
+      },
     ],
-  }
+  };
 };
 
 /**
  * Creates a queued event for tracking a product detail page view.
- * 
+ *
  * @param item - The item being viewed on the product detail page.
- * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to 
+ * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to
  * a queued event object.
  */
 export const productDetailPageView = async (
@@ -146,31 +148,35 @@ export const productDetailPageView = async (
     data: [
       {
         schema: 'iglu:com.dressipi/item_view/jsonschema/1-0-0',
-        data: omitBy({
-          product_code: item.productCode,
-          sku: item.sku,
-          price: item.price,
-          currency: item.currency,
-          barcode: item.barcode,
-          size: item.size,
-          item_name: item.name,
-          item_brand: item.brand,
-        }, isNil)
-      }
+        data: omitBy(
+          {
+            product_code: item.productCode,
+            sku: item.sku,
+            price: item.price,
+            currency: item.currency,
+            barcode: item.barcode,
+            size: item.size,
+            item_name: item.name,
+            item_brand: item.brand,
+          },
+          isNil
+        ),
+      },
     ],
-  }
+  };
 };
 
 /**
  * Creates a queued event for identifying a user.
- * 
+ *
  * @param namespaceId - The namespace ID used for hashing the email.
  */
-export const identify = (namespaceId: string) => 
-  async (data: Identification): Promise<QueuedEvent<QueueableEvents>> => {    
+export const identify =
+  (namespaceId: string) =>
+  async (data: Identification): Promise<QueuedEvent<QueueableEvents>> => {
     /**
      * If the data object does not contain either an email or customerId,
-     * throw an error indicating that at least one of these identifiers 
+     * throw an error indicating that at least one of these identifiers
      * is required.
      */
     if (!data || !data.customerId || !data.email) {
@@ -184,25 +190,26 @@ export const identify = (namespaceId: string) =>
      * For emails (containing '@'), hash them with namespaceId.
      * For other values, use them directly.
      */
-    const identifiers: Record<string, string>[] 
-      = Object.entries(data).map(([key, value]) => {
+    const identifiers: Record<string, string>[] = Object.entries(data).map(
+      ([key, value]) => {
         if (value.indexOf('@') === -1) {
           /**
            * If the value does not contain an '@', return it as is.
            */
           return { key, value };
         }
-      
+
         /**
-         * Hash the email value with the namespaceId to create 
+         * Hash the email value with the namespaceId to create
          * a unique identifier.
          */
-        const hashedValue: string = CryptoJS
-          .SHA256(value + '_' + namespaceId)
-          .toString();
-        
+        const hashedValue: string = CryptoJS.SHA256(
+          value + '_' + namespaceId
+        ).toString();
+
         return { key, value: hashedValue };
-      });
+      }
+    );
 
     return {
       event: 'trackSelfDescribingEvent',
@@ -215,4 +222,4 @@ export const identify = (namespaceId: string) =>
         },
       ],
     };
-  }
+  };

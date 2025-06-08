@@ -1,5 +1,5 @@
-import { ResponseFormat } from "../enums/ResponseFormat";
-import { DetailedItem } from "./shared";
+import { ResponseFormat } from '../enums/ResponseFormat';
+import { DetailedItem } from './shared';
 
 /**
  * Type for the state of the facetted search feature.
@@ -31,7 +31,7 @@ export type FacetSingleFilter = {
  * Type for a facetted search request that includes multiple filters.
  */
 export type FacetMultipleFilter = {
-  name: FacettedSearchParameterDimension
+  name: FacettedSearchParameterDimension;
   filters: (ValueFacetFilter | RangeFacetFilter)[];
 };
 
@@ -82,7 +82,7 @@ export type FacettedSearchApiResponseItem = {
 };
 
 /**
- * Type for the mapped response data based on the 
+ * Type for the mapped response data based on the
  * Dressipi API facetted search response.
  */
 export type FacettedSearchMappedResponse = {
@@ -99,13 +99,21 @@ export type FacettedSearchMappedResponse = {
 /**
  * Options for the dimensions of the facetted search parameters.
  */
-export type FacettedSearchParameterDimension = 'garment_category' | 'brand' 
-  | 'occasion' | 'must_have' | 'retailer_labels' | 'store' | 'feature_ids' 
-  | 'not_feature_ids' | 'price' | 'reduced_by';
+export type FacettedSearchParameterDimension =
+  | 'garment_category'
+  | 'brand'
+  | 'occasion'
+  | 'must_have'
+  | 'retailer_labels'
+  | 'store'
+  | 'feature_ids'
+  | 'not_feature_ids'
+  | 'price'
+  | 'reduced_by';
 
 /**
  * Options for the garment status of the facetted search parameters.
  */
-export type FacettedSearchApiResponseItemGarmentStatus = 
-  'in stock' | 'out of stock';
-  
+export type FacettedSearchApiResponseItemGarmentStatus =
+  | 'in stock'
+  | 'out of stock';

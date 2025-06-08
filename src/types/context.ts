@@ -4,7 +4,7 @@ import { AuthCredentials } from './auth';
 import { Queue, QueueableEvents } from './tracking';
 
 /**
- * Interface representing the configuration for the state 
+ * Interface representing the configuration for the state
  * of the Dressipi context.
  */
 export type ContextConfiguration = {

@@ -8,7 +8,7 @@ export type AuthState = AuthInternalState & {
 /**
  * Type representing the internal state of authentication hook.
  * It includes properties to track whether the user is authenticating,
- * authenticated, the credentials, network user ID, and 
+ * authenticated, the credentials, network user ID, and
  * any errors that may occur.
  */
 export type AuthInternalState = {
@@ -16,11 +16,11 @@ export type AuthInternalState = {
   networkUserId: string | null;
   isAuthenticating: boolean;
   isAuthenticated: boolean;
-  error: { message: string; code?: string; } | null;
+  error: { message: string; code?: string } | null;
 };
 
 /**
- * Type for the authentication credentials for the logged in user, 
+ * Type for the authentication credentials for the logged in user,
  * returned by the Dressipi API.
  */
 export type AuthCredentials = {
@@ -34,11 +34,11 @@ export type AuthCredentials = {
  * Payload of the bearer token, which is a JSON Web Token (JWT).
  */
 export type AccessToken = {
-  exp: number
-  iat: number
-  iss: string
-  sub: string
-  subn?: string
+  exp: number;
+  iat: number;
+  iss: string;
+  sub: string;
+  subn?: string;
 };
 
 /**

@@ -6,4 +6,4 @@ export enum RelatedItemsIdentifierType {
   EAN = 'ean',
   ProductCode = 'product-code',
   SKU = 'sku',
-};
+}

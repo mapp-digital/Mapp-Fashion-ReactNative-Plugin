@@ -3,14 +3,14 @@ import { AuthCredentials } from '../types/auth';
 
 /**
  * Retrieves the Dressipi credentials from the keychain.
- * 
+ *
  * @param clientId - The client ID for the Dressipi API.
  * @param serverUrl - The server URL for the Dressipi API.
  * @return {Promise<AuthCredentials | null>} - A promise that resolves to the
  * Dressipi credentials or null if not found.
  */
 export const getCredentialsFromKeychain = async (
-  clientId: string, 
+  clientId: string,
   serverUrl: string
 ): Promise<AuthCredentials | null> => {
   try {
@@ -18,7 +18,7 @@ export const getCredentialsFromKeychain = async (
      * Retrieve the Dressipi credentials from the keychain using the provided
      * serverUrl.
      */
-    const credentials: KeyChain.UserCredentials | false = 
+    const credentials: KeyChain.UserCredentials | false =
       await KeyChain.getInternetCredentials(serverUrl);
 
     /**
@@ -42,20 +42,20 @@ export const getCredentialsFromKeychain = async (
      */
     return null;
   }
-}
+};
 
 /**
  * Sets the Dressipi credentials to the keychain.
- * 
+ *
  * @param clientId - The client ID for the Dressipi API.
  * @param serverUrl - The server URL for the Dressipi API.
  * @param token - The access token for the Dressipi API.
- * @return {Promise<void>} - A promise that resolves when the 
+ * @return {Promise<void>} - A promise that resolves when the
  * credentials are set.
  */
 export const setCredentialsToKeychain = async (
-  clientId: string, 
-  serverUrl: string, 
+  clientId: string,
+  serverUrl: string,
   token: string
 ): Promise<void> => {
   /**
@@ -68,7 +68,7 @@ export const setCredentialsToKeychain = async (
   try {
     /**
      * Set the Dressipi credentials to the keychain using the provided clientId,
-     * serverUrl, and token. The username is generated based on the clientId. 
+     * serverUrl, and token. The username is generated based on the clientId.
      * The security level is set to SECURE_SOFTWARE, which means the credentials
      * will be stored securely in the software keychain.
      */
@@ -79,7 +79,7 @@ export const setCredentialsToKeychain = async (
       {
         securityLevel: KeyChain.SECURITY_LEVEL.SECURE_SOFTWARE,
       }
-    )
+    );
   } catch (error) {
     /**
      * If there was an error setting the credentials to the keychain, throw it.
@@ -88,31 +88,31 @@ export const setCredentialsToKeychain = async (
       `Could not set Dressipi credentials to keychain: ${(error as Error).message}`
     );
   }
-}
+};
 
 /**
- * Deletes the Dressipi credentials from the keychain using 
+ * Deletes the Dressipi credentials from the keychain using
  * the provided serverUrl.
- * 
+ *
  * @param serverUrl - The server URL for the Dressipi API.
- * @return {Promise<void>} - A promise that resolves when the 
+ * @return {Promise<void>} - A promise that resolves when the
  * credentials are deleted.
  */
 export const resetCredentialsFromKeychain = async (
   serverUrl: string
 ): Promise<void> => {
   /**
-   * Deletes the credentials from the keychain using the provided serverUrl. 
+   * Deletes the credentials from the keychain using the provided serverUrl.
    * This will remove the credentials associated with the server.
    */
   await KeyChain.resetInternetCredentials({
     server: serverUrl,
   });
-}
+};
 
 /**
  * Generates a username for the Dressipi API based on the client ID.
- * 
+ *
  * @param clientId - The client ID for the Dressipi API.
  * @return {string} - The generated username.
  */

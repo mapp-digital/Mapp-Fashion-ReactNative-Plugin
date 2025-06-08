@@ -1,6 +1,6 @@
 import type {
   EcommerceItem,
-  ReactNativeTracker
+  ReactNativeTracker,
 } from '@snowplow/react-native-tracker';
 
 /**
@@ -19,7 +19,7 @@ export type TrackingState = {
 };
 
 /**
- * Represents a queue (list) of events for the React Native Tracker 
+ * Represents a queue (list) of events for the React Native Tracker
  * from Snowplow.
  */
 export type Queue<T extends keyof ReactNativeTracker> = QueuedEvent<T>[];
@@ -28,10 +28,10 @@ export type Queue<T extends keyof ReactNativeTracker> = QueuedEvent<T>[];
  * Represents a queued event for the React Native Tracker from Snowplow.
  * This type is used to define the structure of events that can be queued
  * before being sent to the tracker.
- * 
+ *
  * @property {T} event - The name of the event to be tracked.
- * @property {Parameters<ReactNativeTracker[T]>} data - The parameters 
- * for the event, which are the arguments expected by the 
+ * @property {Parameters<ReactNativeTracker[T]>} data - The parameters
+ * for the event, which are the arguments expected by the
  * tracker method for that event.
  */
 export type QueuedEvent<T extends keyof ReactNativeTracker> = {
@@ -40,21 +40,23 @@ export type QueuedEvent<T extends keyof ReactNativeTracker> = {
 };
 
 /**
- * Represents the events that can be queued for tracking 
+ * Represents the events that can be queued for tracking
  * in the React Native Tracker.
  */
-export type QueueableEvents = 
-  'trackSelfDescribingEvent' | 'trackEcommerceTransactionEvent';
+export type QueueableEvents =
+  | 'trackSelfDescribingEvent'
+  | 'trackEcommerceTransactionEvent';
 
 /**
  * Represents a function that can be queued for execution.
  * These functions are the representations of the events
  * that can be tracked by the React Native Tracker.
- * 
+ *
  * @see trackerEvents.ts for the actual implementations.
  */
-export type QueueableFunction = 
-  (...args: any[]) => Promise<QueuedEvent<QueueableEvents>>;
+export type QueueableFunction = (
+  ...args: any[]
+) => Promise<QueuedEvent<QueueableEvents>>;
 
 /**
  * Represents an order in an e-commerce context.
@@ -113,8 +115,8 @@ export type ProductListPageEvent = {
  * by its SKU or product code.
  */
 export type ProductListPageItem = {
-  sku?: string
-  productCode?: string
+  sku?: string;
+  productCode?: string;
 };
 
 /**
@@ -129,6 +131,6 @@ export type ProductListPageFilter = {
  * Represents the identification information for a user or customer.
  */
 export type Identification = {
-  customerId?: string
-  email?: string
+  customerId?: string;
+  email?: string;
 };

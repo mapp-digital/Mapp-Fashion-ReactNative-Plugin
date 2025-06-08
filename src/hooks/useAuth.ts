@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
-import { authenticate, refreshToken } from "../services/auth";
-import { AuthInternalState, AuthState } from "../types/auth";
-import { accessTokenHasExpired, getNetworkUserId } from "../utils/jwt";
+import { useCallback, useEffect, useState } from 'react';
+import { authenticate, refreshToken } from '../services/auth';
+import { AuthInternalState, AuthState } from '../types/auth';
+import { accessTokenHasExpired, getNetworkUserId } from '../utils/jwt';
 import {
   getCredentialsFromKeychain,
-  setCredentialsToKeychain
-} from "../utils/keychain";
+  setCredentialsToKeychain,
+} from '../utils/keychain';
 
 /**
  * Custom hook to handle authentication with the Dressipi API.
@@ -32,10 +32,10 @@ export const useAuth = (clientId: string, domain: string): AuthState => {
    * refresh the token using the provided client ID and domain,
    * and updates the state with the refreshed credentials.
    */
-  const refresh = useCallback(async() => {
+  const refresh = useCallback(async () => {
     /**
      * Check if an user is already authenticating or if credentials are not set.
-     * If either condition is true, exit the function early to avoid 
+     * If either condition is true, exit the function early to avoid
      * unnecessary refresh attempts.
      */
     if (state.isAuthenticating || !state.credentials) {
@@ -48,8 +48,8 @@ export const useAuth = (clientId: string, domain: string): AuthState => {
        * provided client ID and domain.
        */
       const refreshedCredentials = await refreshToken(
-        state.credentials, 
-        clientId, 
+        state.credentials,
+        clientId,
         domain
       );
 
@@ -84,10 +84,9 @@ export const useAuth = (clientId: string, domain: string): AuthState => {
         credentials: null,
         networkUserId: null,
         error: {
-          message: error instanceof Error 
-            ? error.message 
-            : "Token refresh failed",
-          code: "REFRESH_ERROR",
+          message:
+            error instanceof Error ? error.message : 'Token refresh failed',
+          code: 'REFRESH_ERROR',
         },
       }));
     } finally {
@@ -97,11 +96,11 @@ export const useAuth = (clientId: string, domain: string): AuthState => {
        */
       setState(previous => ({ ...previous, isAuthenticating: false }));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId, domain]);
 
   /**
-   * Effect hook to handle the authentication process 
+   * Effect hook to handle the authentication process
    * when the component mounts.
    */
   useEffect(() => {
@@ -112,27 +111,29 @@ export const useAuth = (clientId: string, domain: string): AuthState => {
       /**
        * Set the initial state to indicate that authentication is in progress.
        */
-      setState(previous => ({ 
-        ...previous, 
-        isAuthenticating: true, 
-        error: null 
+      setState(previous => ({
+        ...previous,
+        isAuthenticating: true,
+        error: null,
       }));
 
       try {
         /**
          * Attempt to retrieve existing credentials from the keychain.
          */
-        const existingAuthCredentials = 
-          await getCredentialsFromKeychain(clientId, domain);
+        const existingAuthCredentials = await getCredentialsFromKeychain(
+          clientId,
+          domain
+        );
 
         /**
-         * If existing credentials are found and its access token 
+         * If existing credentials are found and its access token
          * has not expired, update the state to indicate that the user
          * is authenticated.
          */
         if (
-          existingAuthCredentials
-          && !accessTokenHasExpired(existingAuthCredentials)
+          existingAuthCredentials &&
+          !accessTokenHasExpired(existingAuthCredentials)
         ) {
           setState(previous => ({
             ...previous,
@@ -147,7 +148,7 @@ export const useAuth = (clientId: string, domain: string): AuthState => {
 
         /**
          * If no existing credentials are found or the access token has expired,
-         * attempt to authenticate the user using the provided 
+         * attempt to authenticate the user using the provided
          * client ID and domain.
          */
         const resultingCredentials = existingAuthCredentials
@@ -185,10 +186,9 @@ export const useAuth = (clientId: string, domain: string): AuthState => {
           credentials: null,
           networkUserId: null,
           error: {
-            message: error instanceof Error 
-              ? error.message 
-              : "Authentication failed",
-            code: "AUTH_ERROR",
+            message:
+              error instanceof Error ? error.message : 'Authentication failed',
+            code: 'AUTH_ERROR',
           },
         }));
       } finally {
@@ -198,7 +198,7 @@ export const useAuth = (clientId: string, domain: string): AuthState => {
          */
         setState(previous => ({ ...previous, isAuthenticating: false }));
       }
-    }
+    };
 
     /**
      * Call the function to handle authentication when the component mounts.
@@ -207,10 +207,10 @@ export const useAuth = (clientId: string, domain: string): AuthState => {
   }, [clientId, domain]);
 
   return {
-    isAuthenticating: state.isAuthenticating, 
-    isAuthenticated: state.isAuthenticated, 
-    credentials: state.credentials, 
-    networkUserId: state.networkUserId, 
+    isAuthenticating: state.isAuthenticating,
+    isAuthenticated: state.isAuthenticated,
+    credentials: state.credentials,
+    networkUserId: state.networkUserId,
     error: state.error,
     refresh,
   };
