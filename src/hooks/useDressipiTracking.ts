@@ -7,7 +7,13 @@ import {
   productListPageView as productListPageViewEventFunction,
   removeFromBasket as removeFromBasketEventFunction,
 } from "@/src/tracking/trackerEvents";
-import { QueueableEvents, QueueableFunction, QueuedEvent, Tracking, TrackingItem } from "@/src/types/tracking";
+import {
+  QueueableEvents,
+  QueueableFunction,
+  QueuedEvent,
+  TrackingItem,
+  TrackingState
+} from "@/src/types/tracking";
 import { useCallback, useContext, useMemo } from "react";
 import useDeepCompareEffect from "use-deep-compare-effect";
 
@@ -17,9 +23,10 @@ import useDeepCompareEffect from "use-deep-compare-effect";
  * orders, adding/removing items from the basket, identifying users,
  * and tracking product display and list page views.
  * 
- * @returns {Tracking} An object containing methods to track different events.
+ * @returns {TrackingState} An object containing methods to track 
+ * different events.
  */
-export const useDressipiTracking = (): Tracking => {
+export const useDressipiTracking = (): TrackingState => {
   const { namespaceId, queue, tracker } = useContext(DressipiContext);
 
   const trackEvent = useCallback(
@@ -53,7 +60,7 @@ export const useDressipiTracking = (): Tracking => {
     productListPage: 
       (...args) => trackEvent(productListPageViewEventFunction, ...args),
   }), [namespaceId, trackEvent]);
-}
+};
 
 /**
  * Custom hook to track product display page views.
@@ -61,6 +68,8 @@ export const useDressipiTracking = (): Tracking => {
  * send tracking data for a product display page view.
  * 
  * @param {TrackingItem} item - The item to track on the product display page.
+ * @return {void} This hook does not return anything, 
+ * it simply triggers the tracking event.
  */
 export const useDressipiProductDisplayPageTracking = (
   item: TrackingItem

@@ -4,7 +4,7 @@ import { DetailedItem } from "./shared";
 /**
  * Type for the state of the facetted search feature.
  */
-export type FacetedSearchState = {
+export type FacettedSearchState = {
   items: FacettedSearchMappedResponse | null;
   loading: boolean;
   error: Error | null;

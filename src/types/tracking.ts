@@ -9,7 +9,7 @@ import type {
  * such as orders, items added or removed from the basket, user identification,
  * product display pages views, and product list pages views.
  */
-export type Tracking = {
+export type TrackingState = {
   order: (order: Order) => void;
   addToBasket: (item: TrackingItem) => void;
   removeFromBasket: (item: TrackingItem) => void;

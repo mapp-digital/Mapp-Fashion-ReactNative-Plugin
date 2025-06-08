@@ -1,37 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
 import { authenticate, refreshToken } from "../services/auth";
-import { AuthCredentials } from "../types/auth";
+import { AuthInternalState, AuthState } from "../types/auth";
 import { accessTokenHasExpired, getNetworkUserId } from "../utils/jwt";
-import { getCredentialsFromKeychain, setCredentialsToKeychain } from "../utils/keychain";
-
-/**
- * Interface representing the state of authentication.
- * This state includes:
- * - credentials: The authentication credentials if available.
- * - networkUserId: The user ID from the access token.
- * - isAuthenticating: A boolean indicating if authentication is in progress.
- * - isAuthenticated: A boolean indicating if the user is authenticated.
- * - error: Any error that occurred during authentication.
- */
-interface AuthState {
-  credentials: AuthCredentials | null;
-  networkUserId: string | null;
-  isAuthenticating: boolean;
-  isAuthenticated: boolean;
-  error: { message: string; code?: string; } | null;
-}
+import {
+  getCredentialsFromKeychain,
+  setCredentialsToKeychain
+} from "../utils/keychain";
 
 /**
  * Custom hook to handle authentication with the Dressipi API.
  *
  * @param {string} clientId - The client ID for the Dressipi API.
  * @param {string} domain - The domain of the Dressipi API.
+ * @return {AuthState} An object containing the authentication state.
  */
-export const useAuth = (clientId: string, domain: string) => {
+export const useAuth = (clientId: string, domain: string): AuthState => {
   /**
    * State to manage authentication status, credentials, and errors.
    */
-  const [state, setState] = useState<AuthState>({
+  const [state, setState] = useState<AuthInternalState>({
     credentials: null,
     networkUserId: null,
     isAuthenticating: false,
@@ -125,7 +112,11 @@ export const useAuth = (clientId: string, domain: string) => {
       /**
        * Set the initial state to indicate that authentication is in progress.
        */
-      setState(previous => ({ ...previous, isAuthenticating: true, error: null }));
+      setState(previous => ({ 
+        ...previous, 
+        isAuthenticating: true, 
+        error: null 
+      }));
 
       try {
         /**
@@ -194,7 +185,9 @@ export const useAuth = (clientId: string, domain: string) => {
           credentials: null,
           networkUserId: null,
           error: {
-            message: error instanceof Error ? error.message : "Authentication failed",
+            message: error instanceof Error 
+              ? error.message 
+              : "Authentication failed",
             code: "AUTH_ERROR",
           },
         }));

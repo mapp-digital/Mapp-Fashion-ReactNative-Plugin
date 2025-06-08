@@ -6,7 +6,11 @@ import { ResponseFormat } from "../enums/ResponseFormat";
 import { AuthenticationError } from "../errors/AuthenticationError";
 import { mapFacettedSearchApiResponse } from "../mapping/mapFacettedSearchApiResponse";
 import { performFacettedSearch } from "../services/facetted-search";
-import { FacetedSearchState, FacettedSearchApiRequest, FacettedSearchApiResponse } from "../types/facetted-search";
+import {
+  FacettedSearchApiRequest,
+  FacettedSearchApiResponse,
+  FacettedSearchState
+} from "../types/facetted-search";
 import { createQueryParameters } from "../utils/http";
 
 /**
@@ -15,9 +19,11 @@ import { createQueryParameters } from "../utils/http";
  * loading status, and error.
  * 
  * @param request - The request object for the facetted search API.
- * @returns {FacetedSearchState} The state of the facetted search.
+ * @returns {FacettedSearchState} The state of the facetted search.
  */
-export const useFacettedSearch = (request: FacettedSearchApiRequest = {}) => {
+export const useFacettedSearch = (
+  request: FacettedSearchApiRequest = {}
+): FacettedSearchState => {
   /**
    * Get the credentials, domain, and refreshAuthentication function
    * from the DressipiContext.
@@ -31,7 +37,7 @@ export const useFacettedSearch = (request: FacettedSearchApiRequest = {}) => {
   /**
    * State to hold the items, loading status, and error of the facetted search.
    */
-  const [state, setState] = useState<FacetedSearchState>({
+  const [state, setState] = useState<FacettedSearchState>({
     items: null,
     loading: false,
     error: null
@@ -177,7 +183,7 @@ export const useFacettedSearch = (request: FacettedSearchApiRequest = {}) => {
         setState({ 
           items: null, 
           loading: false, 
-          error: error as Error 
+          error: error as Error,
         });
       }
     }

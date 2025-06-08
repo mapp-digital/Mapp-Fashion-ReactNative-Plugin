@@ -4,13 +4,23 @@ import useDeepCompareEffect from "use-deep-compare-effect";
 import { DressipiContext } from "../context/DressipiContext";
 import { ResponseFormat } from "../enums/ResponseFormat";
 import { AuthenticationError } from "../errors/AuthenticationError";
-import { RelatedItemsGarmentNotFoundError } from "../errors/RelatedItemsGarmentNotFoundError";
-import { mapRelatedItemsApiResponse } from "../mapping/mapRelatedItemsApiResponse";
+import {
+  RelatedItemsGarmentNotFoundError
+} from "../errors/RelatedItemsGarmentNotFoundError";
+import {
+  mapRelatedItemsApiResponse
+} from "../mapping/mapRelatedItemsApiResponse";
 import { getRelatedItems } from "../services/related-items";
-import { RelatedItemsApiRequest, RelatedItemsApiResponse, RelatedItemsState } from "../types/related-items";
+import {
+  RelatedItemsApiRequest,
+  RelatedItemsApiResponse,
+  RelatedItemsState
+} from "../types/related-items";
 import { createQueryParameters } from "../utils/http";
 
-export const useRelatedItems = (request: RelatedItemsApiRequest) => {
+export const useRelatedItems = (
+  request: RelatedItemsApiRequest
+): RelatedItemsState => {
   /**
    * Get the credentials, domain, and refreshAuthentication function
    * from the DressipiContext.
@@ -71,7 +81,9 @@ export const useRelatedItems = (request: RelatedItemsApiRequest) => {
         return setState({
           relatedItems: null,
           loading: false,
-          error: new Error("You must pass an item_id to get related items. This is the item + variant (i.e. style + color) identifier for the product."),
+          error: new Error(
+            "You must pass an item_id to get related items. This is the item + variant (i.e. style + color) identifier for the product."
+          ),
         });
       }
 
@@ -129,6 +141,8 @@ export const useRelatedItems = (request: RelatedItemsApiRequest) => {
      * Function to handle errors from fetching the related items.
      * 
      * @param error - The error thrown by the related items API call.
+     * @returns {Promise<void>} A promise that resolves when the error 
+     * is handled.
      */
     const handleRelatedItemsError = async (
       error: unknown

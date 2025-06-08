@@ -1,4 +1,25 @@
 /**
+ * Represents the authentication hook used to manage user authentication state.
+ */
+export type AuthState = AuthInternalState & {
+  refresh: () => Promise<void>;
+};
+
+/**
+ * Type representing the internal state of authentication hook.
+ * It includes properties to track whether the user is authenticating,
+ * authenticated, the credentials, network user ID, and 
+ * any errors that may occur.
+ */
+export type AuthInternalState = {
+  credentials: AuthCredentials | null;
+  networkUserId: string | null;
+  isAuthenticating: boolean;
+  isAuthenticated: boolean;
+  error: { message: string; code?: string; } | null;
+};
+
+/**
  * Type for the authentication credentials for the logged in user, 
  * returned by the Dressipi API.
  */
