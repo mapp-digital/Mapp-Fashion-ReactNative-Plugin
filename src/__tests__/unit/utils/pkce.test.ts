@@ -1,21 +1,11 @@
+import CryptoJS from 'crypto-js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { pkceChallenge, type PKCEChallenge } from '../../../utils/pkce';
 
-// Import the real crypto-js for this test file
-vi.mock('crypto-js', async importOriginal => {
-  const actual = await importOriginal<typeof import('crypto-js')>();
-  return actual;
-});
-
 describe('PKCE Utils', () => {
-  let CryptoJS: typeof import('crypto-js');
-
-  beforeEach(async () => {
+  beforeEach(() => {
     // Reset all mocks before each test
     vi.clearAllMocks();
-
-    // Import the real crypto-js
-    CryptoJS = await import('crypto-js');
   });
 
   describe('pkceChallenge', () => {

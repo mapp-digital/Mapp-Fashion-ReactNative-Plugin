@@ -36,21 +36,7 @@ vi.mock('axios', () => ({
   delete: vi.fn(),
 }));
 
-// Mock crypto-js
-vi.mock('crypto-js', () => ({
-  enc: {
-    Base64url: {
-      stringify: vi.fn(data => `mock-base64url-${data}`),
-      parse: vi.fn(data => `mock-parsed-${data}`),
-    },
-  },
-  lib: {
-    WordArray: {
-      random: vi.fn(() => 'mock-random-words'),
-    },
-  },
-  SHA256: vi.fn(() => 'mock-sha256-hash'),
-}));
+// crypto-js works fine in tests - no need to mock globally
 
 // Setup DOM globals for jsdom
 Object.defineProperty(window, 'matchMedia', {
