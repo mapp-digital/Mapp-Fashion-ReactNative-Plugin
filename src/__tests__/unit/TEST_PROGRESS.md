@@ -231,6 +231,102 @@ This document tracks the progress of unit tests for the Dressipi SDK.
 
 ---
 
+## ✅ **Related Items Mapping Tests - Complete (21 tests passing)**
+
+### **What We Tested:**
+
+#### **Basic Functionality (3 tests):**
+
+- ✅ **Response ID Mapping** - Correctly maps `event_id` to `response_id`
+- ✅ **Format Validation** - Throws error for unsupported response formats
+- ✅ **Minimal Response** - Handles empty arrays and missing data gracefully
+
+#### **Outfits Mapping (3 tests):**
+
+- ✅ **Complete Outfit Transformation** - Maps API outfit structure to application format
+- ✅ **Empty Outfits** - Returns empty array when no outfits provided
+- ✅ **Multiple Outfits** - Handles arrays of outfits with different occasions
+
+#### **Partner Outfits Mapping (2 tests):**
+
+- ✅ **Partner Outfit Processing** - Maps partner outfits when present
+- ✅ **Empty Partner Outfits** - Returns empty array when none exist
+
+#### **Similar Items Mapping (4 tests):**
+
+- ✅ **Valid Content ID** - Maps similar items with valid content_id
+- ✅ **Empty Content ID** - Filters out similar items with empty content_id
+- ✅ **Default Content ID** - Filters out default '000000000000000000000000' content_id
+- ✅ **Undefined Similar Items** - Handles missing similar_items gracefully
+
+#### **Error Handling (2 tests):**
+
+- ✅ **Missing Items in Similar Items** - Throws descriptive errors for missing garment data
+- ✅ **Missing Items in Outfits** - Throws descriptive errors for missing outfit items
+
+#### **Item Mapping Details (2 tests):**
+
+- ✅ **Complete Property Mapping** - Maps all item properties correctly (garment_category_id → category_id, etc.)
+- ✅ **Optional Properties** - Handles undefined optional properties gracefully
+
+#### **Edge Cases (3 tests):**
+
+- ✅ **Empty Garment Data** - Handles empty garment_data arrays
+- ✅ **Null Data** - Handles null garment_data gracefully
+- ✅ **Source Item Inclusion** - Includes source item as first item in outfit arrays
+
+#### **Real-world Scenarios (2 tests):**
+
+- ✅ **Complex Response** - Handles responses with all sections (outfits, partner_outfits, similar_items)
+- ✅ **Similar Items Only** - Handles responses containing only similar items
+
+**File:** `src/__tests__/unit/mapping/mapRelatedItemsApiResponse.test.ts`  
+**Function Tested:** `mapRelatedItemsApiResponse`  
+**Test Categories:** Data transformation, Error handling, Business logic, Edge cases, API integration
+
+---
+
+## ✅ **Facetted Search Mapping Tests - Complete (16 tests passing)**
+
+### **What We Tested:**
+
+#### **Basic Functionality (3 tests):**
+
+- ✅ **Response Structure Mapping** - Correctly maps event_id, content_id, items, and pagination
+- ✅ **Empty Recommendations** - Handles empty search results gracefully
+- ✅ **Single Item Response** - Handles minimal search results with one item
+
+#### **Pagination Mapping (3 tests):**
+
+- ✅ **Field Mapping** - Maps total_pages → last_page, total_entries → total_items
+- ✅ **First Page Handling** - Handles pagination for single-page results
+- ✅ **Zero Results** - Handles empty search results with proper pagination
+
+#### **Item Mapping (4 tests):**
+
+- ✅ **Complete Property Mapping** - Maps all item properties to DetailedItem format
+- ✅ **Garment Status Handling** - Handles 'in stock' and 'out of stock' statuses
+- ✅ **Image Handling** - Properly maps single and multiple images
+- ✅ **Outfit Status** - Handles has_outfits boolean property
+
+#### **Edge Cases (3 tests):**
+
+- ✅ **No Images** - Handles undefined feed_image_urls (returns empty array and empty string)
+- ✅ **Empty Images Array** - Handles empty feed_image_urls array (returns empty array and undefined)
+- ✅ **Missing Properties** - Handles items with minimal required properties only
+
+#### **Real-world Scenarios (3 tests):**
+
+- ✅ **Large Search Results** - Handles paginated responses with many items (50 items tested)
+- ✅ **Mixed Item Types** - Handles diverse product types with different prices and statuses
+- ✅ **Brand Information** - Preserves brand and retailer data through mapping process
+
+**File:** `src/__tests__/unit/mapping/mapFacettedSearchApiResponse.test.ts`  
+**Function Tested:** `mapFacettedSearchApiResponse`  
+**Test Categories:** Data transformation, Pagination, Edge cases, Real-world scenarios
+
+---
+
 ## 📋 **Pending Tests**
 
 ### **Utils (`src/utils/`)**
@@ -243,11 +339,6 @@ This document tracks the progress of unit tests for the Dressipi SDK.
 - ⏳ **Related Items Service** (`related-items.ts`) - Product recommendations API
 - ⏳ **Facetted Search Service** (`facetted-search.ts`) - Search API
 
-### **Mapping (`src/mapping/`)**
-
-- ⏳ **Related Items Mapping** (`mapRelatedItemsApiResponse.ts`) - Data transformation
-- ⏳ **Facetted Search Mapping** (`mapFacettedSearchApiResponse.ts`) - Data transformation
-
 ### **Hooks (`src/hooks/`)**
 
 - ⏳ **useAuth** (`useAuth.ts`) - Authentication state management
@@ -259,12 +350,12 @@ This document tracks the progress of unit tests for the Dressipi SDK.
 
 ## 📊 **Test Statistics**
 
-- **Total Test Files:** 5/11 completed (+ HTTP Utils partially done)
-- **Total Tests:** 111 passing (20 JWT + 16 PKCE + 26 Keychain + 6 HTTP + 19 AuthError + 24 GarmentError)
+- **Total Test Files:** 7/11 completed (+ HTTP Utils partially done)
+- **Total Tests:** 148 passing (20 JWT + 16 PKCE + 26 Keychain + 6 HTTP + 19 AuthError + 24 GarmentError + 21 RelatedMapping + 16 SearchMapping)
 - **Tests Cleaned Up:** 12 unnecessary tests removed (maintained focus on behavior over implementation)
-- **Coverage Areas:** Security, Error Handling, Edge Cases, Integration, RFC Compliance, React Native, Custom Errors
-- **Files Tested:** `jwt.ts`, `pkce.ts`, `keychain.ts`, `http.ts` (partial), `AuthenticationError.ts`, `RelatedItemsGarmentNotFoundError.ts`
-- **Files Pending:** 5 files remaining
+- **Coverage Areas:** Security, Error Handling, Edge Cases, Integration, RFC Compliance, React Native, Custom Errors, Data Transformation, Pagination
+- **Files Tested:** `jwt.ts`, `pkce.ts`, `keychain.ts`, `http.ts` (partial), `AuthenticationError.ts`, `RelatedItemsGarmentNotFoundError.ts`, `mapRelatedItemsApiResponse.ts`, `mapFacettedSearchApiResponse.ts`
+- **Files Pending:** 3 files remaining
 
 ### **Test Cleanup Benefits:**
 
