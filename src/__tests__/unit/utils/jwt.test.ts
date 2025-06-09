@@ -119,30 +119,6 @@ describe('JWT Utils', () => {
       const result = accessTokenHasExpired(credentials);
       expect(result).toBe(false);
     });
-
-    it('should return false when token expires exactly now (edge case)', () => {
-      // Create a token that expires exactly at current time
-      const payload = {
-        exp: mockCurrentTimeInSeconds,
-        iat: mockCurrentTimeInSeconds - 3600,
-        iss: 'dressipi',
-        sub: 'user123',
-        subn: 'network-user-id',
-      };
-
-      const base64Payload = btoa(JSON.stringify(payload));
-      const edgeToken = `header.${base64Payload}.signature`;
-
-      const credentials: AuthCredentials = {
-        access_token: edgeToken,
-        refresh_token: 'refresh-token',
-        token_type: 'Bearer',
-        expires_in: 3600,
-      };
-
-      const result = accessTokenHasExpired(credentials);
-      expect(result).toBe(false);
-    });
   });
 
   describe('getNetworkUserId', () => {

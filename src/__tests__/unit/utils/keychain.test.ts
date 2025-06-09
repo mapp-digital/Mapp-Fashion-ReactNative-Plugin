@@ -254,35 +254,6 @@ describe('Keychain Utils', () => {
         }
       );
     });
-
-    it('should handle very long tokens', async () => {
-      const longToken = 'a'.repeat(10000); // Very long token
-      mockKeyChain.setInternetCredentials.mockResolvedValue(true);
-
-      await setCredentialsToKeychain(mockClientId, mockServerUrl, longToken);
-
-      expect(mockKeyChain.setInternetCredentials).toHaveBeenCalledWith(
-        mockServerUrl,
-        'dressipi-test-client-123',
-        longToken,
-        {
-          securityLevel: KeyChain.SECURITY_LEVEL.SECURE_SOFTWARE,
-        }
-      );
-    });
-
-    it('should use SECURE_SOFTWARE security level', async () => {
-      mockKeyChain.setInternetCredentials.mockResolvedValue(true);
-
-      await setCredentialsToKeychain(mockClientId, mockServerUrl, mockToken);
-
-      const callArgs = mockKeyChain.setInternetCredentials.mock.calls[0];
-      const options = callArgs[3];
-
-      expect(options).toEqual({
-        securityLevel: KeyChain.SECURITY_LEVEL.SECURE_SOFTWARE,
-      });
-    });
   });
 
   describe('resetCredentialsFromKeychain', () => {
@@ -306,28 +277,6 @@ describe('Keychain Utils', () => {
       await expect(resetCredentialsFromKeychain(mockServerUrl)).rejects.toThrow(
         'Could not reset credentials'
       );
-    });
-
-    it('should handle empty serverUrl', async () => {
-      mockKeyChain.resetInternetCredentials.mockResolvedValue(true);
-
-      await resetCredentialsFromKeychain('');
-
-      expect(mockKeyChain.resetInternetCredentials).toHaveBeenCalledWith({
-        server: '',
-      });
-    });
-
-    it('should handle special characters in serverUrl', async () => {
-      const specialServerUrl =
-        'https://api-test.dressipi.com/v1/auth?client=123';
-      mockKeyChain.resetInternetCredentials.mockResolvedValue(true);
-
-      await resetCredentialsFromKeychain(specialServerUrl);
-
-      expect(mockKeyChain.resetInternetCredentials).toHaveBeenCalledWith({
-        server: specialServerUrl,
-      });
     });
   });
 

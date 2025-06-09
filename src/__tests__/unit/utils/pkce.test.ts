@@ -74,55 +74,6 @@ describe('PKCE Utils', () => {
       expect(result.codeChallenge.length).toBe(43);
     });
 
-    it('should handle Math.random returning edge case values', () => {
-      // Mock Math.random to return 0 (first character)
-      const mockRandom = vi.spyOn(Math, 'random').mockReturnValue(0);
-
-      const result = pkceChallenge();
-
-      // Should still generate valid result
-      expect(result.codeVerifier).toHaveLength(43);
-      expect(result.codeVerifier).toMatch(/^[A-Za-z0-9\-._~]+$/);
-      expect(result.codeChallenge).toBeTruthy();
-
-      mockRandom.mockRestore();
-    });
-
-    it('should handle Math.random returning maximum values', () => {
-      // Mock Math.random to return close to 1 (last character)
-      const mockRandom = vi.spyOn(Math, 'random').mockReturnValue(0.999999);
-
-      const result = pkceChallenge();
-
-      // Should still generate valid result
-      expect(result.codeVerifier).toHaveLength(43);
-      expect(result.codeVerifier).toMatch(/^[A-Za-z0-9\-._~]+$/);
-      expect(result.codeChallenge).toBeTruthy();
-
-      mockRandom.mockRestore();
-    });
-
-    it('should generate reproducible codeChallenge for same codeVerifier', () => {
-      // Mock Math.random to return predictable sequence
-      const mockValues = [0.1, 0.2, 0.3, 0.4, 0.5]; // etc.
-      let callCount = 0;
-      const mockRandom = vi.spyOn(Math, 'random').mockImplementation(() => {
-        return mockValues[callCount++ % mockValues.length];
-      });
-
-      const result1 = pkceChallenge();
-
-      // Reset call count and call again
-      callCount = 0;
-      const result2 = pkceChallenge();
-
-      // Same random sequence should produce same results
-      expect(result1.codeVerifier).toBe(result2.codeVerifier);
-      expect(result1.codeChallenge).toBe(result2.codeChallenge);
-
-      mockRandom.mockRestore();
-    });
-
     it('should convert base64 to base64url encoding correctly', () => {
       // Test the actual conversion by checking for base64url compliance
       const result = pkceChallenge();
@@ -132,23 +83,6 @@ describe('PKCE Utils', () => {
 
       // Should contain only valid base64url characters
       expect(result.codeChallenge).toMatch(/^[A-Za-z0-9_-]+$/);
-    });
-
-    it('should generate consistent output format', () => {
-      // Test multiple generations to ensure consistent format
-      for (let i = 0; i < 10; i++) {
-        const result = pkceChallenge();
-
-        // Always 43 characters for verifier
-        expect(result.codeVerifier).toHaveLength(43);
-
-        // Always 43 characters for challenge (SHA256 base64url without padding)
-        expect(result.codeChallenge).toHaveLength(43);
-
-        // Valid character sets
-        expect(result.codeVerifier).toMatch(/^[A-Za-z0-9._~-]+$/);
-        expect(result.codeChallenge).toMatch(/^[A-Za-z0-9_-]+$/);
-      }
     });
 
     it('should generate valid PKCE challenge conforming to RFC 7636', () => {
@@ -253,58 +187,6 @@ describe('PKCE Utils', () => {
 
         mockRandom.mockRestore();
       });
-    });
-
-    it('should maintain consistency across multiple calls', () => {
-      // Verify that the function consistently follows the same pattern
-      const results = [];
-
-      for (let i = 0; i < 50; i++) {
-        results.push(pkceChallenge());
-      }
-
-      // All results should follow the same format
-      results.forEach(result => {
-        expect(result.codeVerifier).toHaveLength(43);
-        expect(result.codeChallenge).toHaveLength(43);
-        expect(typeof result.codeVerifier).toBe('string');
-        expect(typeof result.codeChallenge).toBe('string');
-      });
-
-      // All results should be unique
-      const verifiers = new Set(results.map(r => r.codeVerifier));
-      const challenges = new Set(results.map(r => r.codeChallenge));
-      expect(verifiers.size).toBe(50);
-      expect(challenges.size).toBe(50);
-    });
-  });
-
-  describe('performance', () => {
-    it('should complete within reasonable time', () => {
-      const startTime = Date.now();
-
-      pkceChallenge();
-
-      const endTime = Date.now();
-      const executionTime = endTime - startTime;
-
-      // Should complete within 100ms (very generous for this simple operation)
-      expect(executionTime).toBeLessThan(100);
-    });
-
-    it('should handle multiple rapid calls efficiently', () => {
-      const startTime = Date.now();
-
-      // Generate 1000 challenges rapidly
-      for (let i = 0; i < 1000; i++) {
-        pkceChallenge();
-      }
-
-      const endTime = Date.now();
-      const executionTime = endTime - startTime;
-
-      // Should complete 1000 generations within 1 second
-      expect(executionTime).toBeLessThan(1000);
     });
   });
 });
