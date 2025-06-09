@@ -8,7 +8,10 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
@@ -50,13 +53,18 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/crypto-js": "^4.2.2",
     "@types/lodash-es": "^4.17.12",
+    "@types/node": "^22.15.30",
     "@types/react": "~19.0.10",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~9.2.0",
+    "jsdom": "^26.1.0",
     "prettier": "^3.5.3",
-    "typescript": "~5.8.3"
+    "typescript": "~5.8.3",
+    "vitest": "^3.2.2"
   },
   "private": true
 }
