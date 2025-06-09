@@ -5,6 +5,11 @@ vi.mock('react-native-keychain', () => ({
   setInternetCredentials: vi.fn(),
   getInternetCredentials: vi.fn(),
   resetInternetCredentials: vi.fn(),
+  SECURITY_LEVEL: {
+    SECURE_SOFTWARE: 'SECURE_SOFTWARE',
+    SECURE_HARDWARE: 'SECURE_HARDWARE',
+    ANY: 'ANY',
+  },
 }));
 
 vi.mock('@snowplow/react-native-tracker', () => ({

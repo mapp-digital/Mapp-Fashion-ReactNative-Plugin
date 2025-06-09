@@ -84,11 +84,64 @@ This document tracks the progress of unit tests for the Dressipi SDK.
 
 ---
 
+## ✅ **Keychain Utils Tests - Complete (30 tests passing)**
+
+### **What We Tested:**
+
+#### **`getCredentialsFromKeychain` Function (8 tests):**
+
+- ✅ **Success Scenarios** - Returns credentials when found with matching username
+- ✅ **Not Found Handling** - Returns `null` when no credentials in keychain
+- ✅ **Username Validation** - Returns `null` when username doesn't match expected format
+- ✅ **JSON Parsing** - Returns `null` when password contains invalid JSON
+- ✅ **Error Handling** - Returns `null` when keychain throws errors
+- ✅ **Edge Cases** - Handles empty clientId gracefully
+- ✅ **Special Characters** - Handles special characters in clientId
+- ✅ **Extended Credentials** - Preserves additional credential properties
+
+#### **`setCredentialsToKeychain` Function (9 tests):**
+
+- ✅ **Success Scenarios** - Successfully sets credentials with correct parameters
+- ✅ **Parameter Validation** - Skips operation when clientId/serverUrl empty/null/undefined
+- ✅ **Error Handling** - Throws descriptive error when keychain operation fails
+- ✅ **Token Handling** - Handles empty tokens and very long tokens gracefully
+- ✅ **Security Configuration** - Uses `SECURE_SOFTWARE` security level correctly
+
+#### **`resetCredentialsFromKeychain` Function (4 tests):**
+
+- ✅ **Success Scenarios** - Successfully resets credentials from keychain
+- ✅ **Error Propagation** - Properly propagates keychain reset errors
+- ✅ **Edge Cases** - Handles empty serverUrl
+- ✅ **Special Characters** - Handles special characters in serverUrl
+
+#### **Username Generation (3 tests):**
+
+- ✅ **Format Validation** - Generates correct `dressipi-{clientId}` format
+- ✅ **Empty ClientId** - Handles empty clientId in username generation
+- ✅ **Special Characters** - Preserves special characters in username
+
+#### **Integration Scenarios (3 tests):**
+
+- ✅ **Complete Flow** - Tests set → get → reset credential lifecycle
+- ✅ **Multi-Client Support** - Handles multiple clientIds with same server
+- ✅ **Real-world Data** - Works with complex credential structures
+
+#### **Error Edge Cases (3 tests):**
+
+- ✅ **Network Issues** - Handles timeouts and access denied errors gracefully
+- ✅ **Data Corruption** - Handles corrupted keychain data gracefully
+- ✅ **React Native Integration** - Works with mocked react-native-keychain
+
+**File:** `src/__tests__/unit/utils/keychain.test.ts`  
+**Functions Tested:** `getCredentialsFromKeychain`, `setCredentialsToKeychain`, `resetCredentialsFromKeychain`  
+**Test Categories:** React Native integration, Security storage, Error handling, Edge cases, Parameter validation
+
+---
+
 ## 📋 **Pending Tests**
 
 ### **Utils (`src/utils/`)**
 
-- ⏳ **Keychain Utils** (`keychain.ts`) - React Native keychain operations
 - 🔄 **HTTP Utils** (`http.test.ts`) - Partially done, could expand
 
 ### **Services (`src/services/`)**
@@ -118,11 +171,11 @@ This document tracks the progress of unit tests for the Dressipi SDK.
 
 ## 📊 **Test Statistics**
 
-- **Total Test Files:** 2/11 completed
-- **Total Tests:** 44 passing (21 JWT + 23 PKCE)
-- **Coverage Areas:** Security, Error Handling, Edge Cases, Integration, RFC Compliance, Performance
-- **Files Tested:** `jwt.ts`, `pkce.ts`
-- **Files Pending:** 9 files remaining
+- **Total Test Files:** 3/11 completed
+- **Total Tests:** 74 passing (21 JWT + 23 PKCE + 30 Keychain)
+- **Coverage Areas:** Security, Error Handling, Edge Cases, Integration, RFC Compliance, Performance, React Native
+- **Files Tested:** `jwt.ts`, `pkce.ts`, `keychain.ts`
+- **Files Pending:** 8 files remaining
 
 ---
 
@@ -130,9 +183,8 @@ This document tracks the progress of unit tests for the Dressipi SDK.
 
 Choose the next file to test:
 
-1. **React Native Specific:** Keychain Utils (secure storage operations)
-2. **API Layer:** Services (auth, related-items, facetted-search)
-3. **Data Layer:** Mapping functions (API response transformation)
-4. **React Layer:** Hooks (authentication, search, tracking)
-5. **Error Handling:** Custom error classes
-6. **HTTP Utils:** Expand existing tests
+1. **API Layer:** Services (auth, related-items, facetted-search) - Build on authentication foundation
+2. **Data Layer:** Mapping functions (API response transformation) - Usually easier wins
+3. **React Layer:** Hooks (authentication, search, tracking) - Complex but high-value
+4. **Error Handling:** Custom error classes - Quick wins
+5. **HTTP Utils:** Expand existing tests - Complete utils coverage
