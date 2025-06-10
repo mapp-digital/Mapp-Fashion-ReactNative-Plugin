@@ -118,9 +118,12 @@ describe('useRelatedItems hook', () => {
     vi.clearAllMocks();
 
     // Mock useDeepCompareEffect to behave like useEffect
-    mockedUseDeepCompareEffect.mockImplementation((callback, deps) => {
-      React.useEffect(callback, deps);
-    });
+    mockedUseDeepCompareEffect.mockImplementation(
+      (callback: any, deps: any) => {
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        React.useEffect(callback, deps);
+      }
+    );
 
     // Default mock implementations
     mockedIsEqual.mockReturnValue(false);
