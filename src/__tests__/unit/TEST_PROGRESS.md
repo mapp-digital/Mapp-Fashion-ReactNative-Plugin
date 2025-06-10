@@ -327,6 +327,47 @@ This document tracks the progress of unit tests for the Dressipi SDK.
 
 ---
 
+## ✅ **Auth Service Tests - Complete (16 tests passing)**
+
+### **What We Tested:**
+
+#### **Authentication Flow (3 tests):**
+
+- ✅ **Complete Authentication** - Full OAuth2 PKCE flow from authorization to token exchange
+- ✅ **Dependency Usage** - Verifies PKCE challenge generator and UUID generator are called
+- ✅ **Request Validation** - Confirms correct authorization and token request parameters
+
+#### **Error Handling (4 tests):**
+
+- ✅ **Authorization Failures** - Network errors during authorization request
+- ✅ **Token Request Failures** - Errors during token exchange
+- ✅ **State Mismatch** - CSRF protection validation (state parameter verification)
+- ✅ **Non-Error Objects** - Graceful handling of string/object error types
+
+#### **Parameter Handling (2 tests):**
+
+- ✅ **Special Characters** - URL encoding of special characters in clientId
+- ✅ **Domain Flexibility** - Support for different API domains
+
+#### **Token Refresh (5 tests):**
+
+- ✅ **Successful Refresh** - Token refresh with valid refresh token
+- ✅ **Correct Request Parameters** - Validates refresh token request format
+- ✅ **Special Characters** - URL encoding in refresh tokens
+- ✅ **Refresh Errors** - Network errors during refresh
+- ✅ **Non-Error Handling** - Graceful error object handling
+
+#### **Integration Scenarios (2 tests):**
+
+- ✅ **Complete Auth Cycle** - Authentication followed by token refresh
+- ✅ **Real-world Credentials** - Long JWT tokens and realistic credential formats
+
+**File:** `src/__tests__/unit/services/auth.test.ts`  
+**Functions Tested:** `authenticate`, `refreshToken`  
+**Test Categories:** OAuth2 PKCE flow, Error handling, Security validation, Integration scenarios
+
+---
+
 ## 📋 **Pending Tests**
 
 ### **Utils (`src/utils/`)**
@@ -335,7 +376,6 @@ This document tracks the progress of unit tests for the Dressipi SDK.
 
 ### **Services (`src/services/`)**
 
-- ⏳ **Auth Service** (`auth.ts`) - Authentication API calls
 - ⏳ **Related Items Service** (`related-items.ts`) - Product recommendations API
 - ⏳ **Facetted Search Service** (`facetted-search.ts`) - Search API
 
@@ -350,12 +390,12 @@ This document tracks the progress of unit tests for the Dressipi SDK.
 
 ## 📊 **Test Statistics**
 
-- **Total Test Files:** 7/11 completed (+ HTTP Utils partially done)
-- **Total Tests:** 148 passing (20 JWT + 16 PKCE + 26 Keychain + 6 HTTP + 19 AuthError + 24 GarmentError + 21 RelatedMapping + 16 SearchMapping)
+- **Total Test Files:** 8/11 completed (+ HTTP Utils partially done)
+- **Total Tests:** 164 passing (20 JWT + 16 PKCE + 26 Keychain + 6 HTTP + 19 AuthError + 24 GarmentError + 21 RelatedMapping + 16 SearchMapping + 16 AuthService)
 - **Tests Cleaned Up:** 12 unnecessary tests removed (maintained focus on behavior over implementation)
-- **Coverage Areas:** Security, Error Handling, Edge Cases, Integration, RFC Compliance, React Native, Custom Errors, Data Transformation, Pagination
-- **Files Tested:** `jwt.ts`, `pkce.ts`, `keychain.ts`, `http.ts` (partial), `AuthenticationError.ts`, `RelatedItemsGarmentNotFoundError.ts`, `mapRelatedItemsApiResponse.ts`, `mapFacettedSearchApiResponse.ts`
-- **Files Pending:** 3 files remaining
+- **Coverage Areas:** Security, Error Handling, Edge Cases, Integration, RFC Compliance, React Native, Custom Errors, Data Transformation, Pagination, OAuth2 PKCE
+- **Files Tested:** `jwt.ts`, `pkce.ts`, `keychain.ts`, `http.ts` (partial), `AuthenticationError.ts`, `RelatedItemsGarmentNotFoundError.ts`, `mapRelatedItemsApiResponse.ts`, `mapFacettedSearchApiResponse.ts`, `auth.ts`
+- **Files Pending:** 2 files remaining
 
 ### **Test Cleanup Benefits:**
 
