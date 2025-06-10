@@ -529,6 +529,47 @@ This document tracks the progress of unit tests for the Dressipi SDK.
 **Hook Tested:** `useRelatedItems`  
 **Test Categories:** React hooks, Context integration, Deep comparison optimization, Error handling, Real-world scenarios
 
+## ✅ **useFacettedSearch Hook Tests - Complete (18 tests passing)**
+
+### **What We Tested:**
+
+#### **Initial State (4 tests):**
+
+- ✅ **Default State** - Hook initializes with correct loading, items, and error state
+- ✅ **Empty Request** - Handles empty request objects gracefully
+- ✅ **Facet Requests** - Works with various facet configurations
+- ✅ **Complex Structures** - Handles complex facet structures with multiple filters
+
+#### **Context Integration (3 tests):**
+
+- ✅ **Valid Context** - Integrates properly with DressipiContext
+- ✅ **Null Credentials** - Handles missing credentials gracefully
+- ✅ **Custom Domain** - Works with different API domains
+
+#### **Request Variations (5 tests):**
+
+- ✅ **Pagination** - Handles page and per_page parameters
+- ✅ **Response Format** - Supports different response format specifications
+- ✅ **Single Filters** - Works with single facet filters
+- ✅ **Multiple Filters** - Handles multiple facet combinations
+- ✅ **Range Filters** - Supports price range and numeric filters
+
+#### **Hook Interface (2 tests):**
+
+- ✅ **State Structure** - Returns expected state properties
+- ✅ **Reference Stability** - Maintains stable references when appropriate
+
+#### **Facet Dimension Support (4 tests):**
+
+- ✅ **Garment Category** - Supports garment_category facet filtering
+- ✅ **Brand Filtering** - Handles brand-based facet searches
+- ✅ **Occasion Filtering** - Supports occasion-based searches
+- ✅ **Price Range** - Handles price range facet filtering
+
+**File:** `src/__tests__/unit/hooks/useFacettedSearch.test.ts`  
+**Hook Tested:** `useFacettedSearch`  
+**Test Categories:** React hooks, Facet filtering, Context integration, Interface validation, Search functionality
+
 ---
 
 ## 📋 **Pending Tests**
@@ -539,19 +580,18 @@ This document tracks the progress of unit tests for the Dressipi SDK.
 
 ### **Hooks (`src/hooks/`)**
 
-- ⏳ **useFacettedSearch** (`useFacettedSearch.ts`) - Search functionality hook
 - ⏳ **useDressipiTracking** (`useDressipiTracking.ts`) - Analytics tracking hook
 
 ---
 
 ## 📊 **Test Statistics**
 
-- **Total Test Files:** 12/13 completed (+ HTTP Utils partially done)
-- **Total Tests:** 234 passing (20 JWT + 16 PKCE + 26 Keychain + 6 HTTP + 19 AuthError + 24 GarmentError + 21 RelatedMapping + 16 SearchMapping + 16 AuthService + 18 RelatedItemsService + 19 FacettedSearchService + 16 useAuth + 17 useRelatedItems)
+- **Total Test Files:** 13/14 completed (+ HTTP Utils partially done)
+- **Total Tests:** 252 passing (20 JWT + 16 PKCE + 26 Keychain + 6 HTTP + 19 AuthError + 24 GarmentError + 21 RelatedMapping + 16 SearchMapping + 16 AuthService + 18 RelatedItemsService + 19 FacettedSearchService + 16 useAuth + 17 useRelatedItems + 18 useFacettedSearch)
 - **Tests Cleaned Up:** 12 unnecessary tests removed (maintained focus on behavior over implementation)
-- **Coverage Areas:** Security, Error Handling, Edge Cases, Integration, RFC Compliance, React Native, Custom Errors, Data Transformation, Pagination, OAuth2 PKCE, API Integration, POST/GET requests, Facetted Search, React Hooks, Context Integration, Deep Comparison
-- **Files Tested:** `jwt.ts`, `pkce.ts`, `keychain.ts`, `http.ts` (partial), `AuthenticationError.ts`, `RelatedItemsGarmentNotFoundError.ts`, `mapRelatedItemsApiResponse.ts`, `mapFacettedSearchApiResponse.ts`, `auth.ts`, `related-items.ts`, `facetted-search.ts`, `useAuth.ts`, `useRelatedItems.ts`
-- **Files Pending:** 2 React hooks remaining!
+- **Coverage Areas:** Security, Error Handling, Edge Cases, Integration, RFC Compliance, React Native, Custom Errors, Data Transformation, Pagination, OAuth2 PKCE, API Integration, POST/GET requests, Facetted Search, React Hooks, Context Integration, Deep Comparison, Facet Filtering
+- **Files Tested:** `jwt.ts`, `pkce.ts`, `keychain.ts`, `http.ts` (partial), `AuthenticationError.ts`, `RelatedItemsGarmentNotFoundError.ts`, `mapRelatedItemsApiResponse.ts`, `mapFacettedSearchApiResponse.ts`, `auth.ts`, `related-items.ts`, `facetted-search.ts`, `useAuth.ts`, `useRelatedItems.ts`, `useFacettedSearch.ts`
+- **Files Pending:** Only 1 hook remaining!
 
 ### **Test Cleanup Benefits:**
 
