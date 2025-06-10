@@ -445,6 +445,47 @@ This document tracks the progress of unit tests for the Dressipi SDK.
 
 ---
 
+## ✅ **useAuth Hook Tests - Complete (16 tests passing)**
+
+### **What We Tested:**
+
+#### **Initial Authentication Flow (4 tests):**
+
+- ✅ **Loading State** - Hook starts with correct initial loading state
+- ✅ **New Authentication** - Full authentication flow when no existing credentials
+- ✅ **Existing Credentials** - Uses valid credentials from keychain without re-auth
+- ✅ **Token Refresh** - Automatically refreshes expired credentials from keychain
+
+#### **Error Handling (4 tests):**
+
+- ✅ **Authentication Errors** - Handles auth service failures with proper error state
+- ✅ **Non-Error Objects** - Gracefully handles string/object error types
+- ✅ **Refresh Errors** - Handles token refresh failures during initial load
+- ✅ **Keychain Errors** - Graceful degradation when keychain operations fail
+
+#### **Refresh Function (3 tests):**
+
+- ✅ **Guard Conditions** - Prevents refresh when already authenticating or no credentials
+- ✅ **Function Availability** - Refresh function is available in hook state
+- ✅ **State Management** - Proper state transitions during refresh operations
+
+#### **Hook Dependencies & Effects (2 tests):**
+
+- ✅ **clientId Changes** - Re-authentication when clientId prop changes
+- ✅ **domain Changes** - Re-authentication when domain prop changes
+
+#### **Integration Scenarios (3 tests):**
+
+- ✅ **Complete Lifecycle** - Full authentication flow with service integration
+- ✅ **Real JWT Structure** - Works with realistic JWT token formats
+- ✅ **Concurrent Hooks** - Multiple hook instances work independently
+
+**File:** `src/__tests__/unit/hooks/useAuth.test.ts`  
+**Hook Tested:** `useAuth`  
+**Test Categories:** React hooks, Authentication state, Error handling, Integration, Real-world scenarios
+
+---
+
 ## 📋 **Pending Tests**
 
 ### **Utils (`src/utils/`)**
@@ -453,7 +494,6 @@ This document tracks the progress of unit tests for the Dressipi SDK.
 
 ### **Hooks (`src/hooks/`)**
 
-- ⏳ **useAuth** (`useAuth.ts`) - Authentication state management
 - ⏳ **useRelatedItems** (`useRelatedItems.ts`) - Product recommendations hook
 - ⏳ **useFacettedSearch** (`useFacettedSearch.ts`) - Search functionality hook
 - ⏳ **useDressipiTracking** (`useDressipiTracking.ts`) - Analytics tracking hook
@@ -462,12 +502,12 @@ This document tracks the progress of unit tests for the Dressipi SDK.
 
 ## 📊 **Test Statistics**
 
-- **Total Test Files:** 10/11 completed (+ HTTP Utils partially done)
-- **Total Tests:** 201 passing (20 JWT + 16 PKCE + 26 Keychain + 6 HTTP + 19 AuthError + 24 GarmentError + 21 RelatedMapping + 16 SearchMapping + 16 AuthService + 18 RelatedItemsService + 19 FacettedSearchService)
+- **Total Test Files:** 11/12 completed (+ HTTP Utils partially done)
+- **Total Tests:** 217 passing (20 JWT + 16 PKCE + 26 Keychain + 6 HTTP + 19 AuthError + 24 GarmentError + 21 RelatedMapping + 16 SearchMapping + 16 AuthService + 18 RelatedItemsService + 19 FacettedSearchService + 16 useAuth)
 - **Tests Cleaned Up:** 12 unnecessary tests removed (maintained focus on behavior over implementation)
-- **Coverage Areas:** Security, Error Handling, Edge Cases, Integration, RFC Compliance, React Native, Custom Errors, Data Transformation, Pagination, OAuth2 PKCE, API Integration, POST/GET requests, Facetted Search
-- **Files Tested:** `jwt.ts`, `pkce.ts`, `keychain.ts`, `http.ts` (partial), `AuthenticationError.ts`, `RelatedItemsGarmentNotFoundError.ts`, `mapRelatedItemsApiResponse.ts`, `mapFacettedSearchApiResponse.ts`, `auth.ts`, `related-items.ts`, `facetted-search.ts`
-- **Files Pending:** Only React hooks remaining!
+- **Coverage Areas:** Security, Error Handling, Edge Cases, Integration, RFC Compliance, React Native, Custom Errors, Data Transformation, Pagination, OAuth2 PKCE, API Integration, POST/GET requests, Facetted Search, React Hooks
+- **Files Tested:** `jwt.ts`, `pkce.ts`, `keychain.ts`, `http.ts` (partial), `AuthenticationError.ts`, `RelatedItemsGarmentNotFoundError.ts`, `mapRelatedItemsApiResponse.ts`, `mapFacettedSearchApiResponse.ts`, `auth.ts`, `related-items.ts`, `facetted-search.ts`, `useAuth.ts`
+- **Files Pending:** 3 React hooks remaining
 
 ### **Test Cleanup Benefits:**
 
