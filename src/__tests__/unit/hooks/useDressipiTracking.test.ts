@@ -551,19 +551,11 @@ describe('useDressipiProductDisplayPageTracking hook', () => {
         namespaceId: 'initial-namespace',
       };
 
-      const updatedContext = {
-        ...mockContextValue,
-        namespaceId: 'updated-namespace',
-      };
-
       const TestWrapper = createTestWrapper(initialContext);
       const { rerender } = renderHook(
         () => useDressipiProductDisplayPageTracking(item),
         { wrapper: TestWrapper }
       );
-
-      // Update wrapper with new context
-      const UpdatedWrapper = createTestWrapper(updatedContext);
 
       expect(() => {
         rerender();
