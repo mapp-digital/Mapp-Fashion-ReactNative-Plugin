@@ -486,6 +486,51 @@ This document tracks the progress of unit tests for the Dressipi SDK.
 
 ---
 
+## ✅ **useRelatedItems Hook Tests - Complete (17 tests passing)**
+
+### **What We Tested:**
+
+#### **Initial State & Loading (3 tests):**
+
+- ✅ **Loading State** - Hook starts with correct initial loading state
+- ✅ **No Credentials Guard** - Skips API call when credentials unavailable
+- ✅ **Request Optimization** - Uses deep comparison to prevent unnecessary API calls
+
+#### **Successful Data Fetching (3 tests):**
+
+- ✅ **Complete Integration** - Full data flow from API to mapped response
+- ✅ **Minimal Request** - Works with just item_id parameter
+- ✅ **Complex Request** - Handles all optional parameters (methods, pagination, etc.)
+
+#### **Error Handling (5 tests):**
+
+- ✅ **Missing item_id** - Validates required parameters with descriptive errors
+- ✅ **Authentication Errors** - Triggers context refresh mechanism
+- ✅ **Refresh Failures** - Handles failed authentication refresh gracefully
+- ✅ **Garment Not Found** - Special handling for RelatedItemsGarmentNotFoundError (no error state)
+- ✅ **Generic Errors** - Network and API errors properly handled
+
+#### **Request Optimization (2 tests):**
+
+- ✅ **Deep Comparison** - Uses lodash isEqual to prevent duplicate requests
+- ✅ **Request Changes** - Detects actual changes and triggers new API calls
+
+#### **Context Integration (2 tests):**
+
+- ✅ **Credentials Integration** - Uses DressipiContext credentials for authentication
+- ✅ **Domain Configuration** - Uses context domain for API endpoint
+
+#### **Real-world Scenarios (2 tests):**
+
+- ✅ **Empty Responses** - Handles API responses with no recommendations
+- ✅ **Parameter Variations** - Different request configurations work correctly
+
+**File:** `src/__tests__/unit/hooks/useRelatedItems.test.ts`  
+**Hook Tested:** `useRelatedItems`  
+**Test Categories:** React hooks, Context integration, Deep comparison optimization, Error handling, Real-world scenarios
+
+---
+
 ## 📋 **Pending Tests**
 
 ### **Utils (`src/utils/`)**
@@ -494,7 +539,6 @@ This document tracks the progress of unit tests for the Dressipi SDK.
 
 ### **Hooks (`src/hooks/`)**
 
-- ⏳ **useRelatedItems** (`useRelatedItems.ts`) - Product recommendations hook
 - ⏳ **useFacettedSearch** (`useFacettedSearch.ts`) - Search functionality hook
 - ⏳ **useDressipiTracking** (`useDressipiTracking.ts`) - Analytics tracking hook
 
@@ -502,12 +546,12 @@ This document tracks the progress of unit tests for the Dressipi SDK.
 
 ## 📊 **Test Statistics**
 
-- **Total Test Files:** 11/12 completed (+ HTTP Utils partially done)
-- **Total Tests:** 217 passing (20 JWT + 16 PKCE + 26 Keychain + 6 HTTP + 19 AuthError + 24 GarmentError + 21 RelatedMapping + 16 SearchMapping + 16 AuthService + 18 RelatedItemsService + 19 FacettedSearchService + 16 useAuth)
+- **Total Test Files:** 12/13 completed (+ HTTP Utils partially done)
+- **Total Tests:** 234 passing (20 JWT + 16 PKCE + 26 Keychain + 6 HTTP + 19 AuthError + 24 GarmentError + 21 RelatedMapping + 16 SearchMapping + 16 AuthService + 18 RelatedItemsService + 19 FacettedSearchService + 16 useAuth + 17 useRelatedItems)
 - **Tests Cleaned Up:** 12 unnecessary tests removed (maintained focus on behavior over implementation)
-- **Coverage Areas:** Security, Error Handling, Edge Cases, Integration, RFC Compliance, React Native, Custom Errors, Data Transformation, Pagination, OAuth2 PKCE, API Integration, POST/GET requests, Facetted Search, React Hooks
-- **Files Tested:** `jwt.ts`, `pkce.ts`, `keychain.ts`, `http.ts` (partial), `AuthenticationError.ts`, `RelatedItemsGarmentNotFoundError.ts`, `mapRelatedItemsApiResponse.ts`, `mapFacettedSearchApiResponse.ts`, `auth.ts`, `related-items.ts`, `facetted-search.ts`, `useAuth.ts`
-- **Files Pending:** 3 React hooks remaining
+- **Coverage Areas:** Security, Error Handling, Edge Cases, Integration, RFC Compliance, React Native, Custom Errors, Data Transformation, Pagination, OAuth2 PKCE, API Integration, POST/GET requests, Facetted Search, React Hooks, Context Integration, Deep Comparison
+- **Files Tested:** `jwt.ts`, `pkce.ts`, `keychain.ts`, `http.ts` (partial), `AuthenticationError.ts`, `RelatedItemsGarmentNotFoundError.ts`, `mapRelatedItemsApiResponse.ts`, `mapFacettedSearchApiResponse.ts`, `auth.ts`, `related-items.ts`, `facetted-search.ts`, `useAuth.ts`, `useRelatedItems.ts`
+- **Files Pending:** 2 React hooks remaining!
 
 ### **Test Cleanup Benefits:**
 
