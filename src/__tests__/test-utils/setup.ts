@@ -1,4 +1,8 @@
+import React from 'react';
 import { vi } from 'vitest';
+
+// Make React available globally for JSX
+global.React = React;
 
 // Mock React Native modules
 vi.mock('react-native-keychain', () => ({
