@@ -368,16 +368,88 @@ This document tracks the progress of unit tests for the Dressipi SDK.
 
 ---
 
+## ✅ **Related Items Service Tests - Complete (18 tests passing)**
+
+### **What We Tested:**
+
+#### **Successful Requests (5 tests):**
+
+- ✅ **Basic Functionality** - Fetches related items successfully
+- ✅ **Request Validation** - Correct GET request with query parameters and auth headers
+- ✅ **Empty Parameters** - Handles requests with no query parameters
+- ✅ **Special Characters** - URL encoding in itemId and parameters
+- ✅ **Parameter Handling** - Complex query string construction
+
+#### **Error Handling (6 tests):**
+
+- ✅ **Authentication Errors** - 401/403 throw AuthenticationError
+- ✅ **Garment Not Found** - Specific RelatedItemsGarmentNotFoundError for "Garment not found"
+- ✅ **Generic Errors** - Network errors, timeouts, server errors
+- ✅ **Error Discrimination** - Different 404 errors handled appropriately
+- ✅ **Malformed Responses** - Graceful handling of unexpected response formats
+
+#### **Parameter & Domain Handling (3 tests):**
+
+- ✅ **Multiple Parameters** - Complex query string validation
+- ✅ **Custom Domains** - Support for different API endpoints
+- ✅ **Credential Formats** - Long JWT tokens and various auth formats
+
+#### **Real-world Scenarios (4 tests):**
+
+- ✅ **Complex API Responses** - Full response structure with outfits and similar items
+- ✅ **Pagination Support** - URL parameter handling for page/per_page
+- ✅ **Integration Testing** - End-to-end request/response validation
+
+**File:** `src/__tests__/unit/services/related-items.test.ts`  
+**Function Tested:** `getRelatedItems`  
+**Test Categories:** API integration, Error handling, Authentication, Parameter validation, Real-world scenarios
+
+---
+
+## ✅ **Facetted Search Service Tests - Complete (19 tests passing)**
+
+### **What We Tested:**
+
+#### **Successful Requests (6 tests):**
+
+- ✅ **Basic Search** - Performs facetted search successfully
+- ✅ **POST Request Validation** - Correct API request with facets in request body
+- ✅ **Empty Parameters** - Handles requests with no query parameters
+- ✅ **Empty Facets** - Handles requests with empty facets array
+- ✅ **Null/Undefined Requests** - Graceful handling of missing request objects
+- ✅ **Special Characters** - URL encoding in query parameters
+
+#### **Error Handling (5 tests):**
+
+- ✅ **Authentication Errors** - 401/403 throw AuthenticationError
+- ✅ **Network Errors** - Server errors, timeouts, connection issues
+- ✅ **Request Errors** - Bad request handling without response data
+
+#### **Request Structure Handling (4 tests):**
+
+- ✅ **Complex Facets** - Multiple facets with various dimensions (garment_category, brand, occasion, price)
+- ✅ **Special Characters in Facets** - Brand names with special characters
+- ✅ **Custom Domains** - Support for different API endpoints
+- ✅ **Credential Formats** - Long JWT tokens and various auth formats
+
+#### **Real-world Scenarios (4 tests):**
+
+- ✅ **Complete Search Results** - Full response structure with recommendations and pagination
+- ✅ **Pagination Scenarios** - Query parameter handling for search pagination
+- ✅ **Empty Results** - Handling of searches with no recommendations
+- ✅ **Multiple Filter Parameters** - Complex query strings with sorting and filtering
+
+**File:** `src/__tests__/unit/services/facetted-search.test.ts`  
+**Function Tested:** `performFacettedSearch`  
+**Test Categories:** API integration, POST requests, Facets handling, Search functionality, Error handling
+
+---
+
 ## 📋 **Pending Tests**
 
 ### **Utils (`src/utils/`)**
 
 - 🔄 **HTTP Utils** (`http.test.ts`) - Partially done, could expand
-
-### **Services (`src/services/`)**
-
-- ⏳ **Related Items Service** (`related-items.ts`) - Product recommendations API
-- ⏳ **Facetted Search Service** (`facetted-search.ts`) - Search API
 
 ### **Hooks (`src/hooks/`)**
 
@@ -390,12 +462,12 @@ This document tracks the progress of unit tests for the Dressipi SDK.
 
 ## 📊 **Test Statistics**
 
-- **Total Test Files:** 8/11 completed (+ HTTP Utils partially done)
-- **Total Tests:** 164 passing (20 JWT + 16 PKCE + 26 Keychain + 6 HTTP + 19 AuthError + 24 GarmentError + 21 RelatedMapping + 16 SearchMapping + 16 AuthService)
+- **Total Test Files:** 10/11 completed (+ HTTP Utils partially done)
+- **Total Tests:** 201 passing (20 JWT + 16 PKCE + 26 Keychain + 6 HTTP + 19 AuthError + 24 GarmentError + 21 RelatedMapping + 16 SearchMapping + 16 AuthService + 18 RelatedItemsService + 19 FacettedSearchService)
 - **Tests Cleaned Up:** 12 unnecessary tests removed (maintained focus on behavior over implementation)
-- **Coverage Areas:** Security, Error Handling, Edge Cases, Integration, RFC Compliance, React Native, Custom Errors, Data Transformation, Pagination, OAuth2 PKCE
-- **Files Tested:** `jwt.ts`, `pkce.ts`, `keychain.ts`, `http.ts` (partial), `AuthenticationError.ts`, `RelatedItemsGarmentNotFoundError.ts`, `mapRelatedItemsApiResponse.ts`, `mapFacettedSearchApiResponse.ts`, `auth.ts`
-- **Files Pending:** 2 files remaining
+- **Coverage Areas:** Security, Error Handling, Edge Cases, Integration, RFC Compliance, React Native, Custom Errors, Data Transformation, Pagination, OAuth2 PKCE, API Integration, POST/GET requests, Facetted Search
+- **Files Tested:** `jwt.ts`, `pkce.ts`, `keychain.ts`, `http.ts` (partial), `AuthenticationError.ts`, `RelatedItemsGarmentNotFoundError.ts`, `mapRelatedItemsApiResponse.ts`, `mapFacettedSearchApiResponse.ts`, `auth.ts`, `related-items.ts`, `facetted-search.ts`
+- **Files Pending:** Only React hooks remaining!
 
 ### **Test Cleanup Benefits:**
 
