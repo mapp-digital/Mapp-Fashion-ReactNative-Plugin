@@ -1,6 +1,7 @@
 import axios, { AxiosResponse } from 'axios';
 import uuid from 'react-native-uuid';
 import { AuthCredentials, AuthorizationResponse } from '../types/auth';
+import { Log } from '../utils/logger';
 import { PKCEChallenge, pkceChallenge } from '../utils/pkce';
 
 /**
@@ -42,6 +43,14 @@ export const authenticate = async (
   }).toString();
 
   try {
+    Log.info('Fetching OAuth authorization from Dressipi API', 'auth.ts', {
+      url: `https://${domain}/api/oauth/authorize?${authorizationRequestQueryString}`,
+      payload: {
+        clientId,
+        domain,
+      },
+    });
+
     /**
      * Send the authentication request to the server.
      */
@@ -49,6 +58,10 @@ export const authenticate = async (
       await axios.get<AuthorizationResponse>(
         `https://${domain}/api/oauth/authorize?${authorizationRequestQueryString}`
       );
+
+    Log.info('Received OAuth authorization from Dressipi API', 'auth.ts', {
+      response: response.data,
+    });
 
     /**
      * If the response is successful, set the authentication response.
@@ -88,6 +101,10 @@ export const authenticate = async (
   }).toString();
 
   try {
+    Log.info('Fetching OAuth token from Dressipi API', 'auth.ts', {
+      url: `https://${domain}/api/oauth/token?${tokenRequestQueryString}`,
+    });
+
     /**
      * Send the token request to the server.
      */
@@ -95,6 +112,10 @@ export const authenticate = async (
       await axios.post<AuthCredentials>(
         `https://${domain}/api/oauth/token?${tokenRequestQueryString}`
       );
+
+    Log.info('Received OAuth token from Dressipi API', 'auth.ts', {
+      response: response.data,
+    });
 
     /**
      * If the response is successful, set the token data.

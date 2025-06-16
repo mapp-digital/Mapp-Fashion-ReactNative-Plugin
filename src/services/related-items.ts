@@ -3,6 +3,7 @@ import { AuthenticationError } from '../errors/AuthenticationError';
 import { RelatedItemsGarmentNotFoundError } from '../errors/RelatedItemsGarmentNotFoundError';
 import { AuthCredentials } from '../types/auth';
 import { RelatedItemsApiResponse } from '../types/related-items';
+import { Log } from '../utils/logger';
 
 /**
  * Function to fetch related items from the Dressipi API.
@@ -31,6 +32,10 @@ export const getRelatedItems = async (
      */
     const queryString: string = new URLSearchParams(parameters).toString();
 
+    Log.info('Fetching related items from Dressipi API', 'related-items.ts', {
+      url: `https://${domain}/api/items/${encodeURIComponent(itemId)}/related?${queryString}`,
+    });
+
     /**
      * Make the API call to the related items endpoint.
      */
@@ -43,6 +48,10 @@ export const getRelatedItems = async (
           },
         }
       );
+
+    Log.info('Received related items from Dressipi API', 'related-items.ts', {
+      response: response.data,
+    });
 
     /**
      * Return the response data from the API call.

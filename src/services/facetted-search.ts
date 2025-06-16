@@ -5,6 +5,7 @@ import {
   FacettedSearchApiRequest,
   FacettedSearchApiResponse,
 } from '../types/facetted-search';
+import { Log } from '../utils/logger';
 
 /**
  * Function to perform a facetted search against the Dressipi API.
@@ -32,6 +33,17 @@ export const performFacettedSearch = async (
      */
     const queryString: string = new URLSearchParams(parameters).toString();
 
+    Log.info(
+      'Performing facetted search against Dressipi API',
+      'facetted-search.ts',
+      {
+        url: `https://${domain}/api/recommendations/facetted?${queryString}`,
+        payload: {
+          facets: request ? request.facets : [],
+        },
+      }
+    );
+
     /**
      * Make the API call to the facetted search endpoint.
      */
@@ -49,6 +61,14 @@ export const performFacettedSearch = async (
           },
         }
       );
+
+    Log.info(
+      'Received response from Dressipi API for facetted search',
+      'facetted-search.ts',
+      {
+        response: response.data,
+      }
+    );
 
     /**
      * Return the response data from the API call.

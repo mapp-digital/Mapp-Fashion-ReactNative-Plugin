@@ -16,6 +16,7 @@ import {
 } from '@/src/types/tracking';
 import { useCallback, useContext, useMemo } from 'react';
 import useDeepCompareEffect from 'use-deep-compare-effect';
+import { Log } from '../utils/logger';
 
 /**
  * Custom hook to access and manage Dressipi tracking events.
@@ -37,6 +38,11 @@ export const useDressipiTracking = (): TrackingState => {
         const event: QueuedEvent<QueueableEvents> = await eventFunction(
           ...args
         );
+
+        Log.info('Tracking event', undefined, {
+          event: event.event,
+          data: event.data,
+        });
 
         if (queue?.current) {
           queue.current.push(event);
