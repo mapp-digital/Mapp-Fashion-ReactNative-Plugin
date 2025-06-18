@@ -15,6 +15,8 @@ A React Native SDK that provides easy integration with Dressipi's fashion AI ser
 
 ## Installation
 
+(This is a placeholder information)
+
 ```bash
 npm install @dressipi/react-native-sdk
 ```
@@ -144,39 +146,39 @@ A hook for fetching related items, outfits, and similar products for a given ite
 
 #### Parameters
 
-`request: RelatedItemsApiRequest`
+`request: RelatedItemsApiRequest` - Configuration object for the related items request.
 
 #### Returns
 
-`RelatedItemsState`
+`RelatedItemsState` - An object containing the response data and request state.
 
-```typescript
-{
-  relatedItems: RelatedItemsMappedResponse | null;
-  loading: boolean;
-  error: Error | null;
-}
-```
+| Property       | Type                                 | Description                                                                                                                      |
+| -------------- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `relatedItems` | `RelatedItemsMappedResponse \| null` | The processed response data containing outfits, partner outfits, and similar items. `null` when no data is available or loading. |
+| `loading`      | `boolean`                            | Indicates whether the request is currently in progress. `true` during API calls, `false` when completed or idle.                 |
+| `error`        | `Error \| null`                      | Contains error information if the request fails. `null` when no error has occurred.                                              |
 
-#### Request Options
+#### Request Parameters (RelatedItemsApiRequest)
 
-| Property               | Type                         | Required | Description                                   |
-| ---------------------- | ---------------------------- | -------- | --------------------------------------------- |
-| `item_id`              | `string`                     | Yes      | The item + variant identifier (style + color) |
-| `methods`              | `RelatedItemsMethod[]`       | No       | Which recommendation types to fetch           |
-| `response_format`      | `ResponseFormat`             | No       | Response format (defaults to `Detailed`)      |
-| `try_all_methods`      | `boolean`                    | No       | Whether to try all available methods          |
-| `outfits_per_occasion` | `number`                     | No       | Maximum outfits per occasion                  |
-| `max_similar_items`    | `number`                     | No       | Maximum number of similar items               |
-| `max_reduced_by`       | `number`                     | No       | Maximum discount percentage                   |
-| `identifier_type`      | `RelatedItemsIdentifierType` | No       | Type of identifier being used                 |
+| Property               | Type                         | Required | Description                                                                                          |
+| ---------------------- | ---------------------------- | -------- | ---------------------------------------------------------------------------------------------------- |
+| `item_id`              | `string`                     | Yes      | The item + variant identifier (style + color) that serves as the base for recommendations            |
+| `methods`              | `RelatedItemsMethod[]`       | No       | Array specifying which recommendation types to fetch (`outfits`, `partner_outfits`, `similar_items`) |
+| `response_format`      | `ResponseFormat`             | No       | Response format (defaults to `Detailed`) - controls the level of detail in the response              |
+| `try_all_methods`      | `boolean`                    | No       | Whether to try all available methods if the specified methods don't return results                   |
+| `outfits_per_occasion` | `number`                     | No       | Maximum number of outfits to return per occasion (e.g., work, casual, evening)                       |
+| `max_similar_items`    | `number`                     | No       | Maximum number of similar items to return in the response                                            |
+| `max_reduced_by`       | `number`                     | No       | Maximum discount percentage to include in results (filters out heavily discounted items)             |
+| `identifier_type`      | `RelatedItemsIdentifierType` | No       | Type of identifier being used (affects how the item_id is interpreted)                               |
 
-#### Response Resources
+#### Response Data (RelatedItemsMappedResponse)
 
-- **`outfits`**: Complete outfit recommendations organized by occasion
-- **`partner_outfits`**: Partner-specific outfit recommendations
-- **`similar_items`**: Items similar to the requested item
-- **`response_id`**: Unique identifier for the response (useful for tracking)
+The `relatedItems` object contains the following properties:
+
+- **`response_id`**: `string` - Unique identifier for this specific response (useful for tracking and analytics)
+- **`outfits`**: `Outfit[] | undefined` - Array of complete outfit recommendations organized by occasion, each containing coordinated items
+- **`partner_outfits`**: `Outfit[] | undefined` - Array of partner-specific outfit recommendations with specialized styling
+- **`similar_items`**: `{ content_id: string; items: DetailedItem[]; } | undefined` - Object containing items similar to the requested product
 
 #### Example
 
@@ -236,28 +238,26 @@ A hook for performing facetted search queries with filters and pagination.
 
 #### Parameters
 
-`request: FacettedSearchApiRequest` (optional, defaults to `{}`)
+`request: FacettedSearchApiRequest` (optional, defaults to `{}`) - Configuration object for the search request.
 
 #### Returns
 
-`FacettedSearchState`
+`FacettedSearchState` - An object containing the search results and request state.
 
-```typescript
-{
-  items: FacettedSearchMappedResponse | null;
-  loading: boolean;
-  error: Error | null;
-}
-```
+| Property  | Type                                   | Description                                                                                                              |
+| --------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `items`   | `FacettedSearchMappedResponse \| null` | The processed search results containing filtered items and pagination info. `null` when no data is available or loading. |
+| `loading` | `boolean`                              | Indicates whether the search request is currently in progress. `true` during API calls, `false` when completed or idle.  |
+| `error`   | `Error \| null`                        | Contains error information if the search request fails. `null` when no error has occurred.                               |
 
-#### Request Options
+#### Request Parameters (FacettedSearchApiRequest)
 
-| Property          | Type             | Required | Description                              |
-| ----------------- | ---------------- | -------- | ---------------------------------------- |
-| `facets`          | `Facet[]`        | No       | Array of search filters                  |
-| `response_format` | `ResponseFormat` | No       | Response format (defaults to `Detailed`) |
-| `page`            | `number`         | No       | Page number for pagination               |
-| `per_page`        | `number`         | No       | Number of items per page                 |
+| Property          | Type             | Required | Description                                                                               |
+| ----------------- | ---------------- | -------- | ----------------------------------------------------------------------------------------- |
+| `facets`          | `Facet[]`        | No       | Array of search filters to apply (categories, brands, price ranges, etc.)                 |
+| `response_format` | `ResponseFormat` | No       | Response format (defaults to `Detailed`) - controls the level of detail in returned items |
+| `page`            | `number`         | No       | Page number for pagination (1-based indexing)                                             |
+| `per_page`        | `number`         | No       | Number of items to return per page (controls pagination size)                             |
 
 #### Facet Types
 
@@ -295,12 +295,17 @@ A hook for performing facetted search queries with filters and pagination.
 - `price`: Price ranges
 - `reduced_by`: Discount percentages
 
-#### Response Resources
+#### Response Data (FacettedSearchMappedResponse)
 
-- **`items`**: Array of filtered products matching the search criteria
-- **`pagination`**: Pagination information including total pages and current page
-- **`response_id`**: Unique identifier for the response
-- **`content_id`**: Content identifier for tracking purposes
+The `items` object contains the following properties:
+
+- **`response_id`**: `string` - Unique identifier for this specific search response (useful for tracking and analytics)
+- **`content_id`**: `string` - Content identifier for tracking purposes and correlation with other API calls
+- **`items`**: `DetailedItem[]` - Array of filtered products matching the search criteria with complete item information
+- **`pagination`**: `object` - Pagination information with the following structure:
+  - `current_page`: `number` - Current page number (1-based)
+  - `last_page`: `number` - Total number of pages available
+  - `total_items`: `number` - Total number of items matching the search criteria across all pages
 
 #### Example
 
@@ -406,6 +411,71 @@ enum RelatedItemsMethod {
   PartnerOutfits = 'partner_outfits',
   SimilarItems = 'similar_items',
 }
+```
+
+#### RelatedItemsApiRequest
+
+Type for configuring related items API requests:
+
+```typescript
+type RelatedItemsApiRequest = {
+  item_id?: string; // Item identifier
+  response_format?: ResponseFormat; // Response detail level
+  methods?: RelatedItemsMethod | RelatedItemsMethod[]; // Recommendation types
+  try_all_methods?: boolean; // Fallback to all methods
+  outfits_per_occasion?: number; // Max outfits per occasion
+  max_similar_items?: number; // Max similar items
+  max_reduced_by?: number; // Max discount percentage
+  identifier_type?: RelatedItemsIdentifierType; // Identifier type
+};
+```
+
+#### RelatedItemsMappedResponse
+
+Type for the processed related items response:
+
+```typescript
+type RelatedItemsMappedResponse = {
+  response_id: string; // Unique response identifier
+  outfits?: Outfit[]; // Outfit recommendations
+  partner_outfits?: Outfit[]; // Partner outfit recommendations
+  similar_items?: {
+    // Similar items group
+    content_id: string; // Content identifier
+    items: DetailedItem[]; // Array of similar items
+  };
+};
+```
+
+#### FacettedSearchApiRequest
+
+Type for configuring facetted search API requests:
+
+```typescript
+type FacettedSearchApiRequest = {
+  facets?: (FacetSingleFilter | FacetMultipleFilter)[]; // Search filters
+  response_format?: ResponseFormat; // Response detail level
+  page?: number; // Page number
+  per_page?: number; // Items per page
+};
+```
+
+#### FacettedSearchMappedResponse
+
+Type for the processed facetted search response:
+
+```typescript
+type FacettedSearchMappedResponse = {
+  response_id: string; // Unique response identifier
+  content_id: string; // Content identifier
+  items: DetailedItem[]; // Filtered product items
+  pagination: {
+    // Pagination information
+    last_page: number; // Total pages
+    current_page: number; // Current page
+    total_items: number; // Total items count
+  };
+};
 ```
 
 ## Examples
