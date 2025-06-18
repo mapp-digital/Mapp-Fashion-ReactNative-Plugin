@@ -18,13 +18,16 @@
 export { DressipiProvider } from './context/DressipiProvider';
 
 /**
- * Exports the useDressipiTracking and useDressipiProductDisplayPageTracking
- * hooks for tracking user interactions and product display page events.
+ * Exports the useDressipiTracking hook for tracking user interactions events.
  */
-export {
-  useDressipiProductDisplayPageTracking,
-  useDressipiTracking,
-} from './hooks/useDressipiTracking';
+export { useDressipiTracking } from './hooks/useDressipiTracking';
+
+/**
+ * Exports all tracking hooks for various user interactions
+ * such as adding to basket, identifying users, tracking orders,
+ * and tracking product display and list page views.
+ */
+export * from './hooks/tracking';
 
 /**
  * Exports the useRelatedItems hook for fetching related items

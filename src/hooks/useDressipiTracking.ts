@@ -1,4 +1,5 @@
-import { DressipiContext } from '@/src/context/DressipiContext';
+import { useCallback, useContext, useMemo } from 'react';
+import { DressipiContext } from '../context/DressipiContext';
 import {
   addToBasket as addToBasketEventFunction,
   identify as identifyEventFunction,
@@ -6,16 +7,13 @@ import {
   productDetailPageView as productDisplayPageViewEventFunction,
   productListPageView as productListPageViewEventFunction,
   removeFromBasket as removeFromBasketEventFunction,
-} from '@/src/tracking/trackerEvents';
+} from '../tracking/trackerEvents';
 import {
   QueueableEvents,
   QueueableFunction,
   QueuedEvent,
-  TrackingItem,
   TrackingState,
-} from '@/src/types/tracking';
-import { useCallback, useContext, useMemo } from 'react';
-import useDeepCompareEffect from 'use-deep-compare-effect';
+} from '../types/tracking';
 import { Log } from '../utils/logger';
 
 /**
@@ -71,23 +69,4 @@ export const useDressipiTracking = (): TrackingState => {
     }),
     [namespaceId, trackEvent]
   );
-};
-
-/**
- * Custom hook to track product display page views.
- * This hook uses the `useDressipiTracking` hook to
- * send tracking data for a product display page view.
- *
- * @param {TrackingItem} item - The item to track on the product display page.
- * @return {void} This hook does not return anything,
- * it simply triggers the tracking event.
- */
-export const useDressipiProductDisplayPageTracking = (
-  item: TrackingItem
-): void => {
-  const { productDisplayPage } = useDressipiTracking();
-
-  useDeepCompareEffect(() => {
-    productDisplayPage(item);
-  }, [item, productDisplayPage]);
 };
