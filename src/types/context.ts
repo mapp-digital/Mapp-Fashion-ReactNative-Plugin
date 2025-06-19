@@ -1,5 +1,6 @@
 import { ReactNativeTracker } from '@snowplow/react-native-tracker';
 import { PropsWithChildren, RefObject } from 'react';
+import { StorageType } from '../enums/StorageType';
 import { AuthCredentials } from './auth';
 import { Queue, QueueableEvents } from './tracking';
 
@@ -24,6 +25,7 @@ type ProviderAdditionalProps = {
   namespaceId: string;
   domain: string;
   clientId: string;
+  storageType?: StorageType;
 };
 
 /**

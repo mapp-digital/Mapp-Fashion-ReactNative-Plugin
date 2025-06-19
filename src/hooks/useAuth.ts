@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { authenticate, refreshToken } from '../services/auth';
 import { AuthInternalState, AuthState } from '../types/auth';
+import { SecureStorageAdapter } from '../types/keychain';
 import { accessTokenHasExpired, getNetworkUserId } from '../utils/jwt';
-import {
-  getCredentialsFromKeychain,
-  setCredentialsToKeychain,
-} from '../utils/keychain';
 import { Log } from '../utils/logger';
 
 /**
@@ -13,9 +10,14 @@ import { Log } from '../utils/logger';
  *
  * @param {string} clientId - The client ID for the Dressipi API.
  * @param {string} domain - The domain of the Dressipi API.
+ * @param {SecureStorageAdapter} storageAdapter - The storage adapter to use for credentials.
  * @return {AuthState} An object containing the authentication state.
  */
-export const useAuth = (clientId: string, domain: string): AuthState => {
+export const useAuth = (
+  clientId: string,
+  domain: string,
+  storageAdapter: SecureStorageAdapter
+): AuthState => {
   /**
    * State to manage authentication status, credentials, and errors.
    */
@@ -67,9 +69,9 @@ export const useAuth = (clientId: string, domain: string): AuthState => {
       }));
 
       /**
-       * Save the refreshed credentials to the keychain for future use.
+       * Save the refreshed credentials using the storage adapter for future use.
        */
-      setCredentialsToKeychain(
+      await storageAdapter.setCredentials(
         clientId,
         domain,
         JSON.stringify(refreshedCredentials)
@@ -98,7 +100,7 @@ export const useAuth = (clientId: string, domain: string): AuthState => {
       setState(previous => ({ ...previous, isAuthenticating: false }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientId, domain]);
+  }, [clientId, domain, storageAdapter]);
 
   /**
    * Effect hook to handle the authentication process
@@ -120,9 +122,9 @@ export const useAuth = (clientId: string, domain: string): AuthState => {
 
       try {
         /**
-         * Attempt to retrieve existing credentials from the keychain.
+         * Attempt to retrieve existing credentials using the storage adapter.
          */
-        const existingAuthCredentials = await getCredentialsFromKeychain(
+        const existingAuthCredentials = await storageAdapter.getCredentials(
           clientId,
           domain
         );
@@ -138,8 +140,10 @@ export const useAuth = (clientId: string, domain: string): AuthState => {
         ) {
           Log.info(
             `Existing credentials found for clientId: ${clientId}, domain: ${domain}.`,
-            'useAuth',
-            existingAuthCredentials
+            undefined,
+            {
+              access_token: existingAuthCredentials.access_token,
+            }
           );
 
           setState(previous => ({
@@ -175,12 +179,16 @@ export const useAuth = (clientId: string, domain: string): AuthState => {
         }));
 
         /**
-         * Save the resulting credentials to the keychain for future use.
+         * Save the resulting credentials using the storage adapter for future use.
          */
-        setCredentialsToKeychain(
+        await storageAdapter.setCredentials(
           clientId,
           domain,
           JSON.stringify(resultingCredentials)
+        );
+
+        Log.info(
+          `Setting credentials for clientId: ${clientId}, domain: ${domain}.`
         );
       } catch (error) {
         /**
@@ -211,7 +219,7 @@ export const useAuth = (clientId: string, domain: string): AuthState => {
      * Call the function to handle authentication when the component mounts.
      */
     handleAuthentication();
-  }, [clientId, domain]);
+  }, [clientId, domain, storageAdapter]);
 
   return {
     isAuthenticating: state.isAuthenticating,

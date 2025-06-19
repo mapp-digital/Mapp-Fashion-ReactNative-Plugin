@@ -1,6 +1,8 @@
 import type { ReactNativeTracker } from '@snowplow/react-native-tracker';
 import { RefObject, useEffect, useMemo, useRef } from 'react';
+import { StorageType } from '../enums/StorageType';
 import { useAuth } from '../hooks/useAuth';
+import { createStorageAdapter } from '../keychain/createStorageAdapter';
 import { createTracker } from '../tracking/tracker';
 import { ProviderProps } from '../types/context';
 import { Queue, QueueableEvents, QueuedEvent } from '../types/tracking';
@@ -19,6 +21,7 @@ export const DressipiProvider = ({
   namespaceId,
   domain,
   clientId,
+  storageType = StorageType.KEYCHAIN,
 }: ProviderProps) => {
   /**
    * Create a reference object to the queue of events
@@ -28,7 +31,20 @@ export const DressipiProvider = ({
     Queue<QueueableEvents>
   >([]);
 
-  const { networkUserId, credentials, refresh } = useAuth(clientId, domain);
+  /**
+   * Create the storage adapter based on the provided storage type.
+   * This adapter will be used for securely storing and retrieving credentials.
+   */
+  const storageAdapter = useMemo(
+    () => createStorageAdapter(storageType),
+    [storageType]
+  );
+
+  const { networkUserId, credentials, refresh } = useAuth(
+    clientId,
+    domain,
+    storageAdapter
+  );
 
   const tracker: ReactNativeTracker | null = useMemo(() => {
     /**

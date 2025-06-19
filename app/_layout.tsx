@@ -1,14 +1,15 @@
-import { Stack } from "expo-router";
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { DressipiProvider } from '../src';
+import { DressipiProvider, StorageType } from '../src';
 import './global.css';
 
 export default function RootLayout() {
   return (
-    <DressipiProvider 
+    <DressipiProvider
       namespaceId="00000000-0000-0000-0000-000000000000"
       domain="dressipi-production.countryroad.com.au"
       clientId="cr-mobile-app-test"
+      storageType={StorageType.SECURE_STORE}
     >
       <StatusBar style="auto" />
       <Stack
@@ -22,32 +23,32 @@ export default function RootLayout() {
           },
         }}
       >
-        <Stack.Screen 
-          name="index" 
-          options={{ 
+        <Stack.Screen
+          name="index"
+          options={{
             title: 'Welcome',
             headerStyle: {
               backgroundColor: '#8B5CF6',
             },
-          }} 
+          }}
         />
-        <Stack.Screen 
-          name="plp" 
-          options={{ 
+        <Stack.Screen
+          name="plp"
+          options={{
             title: 'Product Listing',
             headerStyle: {
               backgroundColor: '#8B5CF6',
             },
-          }} 
+          }}
         />
-        <Stack.Screen 
-          name="pdp/[productCode]" 
-          options={{ 
+        <Stack.Screen
+          name="pdp/[productCode]"
+          options={{
             title: 'Product Details',
             headerStyle: {
               backgroundColor: '#8B5CF6',
             },
-          }} 
+          }}
         />
       </Stack>
     </DressipiProvider>
