@@ -43,7 +43,7 @@ export const authenticate = async (
   }).toString();
 
   try {
-    Log.info('Fetching OAuth authorization from Dressipi API', 'auth.ts', {
+    Log.info('Fetching OAuth authorization from Dressipi API.', 'auth.ts', {
       url: `https://${domain}/api/oauth/authorize?${authorizationRequestQueryString}`,
       payload: {
         clientId,
@@ -59,9 +59,7 @@ export const authenticate = async (
         `https://${domain}/api/oauth/authorize?${authorizationRequestQueryString}`
       );
 
-    Log.info('Received OAuth authorization from Dressipi API', 'auth.ts', {
-      response: response.data,
-    });
+    Log.info('Received OAuth authorization from Dressipi API.', 'auth.ts');
 
     /**
      * If the response is successful, set the authentication response.
@@ -101,7 +99,7 @@ export const authenticate = async (
   }).toString();
 
   try {
-    Log.info('Fetching OAuth token from Dressipi API', 'auth.ts', {
+    Log.info('Fetching OAuth token from Dressipi API.', 'auth.ts', {
       url: `https://${domain}/api/oauth/token?${tokenRequestQueryString}`,
     });
 
@@ -113,9 +111,7 @@ export const authenticate = async (
         `https://${domain}/api/oauth/token?${tokenRequestQueryString}`
       );
 
-    Log.info('Received OAuth token from Dressipi API', 'auth.ts', {
-      response: response.data,
-    });
+    Log.info('Received OAuth token from Dressipi API.', 'auth.ts');
 
     /**
      * If the response is successful, set the token data.

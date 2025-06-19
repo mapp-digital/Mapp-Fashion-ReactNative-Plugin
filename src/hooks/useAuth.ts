@@ -6,6 +6,7 @@ import {
   getCredentialsFromKeychain,
   setCredentialsToKeychain,
 } from '../utils/keychain';
+import { Log } from '../utils/logger';
 
 /**
  * Custom hook to handle authentication with the Dressipi API.
@@ -135,6 +136,12 @@ export const useAuth = (clientId: string, domain: string): AuthState => {
           existingAuthCredentials &&
           !accessTokenHasExpired(existingAuthCredentials)
         ) {
+          Log.info(
+            `Existing credentials found for clientId: ${clientId}, domain: ${domain}.`,
+            'useAuth',
+            existingAuthCredentials
+          );
+
           setState(previous => ({
             ...previous,
             isAuthenticated: true,

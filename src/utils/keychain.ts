@@ -1,4 +1,5 @@
 import * as KeyChain from 'react-native-keychain';
+
 import { AuthCredentials } from '../types/auth';
 
 /**
@@ -116,4 +117,5 @@ export const resetCredentialsFromKeychain = async (
  * @param clientId - The client ID for the Dressipi API.
  * @return {string} - The generated username.
  */
-const generateUsername = (clientId: string): string => `dressipi-${clientId}`;
+export const generateUsername = (clientId: string): string =>
+  `dressipi-${clientId}`;
