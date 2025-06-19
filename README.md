@@ -6,6 +6,7 @@ A React Native SDK that provides easy integration with Dressipi's fashion AI ser
 
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Storage Configuration](#storage-configuration)
 - [API Reference](#api-reference)
   - [DressipiProvider](#dressipiprovider)
   - [useRelatedItems](#userelateditems)
@@ -104,6 +105,84 @@ export function ProductRecommendations({ productId }: { productId: string }) {
 }
 ```
 
+## Storage Configuration
+
+The Dressipi SDK supports different secure storage solutions depending on your React Native environment. The SDK automatically defaults to the most commonly used option but allows you to explicitly choose your preferred storage method.
+
+### Default Storage Behavior
+
+By default, the SDK uses **React Native Keychain** (`react-native-keychain`) for secure credential storage. This works seamlessly in standard React Native applications without any additional configuration.
+
+```tsx
+import { DressipiProvider } from '@dressipi/react-native-sdk';
+
+// Uses React Native Keychain by default
+<DressipiProvider
+  namespaceId="your-namespace-id"
+  domain="your-domain.com"
+  clientId="your-client-id"
+>
+  <App />
+</DressipiProvider>;
+```
+
+### Explicit Storage Configuration
+
+For Expo applications or when you want to explicitly control the storage method, you can specify the `storageType` prop:
+
+```tsx
+import { DressipiProvider, StorageType } from '@dressipi/react-native-sdk';
+
+// Explicitly use Expo SecureStore for Expo applications
+<DressipiProvider
+  namespaceId="your-namespace-id"
+  domain="your-domain.com"
+  clientId="your-client-id"
+  storageType={StorageType.SECURE_STORE}
+>
+  <App />
+</DressipiProvider>;
+```
+
+### Available Storage Types
+
+The SDK provides two storage options:
+
+| Storage Type               | Value            | Description                                   | Use Case                                         |
+| -------------------------- | ---------------- | --------------------------------------------- | ------------------------------------------------ |
+| `StorageType.KEYCHAIN`     | `'keychain'`     | Uses React Native Keychain for secure storage | **Default** - Standard React Native applications |
+| `StorageType.SECURE_STORE` | `'secure-store'` | Uses Expo SecureStore for secure storage      | Expo applications and Expo Go                    |
+
+### Storage Dependencies
+
+Make sure you have the appropriate storage library installed for your chosen storage type:
+
+#### For React Native Keychain (Default)
+
+```bash
+npm install react-native-keychain
+# For iOS, run: cd ios && pod install
+```
+
+#### For Expo SecureStore
+
+```bash
+npm install expo-secure-store
+```
+
+### Storage Features
+
+Both storage adapters provide identical functionality:
+
+- **Secure Credential Storage**: OAuth tokens are stored securely using platform-native secure storage
+- **Automatic Token Refresh**: Stored credentials are automatically used for token refresh operations
+- **Cross-Session Persistence**: Credentials persist across app restarts and device reboots
+- **Platform Security**: Leverages iOS Keychain and Android Keystore for maximum security
+
+### Migration Between Storage Types
+
+If you need to switch storage types (e.g., migrating from React Native to Expo), users will need to re-authenticate as credentials from different storage adapters are not automatically migrated.
+
 ## API Reference
 
 ### DressipiProvider
@@ -112,12 +191,13 @@ The main provider component that initializes the SDK and provides authentication
 
 #### Props
 
-| Prop          | Type        | Required | Description                             |
-| ------------- | ----------- | -------- | --------------------------------------- |
-| `namespaceId` | `string`    | Yes      | Your Dressipi namespace identifier      |
-| `domain`      | `string`    | Yes      | Your Dressipi domain                    |
-| `clientId`    | `string`    | Yes      | Your OAuth client ID for authentication |
-| `children`    | `ReactNode` | Yes      | Your app components                     |
+| Prop          | Type          | Required | Description                                                              |
+| ------------- | ------------- | -------- | ------------------------------------------------------------------------ |
+| `namespaceId` | `string`      | Yes      | Your Dressipi namespace identifier                                       |
+| `domain`      | `string`      | Yes      | Your Dressipi domain                                                     |
+| `clientId`    | `string`      | Yes      | Your OAuth client ID for authentication                                  |
+| `storageType` | `StorageType` | No       | Storage type for secure credentials (defaults to `StorageType.KEYCHAIN`) |
+| `children`    | `ReactNode`   | Yes      | Your app components                                                      |
 
 #### Features Provided
 
