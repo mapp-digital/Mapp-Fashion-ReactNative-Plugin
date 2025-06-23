@@ -6,10 +6,12 @@ import { DetailedItem, useFacettedSearch } from '../src';
 
 export default function PLP() {
   const { loading, error, items } = useFacettedSearch({
-    facets: [{
-      name: 'garment_category',
-      value: [1],
-    }]
+    facets: [
+      {
+        name: 'garment_category',
+        value: [1],
+      },
+    ],
   });
 
   const handleNavigateHome = () => {
@@ -25,9 +27,7 @@ export default function PLP() {
       {/* Header Card */}
       <View className="p-page">
         <Card className="items-center justify-center h-24 mb-6 border border-neutral-100">
-          <Heading3 className="text-primary-600">
-            Product Listing
-          </Heading3>
+          <Heading3 className="text-primary-600">Product Listing</Heading3>
           <Body className="mt-2 text-center text-neutral-600">
             Browse our amazing collection
           </Body>
@@ -53,8 +53,8 @@ export default function PLP() {
             />
           </View>
         ) : (
-          <ProductGrid 
-            items={items?.items} 
+          <ProductGrid
+            items={items?.items}
             onPress={handleNavigateToPDP}
             loading={loading}
           />

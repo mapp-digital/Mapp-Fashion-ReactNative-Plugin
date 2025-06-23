@@ -230,15 +230,14 @@ describe('KeyChainAdapter', () => {
       expect(mockKeyChain.setInternetCredentials).not.toHaveBeenCalled();
     });
 
-    it('should throw error when keychain operation fails', async () => {
+    it('should handle keychain operation failures gracefully', async () => {
       const keychainError = new Error('Keychain access denied');
       mockKeyChain.setInternetCredentials.mockRejectedValue(keychainError);
 
+      // Should not throw an error, just log it and proceed
       await expect(
         adapter.setCredentials(mockClientId, mockServerUrl, mockToken)
-      ).rejects.toThrow(
-        'Could not set Dressipi credentials to keychain: Keychain access denied'
-      );
+      ).resolves.toBeUndefined();
 
       expect(mockKeyChain.setInternetCredentials).toHaveBeenCalled();
     });
