@@ -1,7 +1,6 @@
 import { StorageType } from '../enums/StorageType';
 import { SecureStorageAdapter } from '../types/keychain';
 import { KeyChainAdapter } from './KeyChainAdapter';
-import { SecureStoreAdapter } from './SecureStoreAdapter';
 
 /**
  * Factory function to create the appropriate storage adapter based on the storage type.
@@ -15,7 +14,6 @@ export const createStorageAdapter = (
 ): SecureStorageAdapter => {
   switch (storageType) {
     case StorageType.SECURE_STORE:
-      return new SecureStoreAdapter();
     case StorageType.KEYCHAIN:
     default:
       return new KeyChainAdapter();

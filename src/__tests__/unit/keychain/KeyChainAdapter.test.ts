@@ -1,16 +1,13 @@
 import * as KeyChain from 'react-native-keychain';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { KeyChainAdapter } from '../../../keychain/KeyChainAdapter';
 import type { AuthCredentials } from '../../../types/auth';
-import {
-  getCredentialsFromKeychain,
-  resetCredentialsFromKeychain,
-  setCredentialsToKeychain,
-} from '../../../utils/keychain';
 
-// Mock react-native-keychain - already mocked in setup.ts but we'll type it properly
+// Mock react-native-keychain
 const mockKeyChain = KeyChain as any;
 
-describe('Keychain Utils', () => {
+describe('KeyChainAdapter', () => {
+  let adapter: KeyChainAdapter;
   const mockClientId = 'test-client-123';
   const mockServerUrl = 'https://api.dressipi.com';
   const mockToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test.token';
@@ -23,13 +20,12 @@ describe('Keychain Utils', () => {
   };
 
   beforeEach(() => {
-    // Reset all mocks before each test
+    adapter = new KeyChainAdapter();
     vi.clearAllMocks();
   });
 
-  describe('getCredentialsFromKeychain', () => {
+  describe('getCredentials', () => {
     it('should return credentials when found with matching username', async () => {
-      // Mock successful keychain retrieval
       const mockKeychainResponse = {
         username: 'dressipi-test-client-123',
         password: JSON.stringify(mockCredentials),
@@ -41,10 +37,7 @@ describe('Keychain Utils', () => {
         mockKeychainResponse as any
       );
 
-      const result = await getCredentialsFromKeychain(
-        mockClientId,
-        mockServerUrl
-      );
+      const result = await adapter.getCredentials(mockClientId, mockServerUrl);
 
       expect(mockKeyChain.getInternetCredentials).toHaveBeenCalledWith(
         mockServerUrl
@@ -53,13 +46,9 @@ describe('Keychain Utils', () => {
     });
 
     it('should return null when no credentials found in keychain', async () => {
-      // Mock keychain returning false (no credentials found)
       mockKeyChain.getInternetCredentials.mockResolvedValue(false);
 
-      const result = await getCredentialsFromKeychain(
-        mockClientId,
-        mockServerUrl
-      );
+      const result = await adapter.getCredentials(mockClientId, mockServerUrl);
 
       expect(mockKeyChain.getInternetCredentials).toHaveBeenCalledWith(
         mockServerUrl
@@ -68,7 +57,6 @@ describe('Keychain Utils', () => {
     });
 
     it('should return null when username does not match expected format', async () => {
-      // Mock credentials with wrong username
       const mockKeychainResponse = {
         username: 'wrong-username',
         password: JSON.stringify(mockCredentials),
@@ -78,16 +66,12 @@ describe('Keychain Utils', () => {
         mockKeychainResponse
       );
 
-      const result = await getCredentialsFromKeychain(
-        mockClientId,
-        mockServerUrl
-      );
+      const result = await adapter.getCredentials(mockClientId, mockServerUrl);
 
       expect(result).toBeNull();
     });
 
     it('should return null when password contains invalid JSON', async () => {
-      // Mock credentials with malformed JSON password
       const mockKeychainResponse = {
         username: 'dressipi-test-client-123',
         password: 'invalid-json-string',
@@ -97,24 +81,17 @@ describe('Keychain Utils', () => {
         mockKeychainResponse
       );
 
-      const result = await getCredentialsFromKeychain(
-        mockClientId,
-        mockServerUrl
-      );
+      const result = await adapter.getCredentials(mockClientId, mockServerUrl);
 
       expect(result).toBeNull();
     });
 
     it('should return null when keychain throws an error', async () => {
-      // Mock keychain throwing an error
       mockKeyChain.getInternetCredentials.mockRejectedValue(
         new Error('Keychain error')
       );
 
-      const result = await getCredentialsFromKeychain(
-        mockClientId,
-        mockServerUrl
-      );
+      const result = await adapter.getCredentials(mockClientId, mockServerUrl);
 
       expect(result).toBeNull();
     });
@@ -129,7 +106,7 @@ describe('Keychain Utils', () => {
         mockKeychainResponse
       );
 
-      const result = await getCredentialsFromKeychain('', mockServerUrl);
+      const result = await adapter.getCredentials('', mockServerUrl);
 
       expect(result).toEqual(mockCredentials);
     });
@@ -145,7 +122,7 @@ describe('Keychain Utils', () => {
         mockKeychainResponse
       );
 
-      const result = await getCredentialsFromKeychain(
+      const result = await adapter.getCredentials(
         specialClientId,
         mockServerUrl
       );
@@ -154,7 +131,6 @@ describe('Keychain Utils', () => {
     });
 
     it('should handle credentials with additional properties', async () => {
-      // Mock credentials with extra properties (should still work)
       const extendedCredentials = {
         ...mockCredentials,
         scope: 'read write',
@@ -170,20 +146,51 @@ describe('Keychain Utils', () => {
         mockKeychainResponse
       );
 
-      const result = await getCredentialsFromKeychain(
-        mockClientId,
-        mockServerUrl
-      );
+      const result = await adapter.getCredentials(mockClientId, mockServerUrl);
 
       expect(result).toEqual(extendedCredentials);
     });
+
+    it('should handle network timeouts gracefully', async () => {
+      const timeoutError = new Error('Request timeout');
+      timeoutError.name = 'TimeoutError';
+      mockKeyChain.getInternetCredentials.mockRejectedValue(timeoutError);
+
+      const result = await adapter.getCredentials(mockClientId, mockServerUrl);
+
+      expect(result).toBeNull();
+    });
+
+    it('should handle keychain access denied gracefully', async () => {
+      const accessError = new Error('Access denied to keychain');
+      mockKeyChain.getInternetCredentials.mockRejectedValue(accessError);
+
+      const result = await adapter.getCredentials(mockClientId, mockServerUrl);
+
+      expect(result).toBeNull();
+    });
+
+    it('should handle corrupted keychain data gracefully', async () => {
+      const mockKeychainResponse = {
+        username: 'dressipi-test-client-123',
+        password: '{"access_token": "incomplete_json"', // Malformed JSON
+      };
+
+      mockKeyChain.getInternetCredentials.mockResolvedValue(
+        mockKeychainResponse
+      );
+
+      const result = await adapter.getCredentials(mockClientId, mockServerUrl);
+
+      expect(result).toBeNull();
+    });
   });
 
-  describe('setCredentialsToKeychain', () => {
+  describe('setCredentials', () => {
     it('should successfully set credentials to keychain', async () => {
       mockKeyChain.setInternetCredentials.mockResolvedValue(true);
 
-      await setCredentialsToKeychain(mockClientId, mockServerUrl, mockToken);
+      await adapter.setCredentials(mockClientId, mockServerUrl, mockToken);
 
       expect(mockKeyChain.setInternetCredentials).toHaveBeenCalledWith(
         mockServerUrl,
@@ -196,34 +203,30 @@ describe('Keychain Utils', () => {
     });
 
     it('should not attempt to set credentials when clientId is empty', async () => {
-      await setCredentialsToKeychain('', mockServerUrl, mockToken);
+      await adapter.setCredentials('', mockServerUrl, mockToken);
 
       expect(mockKeyChain.setInternetCredentials).not.toHaveBeenCalled();
     });
 
     it('should not attempt to set credentials when clientId is null/undefined', async () => {
-      await setCredentialsToKeychain(null as any, mockServerUrl, mockToken);
+      await adapter.setCredentials(null as any, mockServerUrl, mockToken);
       expect(mockKeyChain.setInternetCredentials).not.toHaveBeenCalled();
 
-      await setCredentialsToKeychain(
-        undefined as any,
-        mockServerUrl,
-        mockToken
-      );
+      await adapter.setCredentials(undefined as any, mockServerUrl, mockToken);
       expect(mockKeyChain.setInternetCredentials).not.toHaveBeenCalled();
     });
 
     it('should not attempt to set credentials when serverUrl is empty', async () => {
-      await setCredentialsToKeychain(mockClientId, '', mockToken);
+      await adapter.setCredentials(mockClientId, '', mockToken);
 
       expect(mockKeyChain.setInternetCredentials).not.toHaveBeenCalled();
     });
 
     it('should not attempt to set credentials when serverUrl is null/undefined', async () => {
-      await setCredentialsToKeychain(mockClientId, null as any, mockToken);
+      await adapter.setCredentials(mockClientId, null as any, mockToken);
       expect(mockKeyChain.setInternetCredentials).not.toHaveBeenCalled();
 
-      await setCredentialsToKeychain(mockClientId, undefined as any, mockToken);
+      await adapter.setCredentials(mockClientId, undefined as any, mockToken);
       expect(mockKeyChain.setInternetCredentials).not.toHaveBeenCalled();
     });
 
@@ -232,7 +235,7 @@ describe('Keychain Utils', () => {
       mockKeyChain.setInternetCredentials.mockRejectedValue(keychainError);
 
       await expect(
-        setCredentialsToKeychain(mockClientId, mockServerUrl, mockToken)
+        adapter.setCredentials(mockClientId, mockServerUrl, mockToken)
       ).rejects.toThrow(
         'Could not set Dressipi credentials to keychain: Keychain access denied'
       );
@@ -243,7 +246,7 @@ describe('Keychain Utils', () => {
     it('should handle empty token gracefully', async () => {
       mockKeyChain.setInternetCredentials.mockResolvedValue(true);
 
-      await setCredentialsToKeychain(mockClientId, mockServerUrl, '');
+      await adapter.setCredentials(mockClientId, mockServerUrl, '');
 
       expect(mockKeyChain.setInternetCredentials).toHaveBeenCalledWith(
         mockServerUrl,
@@ -254,93 +257,69 @@ describe('Keychain Utils', () => {
         }
       );
     });
+
+    it('should handle special characters in clientId during set', async () => {
+      const specialClientId = 'client_123@test.com';
+      mockKeyChain.setInternetCredentials.mockResolvedValue(true);
+
+      await adapter.setCredentials(specialClientId, mockServerUrl, mockToken);
+
+      expect(mockKeyChain.setInternetCredentials).toHaveBeenCalledWith(
+        mockServerUrl,
+        'dressipi-client_123@test.com',
+        mockToken,
+        {
+          securityLevel: KeyChain.SECURITY_LEVEL.SECURE_SOFTWARE,
+        }
+      );
+    });
   });
 
-  describe('resetCredentialsFromKeychain', () => {
-    it('should successfully reset credentials from keychain', async () => {
+  describe('removeCredentials', () => {
+    it('should successfully remove credentials from keychain', async () => {
       mockKeyChain.resetInternetCredentials.mockResolvedValue(true);
 
-      await resetCredentialsFromKeychain(mockServerUrl);
+      await adapter.removeCredentials(mockServerUrl);
 
       expect(mockKeyChain.resetInternetCredentials).toHaveBeenCalledWith({
         server: mockServerUrl,
       });
     });
 
-    it('should handle keychain reset errors gracefully', async () => {
-      // Mock keychain throwing an error during reset
+    it('should handle keychain remove errors by propagating them', async () => {
       mockKeyChain.resetInternetCredentials.mockRejectedValue(
         new Error('Could not reset credentials')
       );
 
-      // Should not throw - the function doesn't have error handling, so error will propagate
-      await expect(resetCredentialsFromKeychain(mockServerUrl)).rejects.toThrow(
+      await expect(adapter.removeCredentials(mockServerUrl)).rejects.toThrow(
         'Could not reset credentials'
       );
     });
-  });
 
-  describe('generateUsername (internal function behavior)', () => {
-    it('should generate correct username format through getCredentialsFromKeychain', async () => {
-      const testClientId = 'my-test-client';
-      const expectedUsername = 'dressipi-my-test-client';
+    it('should handle empty serverUrl gracefully', async () => {
+      mockKeyChain.resetInternetCredentials.mockResolvedValue(true);
 
-      const mockKeychainResponse = {
-        username: expectedUsername,
-        password: JSON.stringify(mockCredentials),
-      };
+      await adapter.removeCredentials('');
 
-      mockKeyChain.getInternetCredentials.mockResolvedValue(
-        mockKeychainResponse
-      );
-
-      const result = await getCredentialsFromKeychain(
-        testClientId,
-        mockServerUrl
-      );
-
-      expect(result).toEqual(mockCredentials);
+      expect(mockKeyChain.resetInternetCredentials).toHaveBeenCalledWith({
+        server: '',
+      });
     });
 
-    it('should handle empty clientId in username generation', async () => {
-      const mockKeychainResponse = {
-        username: 'dressipi-',
-        password: JSON.stringify(mockCredentials),
-      };
+    it('should handle special server URLs', async () => {
+      const specialServerUrl = 'https://api-test.example.com:8080/path';
+      mockKeyChain.resetInternetCredentials.mockResolvedValue(true);
 
-      mockKeyChain.getInternetCredentials.mockResolvedValue(
-        mockKeychainResponse
-      );
+      await adapter.removeCredentials(specialServerUrl);
 
-      const result = await getCredentialsFromKeychain('', mockServerUrl);
-
-      expect(result).toEqual(mockCredentials);
-    });
-
-    it('should handle clientId with special characters in username', async () => {
-      const specialClientId = 'client_123@test.com';
-      const expectedUsername = 'dressipi-client_123@test.com';
-
-      const mockKeychainResponse = {
-        username: expectedUsername,
-        password: JSON.stringify(mockCredentials),
-      };
-
-      mockKeyChain.getInternetCredentials.mockResolvedValue(
-        mockKeychainResponse
-      );
-
-      const result = await getCredentialsFromKeychain(
-        specialClientId,
-        mockServerUrl
-      );
-
-      expect(result).toEqual(mockCredentials);
+      expect(mockKeyChain.resetInternetCredentials).toHaveBeenCalledWith({
+        server: specialServerUrl,
+      });
     });
   });
 
   describe('integration scenarios', () => {
-    it('should handle complete flow: set, get, reset', async () => {
+    it('should handle complete flow: set, get, remove', async () => {
       // Setup mocks for complete flow
       mockKeyChain.setInternetCredentials.mockResolvedValue(true);
 
@@ -354,18 +333,18 @@ describe('Keychain Utils', () => {
       mockKeyChain.resetInternetCredentials.mockResolvedValue(true);
 
       // 1. Set credentials
-      await setCredentialsToKeychain(mockClientId, mockServerUrl, mockToken);
+      await adapter.setCredentials(mockClientId, mockServerUrl, mockToken);
       expect(mockKeyChain.setInternetCredentials).toHaveBeenCalled();
 
       // 2. Get credentials
-      const retrievedCredentials = await getCredentialsFromKeychain(
+      const retrievedCredentials = await adapter.getCredentials(
         mockClientId,
         mockServerUrl
       );
       expect(retrievedCredentials).toEqual(mockCredentials);
 
-      // 3. Reset credentials
-      await resetCredentialsFromKeychain(mockServerUrl);
+      // 3. Remove credentials
+      await adapter.removeCredentials(mockServerUrl);
       expect(mockKeyChain.resetInternetCredentials).toHaveBeenCalled();
     });
 
@@ -386,14 +365,8 @@ describe('Keychain Utils', () => {
           password: JSON.stringify(credentials2),
         });
 
-      const result1 = await getCredentialsFromKeychain(
-        clientId1,
-        mockServerUrl
-      );
-      const result2 = await getCredentialsFromKeychain(
-        clientId2,
-        mockServerUrl
-      );
+      const result1 = await adapter.getCredentials(clientId1, mockServerUrl);
+      const result2 = await adapter.getCredentials(clientId2, mockServerUrl);
 
       expect(result1).toEqual(credentials1);
       expect(result2).toEqual(credentials2);
@@ -419,57 +392,37 @@ describe('Keychain Utils', () => {
         mockKeychainResponse
       );
 
-      const result = await getCredentialsFromKeychain(
+      const result = await adapter.getCredentials(
         'prod-client-456',
         mockServerUrl
       );
 
       expect(result).toEqual(realWorldCredentials);
     });
-  });
 
-  describe('error edge cases', () => {
-    it('should handle network timeouts gracefully', async () => {
-      const timeoutError = new Error('Request timeout');
-      timeoutError.name = 'TimeoutError';
-      mockKeyChain.getInternetCredentials.mockRejectedValue(timeoutError);
+    it('should properly isolate different server URLs', async () => {
+      const serverUrl1 = 'https://api.dressipi.com';
+      const serverUrl2 = 'https://staging-api.dressipi.com';
 
-      const result = await getCredentialsFromKeychain(
-        mockClientId,
-        mockServerUrl
+      mockKeyChain.setInternetCredentials.mockResolvedValue(true);
+
+      // Set credentials for different servers
+      await adapter.setCredentials(mockClientId, serverUrl1, 'token1');
+      await adapter.setCredentials(mockClientId, serverUrl2, 'token2');
+
+      expect(mockKeyChain.setInternetCredentials).toHaveBeenCalledTimes(2);
+      expect(mockKeyChain.setInternetCredentials).toHaveBeenCalledWith(
+        serverUrl1,
+        'dressipi-test-client-123',
+        'token1',
+        expect.any(Object)
       );
-
-      expect(result).toBeNull();
-    });
-
-    it('should handle keychain access denied gracefully', async () => {
-      const accessError = new Error('Access denied to keychain');
-      mockKeyChain.getInternetCredentials.mockRejectedValue(accessError);
-
-      const result = await getCredentialsFromKeychain(
-        mockClientId,
-        mockServerUrl
+      expect(mockKeyChain.setInternetCredentials).toHaveBeenCalledWith(
+        serverUrl2,
+        'dressipi-test-client-123',
+        'token2',
+        expect.any(Object)
       );
-
-      expect(result).toBeNull();
-    });
-
-    it('should handle corrupted keychain data gracefully', async () => {
-      const mockKeychainResponse = {
-        username: 'dressipi-test-client-123',
-        password: '{"access_token": "incomplete_json"', // Malformed JSON
-      };
-
-      mockKeyChain.getInternetCredentials.mockResolvedValue(
-        mockKeychainResponse
-      );
-
-      const result = await getCredentialsFromKeychain(
-        mockClientId,
-        mockServerUrl
-      );
-
-      expect(result).toBeNull();
     });
   });
 });

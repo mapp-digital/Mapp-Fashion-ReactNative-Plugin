@@ -74,9 +74,3 @@ export type { DetailedItem } from './types/shared';
  * Exports the StorageType enum for specifying which storage adapter to use.
  */
 export { StorageType } from './enums/StorageType';
-
-/**
- * Exports the storage adapters for explicit configuration when needed.
- */
-export { KeyChainAdapter } from './keychain/KeyChainAdapter';
-export { SecureStoreAdapter } from './keychain/SecureStoreAdapter';

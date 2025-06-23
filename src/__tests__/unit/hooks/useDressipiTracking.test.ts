@@ -2,10 +2,8 @@ import { renderHook } from '@testing-library/react';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DressipiContext } from '../../../context/DressipiContext';
-import {
-  useDressipiProductDisplayPageTracking,
-  useDressipiTracking,
-} from '../../../hooks/useDressipiTracking';
+import { useDressipiProductDisplayPageTracking } from '../../../hooks/tracking';
+import { useDressipiTracking } from '../../../hooks/useDressipiTracking';
 
 // Mock dependencies
 vi.mock('use-deep-compare-effect');

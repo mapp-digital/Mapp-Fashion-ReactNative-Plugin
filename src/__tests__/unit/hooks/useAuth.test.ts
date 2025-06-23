@@ -3,17 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuth } from '../../../hooks/useAuth';
 import * as authService from '../../../services/auth';
 import { AuthCredentials } from '../../../types/auth';
+import { SecureStorageAdapter } from '../../../types/keychain';
 import * as jwtUtils from '../../../utils/jwt';
-import * as keychainUtils from '../../../utils/keychain';
 
 // Mock all dependencies
 vi.mock('../../../services/auth');
 vi.mock('../../../utils/jwt');
-vi.mock('../../../utils/keychain');
 
 const mockedAuthService = vi.mocked(authService);
 const mockedJwtUtils = vi.mocked(jwtUtils);
-const mockedKeychainUtils = vi.mocked(keychainUtils);
 
 describe('useAuth hook', () => {
   const mockClientId = 'test-client-id';
@@ -27,14 +25,23 @@ describe('useAuth hook', () => {
   };
 
   const mockNetworkUserId = 'user123';
+  let mockStorageAdapter: SecureStorageAdapter;
 
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Create mock storage adapter
+    mockStorageAdapter = {
+      getCredentials: vi.fn(),
+      setCredentials: vi.fn(),
+      removeCredentials: vi.fn(),
+    };
+
     // Default mock returns
     mockedJwtUtils.accessTokenHasExpired.mockReturnValue(false);
     mockedJwtUtils.getNetworkUserId.mockReturnValue(mockNetworkUserId);
-    mockedKeychainUtils.getCredentialsFromKeychain.mockResolvedValue(null);
-    mockedKeychainUtils.setCredentialsToKeychain.mockResolvedValue(undefined);
+    mockStorageAdapter.getCredentials = vi.fn().mockResolvedValue(null);
+    mockStorageAdapter.setCredentials = vi.fn().mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -43,7 +50,9 @@ describe('useAuth hook', () => {
 
   describe('initial authentication flow', () => {
     it('should start with loading state', () => {
-      const { result } = renderHook(() => useAuth(mockClientId, mockDomain));
+      const { result } = renderHook(() =>
+        useAuth(mockClientId, mockDomain, mockStorageAdapter)
+      );
 
       expect(result.current.isAuthenticating).toBe(true);
       expect(result.current.isAuthenticated).toBe(false);
@@ -55,7 +64,9 @@ describe('useAuth hook', () => {
     it('should authenticate successfully when no existing credentials', async () => {
       mockedAuthService.authenticate.mockResolvedValue(mockCredentials);
 
-      const { result } = renderHook(() => useAuth(mockClientId, mockDomain));
+      const { result } = renderHook(() =>
+        useAuth(mockClientId, mockDomain, mockStorageAdapter)
+      );
 
       await waitFor(() => {
         expect(result.current.isAuthenticating).toBe(false);
@@ -66,14 +77,15 @@ describe('useAuth hook', () => {
       expect(result.current.networkUserId).toBe(mockNetworkUserId);
       expect(result.current.error).toBe(null);
 
-      expect(
-        mockedKeychainUtils.getCredentialsFromKeychain
-      ).toHaveBeenCalledWith(mockClientId, mockDomain);
+      expect(mockStorageAdapter.getCredentials).toHaveBeenCalledWith(
+        mockClientId,
+        mockDomain
+      );
       expect(mockedAuthService.authenticate).toHaveBeenCalledWith(
         mockClientId,
         mockDomain
       );
-      expect(mockedKeychainUtils.setCredentialsToKeychain).toHaveBeenCalledWith(
+      expect(mockStorageAdapter.setCredentials).toHaveBeenCalledWith(
         mockClientId,
         mockDomain,
         JSON.stringify(mockCredentials)
@@ -81,12 +93,14 @@ describe('useAuth hook', () => {
     });
 
     it('should use existing valid credentials from keychain', async () => {
-      mockedKeychainUtils.getCredentialsFromKeychain.mockResolvedValue(
-        mockCredentials
-      );
+      mockStorageAdapter.getCredentials = vi
+        .fn()
+        .mockResolvedValue(mockCredentials);
       mockedJwtUtils.accessTokenHasExpired.mockReturnValue(false);
 
-      const { result } = renderHook(() => useAuth(mockClientId, mockDomain));
+      const { result } = renderHook(() =>
+        useAuth(mockClientId, mockDomain, mockStorageAdapter)
+      );
 
       await waitFor(() => {
         expect(result.current.isAuthenticating).toBe(false);
@@ -109,13 +123,15 @@ describe('useAuth hook', () => {
         access_token: 'refreshed-token',
       };
 
-      mockedKeychainUtils.getCredentialsFromKeychain.mockResolvedValue(
-        expiredCredentials
-      );
+      mockStorageAdapter.getCredentials = vi
+        .fn()
+        .mockResolvedValue(expiredCredentials);
       mockedJwtUtils.accessTokenHasExpired.mockReturnValue(true);
       mockedAuthService.refreshToken.mockResolvedValue(refreshedCredentials);
 
-      const { result } = renderHook(() => useAuth(mockClientId, mockDomain));
+      const { result } = renderHook(() =>
+        useAuth(mockClientId, mockDomain, mockStorageAdapter)
+      );
 
       await waitFor(() => {
         expect(result.current.isAuthenticating).toBe(false);
@@ -129,7 +145,7 @@ describe('useAuth hook', () => {
         mockClientId,
         mockDomain
       );
-      expect(mockedKeychainUtils.setCredentialsToKeychain).toHaveBeenCalledWith(
+      expect(mockStorageAdapter.setCredentials).toHaveBeenCalledWith(
         mockClientId,
         mockDomain,
         JSON.stringify(refreshedCredentials)
@@ -142,7 +158,9 @@ describe('useAuth hook', () => {
       const authError = new Error('Authentication failed');
       mockedAuthService.authenticate.mockRejectedValue(authError);
 
-      const { result } = renderHook(() => useAuth(mockClientId, mockDomain));
+      const { result } = renderHook(() =>
+        useAuth(mockClientId, mockDomain, mockStorageAdapter)
+      );
 
       await waitFor(() => {
         expect(result.current.isAuthenticating).toBe(false);
@@ -160,7 +178,9 @@ describe('useAuth hook', () => {
     it('should handle non-Error objects in authentication', async () => {
       mockedAuthService.authenticate.mockRejectedValue('String error');
 
-      const { result } = renderHook(() => useAuth(mockClientId, mockDomain));
+      const { result } = renderHook(() =>
+        useAuth(mockClientId, mockDomain, mockStorageAdapter)
+      );
 
       await waitFor(() => {
         expect(result.current.isAuthenticating).toBe(false);
@@ -176,13 +196,15 @@ describe('useAuth hook', () => {
       const expiredCredentials = { ...mockCredentials, expires_in: 0 };
       const refreshError = new Error('Refresh failed');
 
-      mockedKeychainUtils.getCredentialsFromKeychain.mockResolvedValue(
-        expiredCredentials
-      );
+      mockStorageAdapter.getCredentials = vi
+        .fn()
+        .mockResolvedValue(expiredCredentials);
       mockedJwtUtils.accessTokenHasExpired.mockReturnValue(true);
       mockedAuthService.refreshToken.mockRejectedValue(refreshError);
 
-      const { result } = renderHook(() => useAuth(mockClientId, mockDomain));
+      const { result } = renderHook(() =>
+        useAuth(mockClientId, mockDomain, mockStorageAdapter)
+      );
 
       await waitFor(() => {
         expect(result.current.isAuthenticating).toBe(false);
@@ -196,11 +218,13 @@ describe('useAuth hook', () => {
     });
 
     it('should handle keychain errors gracefully', async () => {
-      mockedKeychainUtils.getCredentialsFromKeychain.mockRejectedValue(
-        new Error('Keychain error')
-      );
+      mockStorageAdapter.getCredentials = vi
+        .fn()
+        .mockRejectedValue(new Error('Keychain error'));
 
-      const { result } = renderHook(() => useAuth(mockClientId, mockDomain));
+      const { result } = renderHook(() =>
+        useAuth(mockClientId, mockDomain, mockStorageAdapter)
+      );
 
       await waitFor(() => {
         expect(result.current.isAuthenticating).toBe(false);
@@ -215,11 +239,13 @@ describe('useAuth hook', () => {
 
   describe('refresh function', () => {
     it('should not refresh when already authenticating', async () => {
-      mockedKeychainUtils.getCredentialsFromKeychain.mockResolvedValue(
-        mockCredentials
-      );
+      mockStorageAdapter.getCredentials = vi
+        .fn()
+        .mockResolvedValue(mockCredentials);
 
-      const { result } = renderHook(() => useAuth(mockClientId, mockDomain));
+      const { result } = renderHook(() =>
+        useAuth(mockClientId, mockDomain, mockStorageAdapter)
+      );
 
       // Call refresh while still loading
       await act(async () => {
@@ -235,7 +261,9 @@ describe('useAuth hook', () => {
         new Error('Auth failed')
       );
 
-      const { result } = renderHook(() => useAuth(mockClientId, mockDomain));
+      const { result } = renderHook(() =>
+        useAuth(mockClientId, mockDomain, mockStorageAdapter)
+      );
 
       await waitFor(() => {
         expect(result.current.isAuthenticating).toBe(false);
@@ -250,7 +278,9 @@ describe('useAuth hook', () => {
     });
 
     it('should return refresh function', async () => {
-      const { result } = renderHook(() => useAuth(mockClientId, mockDomain));
+      const { result } = renderHook(() =>
+        useAuth(mockClientId, mockDomain, mockStorageAdapter)
+      );
 
       expect(typeof result.current.refresh).toBe('function');
     });
@@ -261,9 +291,14 @@ describe('useAuth hook', () => {
       mockedAuthService.authenticate.mockResolvedValue(mockCredentials);
 
       const { result, rerender } = renderHook(
-        ({ clientId, domain }) => useAuth(clientId, domain),
+        ({ clientId, domain, storageAdapter }) =>
+          useAuth(clientId, domain, storageAdapter),
         {
-          initialProps: { clientId: mockClientId, domain: mockDomain },
+          initialProps: {
+            clientId: mockClientId,
+            domain: mockDomain,
+            storageAdapter: mockStorageAdapter,
+          },
         }
       );
 
@@ -277,6 +312,7 @@ describe('useAuth hook', () => {
       rerender({
         clientId: 'new-client-id',
         domain: mockDomain,
+        storageAdapter: mockStorageAdapter,
       });
 
       await waitFor(() => {
@@ -294,9 +330,14 @@ describe('useAuth hook', () => {
       mockedAuthService.authenticate.mockResolvedValue(mockCredentials);
 
       const { result, rerender } = renderHook(
-        ({ clientId, domain }) => useAuth(clientId, domain),
+        ({ clientId, domain, storageAdapter }) =>
+          useAuth(clientId, domain, storageAdapter),
         {
-          initialProps: { clientId: mockClientId, domain: mockDomain },
+          initialProps: {
+            clientId: mockClientId,
+            domain: mockDomain,
+            storageAdapter: mockStorageAdapter,
+          },
         }
       );
 
@@ -310,6 +351,7 @@ describe('useAuth hook', () => {
       rerender({
         clientId: mockClientId,
         domain: 'new-api.dressipi.com',
+        storageAdapter: mockStorageAdapter,
       });
 
       await waitFor(() => {
@@ -329,7 +371,9 @@ describe('useAuth hook', () => {
       // Start with no credentials and authenticate successfully
       mockedAuthService.authenticate.mockResolvedValue(mockCredentials);
 
-      const { result } = renderHook(() => useAuth(mockClientId, mockDomain));
+      const { result } = renderHook(() =>
+        useAuth(mockClientId, mockDomain, mockStorageAdapter)
+      );
 
       // Initial authentication
       await waitFor(() => {
@@ -346,7 +390,7 @@ describe('useAuth hook', () => {
         mockClientId,
         mockDomain
       );
-      expect(mockedKeychainUtils.setCredentialsToKeychain).toHaveBeenCalledWith(
+      expect(mockStorageAdapter.setCredentials).toHaveBeenCalledWith(
         mockClientId,
         mockDomain,
         JSON.stringify(mockCredentials)
@@ -362,12 +406,14 @@ describe('useAuth hook', () => {
         expires_in: 7200,
       };
 
-      mockedKeychainUtils.getCredentialsFromKeychain.mockResolvedValue(
-        realCredentials
-      );
+      mockStorageAdapter.getCredentials = vi
+        .fn()
+        .mockResolvedValue(realCredentials);
       mockedJwtUtils.getNetworkUserId.mockReturnValue('user123');
 
-      const { result } = renderHook(() => useAuth(mockClientId, mockDomain));
+      const { result } = renderHook(() =>
+        useAuth(mockClientId, mockDomain, mockStorageAdapter)
+      );
 
       await waitFor(() => {
         expect(result.current.isAuthenticating).toBe(false);
@@ -388,12 +434,25 @@ describe('useAuth hook', () => {
           )
       );
 
+      // Create separate storage adapters for each test
+      const storageAdapter1 = {
+        getCredentials: vi.fn().mockResolvedValue(null),
+        setCredentials: vi.fn().mockResolvedValue(undefined),
+        removeCredentials: vi.fn().mockResolvedValue(undefined),
+      };
+
+      const storageAdapter2 = {
+        getCredentials: vi.fn().mockResolvedValue(null),
+        setCredentials: vi.fn().mockResolvedValue(undefined),
+        removeCredentials: vi.fn().mockResolvedValue(undefined),
+      };
+
       // Render multiple hooks simultaneously
       const { result: result1 } = renderHook(() =>
-        useAuth(mockClientId, mockDomain)
+        useAuth(mockClientId, mockDomain, storageAdapter1)
       );
       const { result: result2 } = renderHook(() =>
-        useAuth(mockClientId, mockDomain)
+        useAuth(mockClientId, mockDomain, storageAdapter2)
       );
 
       await waitFor(() => {
