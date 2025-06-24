@@ -1,71 +1,78 @@
 {
-  "name": "dressipi-sdk-app",
-  "main": "expo-router/entry",
+  "name": "dressipi-sdk",
   "version": "1.0.0",
+  "description": "SDK for Dressipi integration in React Native and Expo applications",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
   "scripts": {
-    "start": "expo start",
-    "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web",
-    "lint": "expo lint",
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint src/**/*.ts --fix",
+    "lint:check": "eslint src/**/*.ts",
+    "format": "prettier --write src/**/*.ts *.md *.json",
+    "format:check": "prettier --check src/**/*.ts *.md *.json",
     "test": "vitest",
     "test:watch": "vitest --watch",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "prepublishOnly": "npm run build",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "dressipi",
+    "sdk",
+    "react-native",
+    "expo",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "peerDependencies": {
+    "react": ">=16.8.0",
+    "react-native": ">=0.60.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.0",
+    "@types/crypto-js": "^4.2.2",
+    "@types/lodash-es": "^4.17.12",
+    "@types/node": "^24.0.1",
+    "@types/react": "^19.1.8",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "@vitest/coverage-v8": "^3.2.3",
+    "eslint": "^8.0.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "eslint-plugin-react": "^7.33.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-native": "^4.1.0",
+    "jsdom": "^26.1.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^3.2.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "dependencies": {
-    "@expo/vector-icons": "^14.1.0",
-    "@react-navigation/bottom-tabs": "^7.3.10",
-    "@react-navigation/elements": "^2.3.8",
-    "@react-navigation/native": "^7.1.6",
     "@snowplow/react-native-tracker": "^2.1.1",
     "axios": "^1.9.0",
     "crypto-js": "^4.2.0",
-    "expo": "~53.0.9",
-    "expo-blur": "~14.1.4",
-    "expo-constants": "~17.1.6",
-    "expo-font": "~13.3.1",
-    "expo-haptics": "~14.1.4",
-    "expo-image": "~2.1.7",
-    "expo-linking": "~7.1.5",
-    "expo-router": "~5.0.6",
-    "expo-splash-screen": "~0.30.8",
-    "expo-status-bar": "~2.2.3",
-    "expo-symbols": "~0.4.4",
-    "expo-system-ui": "~5.0.7",
-    "expo-web-browser": "~14.1.6",
     "lodash-es": "^4.17.21",
-    "nativewind": "^4.1.23",
-    "react": "19.0.0",
-    "react-dom": "19.0.0",
-    "react-native": "0.79.2",
-    "react-native-gesture-handler": "~2.24.0",
     "react-native-keychain": "^10.0.0",
-    "react-native-reanimated": "^3.16.2",
-    "react-native-safe-area-context": "^5.4.0",
-    "react-native-screens": "~4.10.0",
     "react-native-uuid": "^2.0.3",
-    "react-native-web": "~0.20.0",
-    "react-native-webview": "13.13.5",
     "snakecase-keys": "^8.0.1",
-    "tailwindcss": "^3.4.17",
-    "use-deep-compare-effect": "^1.8.1",
-    "expo-secure-store": "~14.2.3"
-  },
-  "devDependencies": {
-    "@babel/core": "^7.25.2",
-    "@testing-library/react": "^16.3.0",
-    "@testing-library/user-event": "^14.6.1",
-    "@types/crypto-js": "^4.2.2",
-    "@types/lodash-es": "^4.17.12",
-    "@types/node": "^22.15.30",
-    "@types/react": "~19.0.10",
-    "eslint": "^9.25.0",
-    "eslint-config-expo": "~9.2.0",
-    "jsdom": "^26.1.0",
-    "prettier": "^3.5.3",
-    "typescript": "~5.8.3",
-    "vitest": "^3.2.2"
-  },
-  "private": true
+    "use-deep-compare-effect": "^1.8.1"
+  }
 }

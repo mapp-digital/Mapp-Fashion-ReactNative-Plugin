@@ -40,10 +40,6 @@ export const DressipiProvider = ({
     [storageType]
   );
 
-  /**
-   * Use the useAuth hook to retrieve the network user ID,
-   * authentication credentials, and a refresh function.
-   */
   const { networkUserId, credentials, refresh } = useAuth(
     clientId,
     domain,

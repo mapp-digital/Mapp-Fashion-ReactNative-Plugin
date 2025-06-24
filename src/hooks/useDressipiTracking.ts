@@ -37,7 +37,7 @@ export const useDressipiTracking = (): TrackingState => {
           ...args
         );
 
-        Log.info('Sending event to Snowplow:', 'useDressipiTracking.ts', {
+        Log.info('Tracking event', undefined, {
           event: event.event,
           data: event.data,
         });

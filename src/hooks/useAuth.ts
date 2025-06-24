@@ -140,7 +140,7 @@ export const useAuth = (
         ) {
           Log.info(
             `Existing credentials found for clientId: ${clientId}, domain: ${domain}.`,
-            'useAuth.ts',
+            undefined,
             {
               access_token: existingAuthCredentials.access_token,
             }
@@ -156,11 +156,6 @@ export const useAuth = (
 
           return;
         }
-
-        Log.info(
-          `No credentials found for clientId: ${clientId}, domain: ${domain}. Authenticating...`,
-          'useAuth.ts'
-        );
 
         /**
          * If no existing credentials are found or the access token has expired,
@@ -183,11 +178,6 @@ export const useAuth = (
           error: null,
         }));
 
-        Log.info(
-          `Setting credentials to storage for clientId: ${clientId}, domain: ${domain}.`,
-          'useAuth.ts'
-        );
-
         /**
          * Save the resulting credentials using the storage adapter for future use.
          */
@@ -195,6 +185,10 @@ export const useAuth = (
           clientId,
           domain,
           JSON.stringify(resultingCredentials)
+        );
+
+        Log.info(
+          `Setting credentials for clientId: ${clientId}, domain: ${domain}.`
         );
       } catch (error) {
         /**

@@ -2,7 +2,6 @@ import * as KeyChain from 'react-native-keychain';
 import { AuthCredentials } from '../types/auth';
 import { SecureStorageAdapter } from '../types/keychain';
 import { generateUsername } from '../utils/keychain';
-import { Log } from '../utils/logger';
 
 export class KeyChainAdapter implements SecureStorageAdapter {
   /**
@@ -89,18 +88,12 @@ export class KeyChainAdapter implements SecureStorageAdapter {
       );
     } catch (error) {
       /**
-       * If we want to be strict about error handling, we can throw a
-       * StorageError here. However, for now, we will just log the error.
-       * Uncomment the following lines if you want to throw an error:
+       * If there was an error setting the credentials to the keychain,
+       * throw it.
        */
-      Log.error(
-        `Could not set Dressipi credentials to keychain: "${(error as Error).message}". Proceeding without storing credentials...`,
-        'KeyChainAdapter.ts'
+      throw new Error(
+        `Could not set Dressipi credentials to keychain: ${(error as Error).message}`
       );
-
-      // throw new StorageError(
-      //   `Could not set Dressipi credentials to keychain: ${(error as Error).message}`
-      // );
     }
   }
 
