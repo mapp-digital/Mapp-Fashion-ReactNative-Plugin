@@ -6,6 +6,8 @@ import { createStorageAdapter } from '../keychain/createStorageAdapter';
 import { createTracker } from '../tracking/tracker';
 import { ProviderProps } from '../types/context';
 import { Queue, QueueableEvents, QueuedEvent } from '../types/tracking';
+import { Log } from '../utils/logger';
+import { ComplianceProvider } from './ComplianceProvider';
 import { DressipiContext } from './DressipiContext';
 
 /**
@@ -21,6 +23,7 @@ export const DressipiProvider = ({
   namespaceId,
   domain,
   clientId,
+  enableLogging = false,
   storageType = StorageType.KEYCHAIN,
 }: ProviderProps) => {
   /**
@@ -40,6 +43,18 @@ export const DressipiProvider = ({
     [storageType]
   );
 
+  /**
+   * Initialize the logging system.
+   * Logging is controlled via the enableLogging prop.
+   * If enableLogging is true, the Log class will log messages to the console.
+   * Otherwise, logging will be disabled.
+   */
+  Log.init(enableLogging);
+
+  /**
+   * Use the useAuth hook to retrieve the network user ID,
+   * authentication credentials, and a refresh function.
+   */
   const { networkUserId, credentials, refresh } = useAuth(
     clientId,
     domain,
@@ -91,20 +106,23 @@ export const DressipiProvider = ({
    * to its children, allowing them to access the namespaceId, domain,
    * clientId, tracker instance, queue of events, authentication credentials,
    * and a refresh function for updating the authentication state.
+   * It also wraps children with ComplianceProvider for user consent management.
    */
   return (
-    <DressipiContext.Provider
-      value={{
-        namespaceId,
-        domain,
-        clientId,
-        tracker,
-        queue,
-        credentials,
-        refreshAuthentication: refresh,
-      }}
-    >
-      {children}
-    </DressipiContext.Provider>
+    <ComplianceProvider storageAdapter={storageAdapter}>
+      <DressipiContext.Provider
+        value={{
+          namespaceId,
+          domain,
+          clientId,
+          tracker,
+          queue,
+          credentials,
+          refreshAuthentication: refresh,
+        }}
+      >
+        {children}
+      </DressipiContext.Provider>
+    </ComplianceProvider>
   );
 };

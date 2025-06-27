@@ -58,6 +58,9 @@ export const createTracker = (
         appId,
         ...baseTrackerConfiguration,
       },
+      subjectConfig: {
+        networkUserId: networkUserId,
+      },
     }
   );
 };

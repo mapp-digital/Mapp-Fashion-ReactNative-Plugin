@@ -18,6 +18,11 @@ export const useDressipiIdentifyTracking = (
   const { identify } = useDressipiTracking();
 
   useDeepCompareEffect(() => {
-    identify(identification);
+    // Only track if we have meaningful identification data
+    const hasValidData = identification.customerId || identification.email;
+
+    if (hasValidData) {
+      identify(identification);
+    }
   }, [identification, identify]);
 };

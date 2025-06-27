@@ -25,6 +25,7 @@ type ProviderAdditionalProps = {
   namespaceId: string;
   domain: string;
   clientId: string;
+  enableLogging?: boolean;
   storageType?: StorageType;
 };
 

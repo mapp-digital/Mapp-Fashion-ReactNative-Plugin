@@ -2,6 +2,7 @@ import * as KeyChain from 'react-native-keychain';
 import { AuthCredentials } from '../types/auth';
 import { SecureStorageAdapter } from '../types/keychain';
 import { generateUsername } from '../utils/keychain';
+import { Log } from '../utils/logger';
 
 export class KeyChainAdapter implements SecureStorageAdapter {
   /**
@@ -88,12 +89,18 @@ export class KeyChainAdapter implements SecureStorageAdapter {
       );
     } catch (error) {
       /**
-       * If there was an error setting the credentials to the keychain,
-       * throw it.
+       * If we want to be strict about error handling, we can throw a
+       * StorageError here. However, for now, we will just log the error.
+       * Uncomment the following lines if you want to throw an error:
        */
-      throw new Error(
-        `Could not set Dressipi credentials to keychain: ${(error as Error).message}`
+      Log.warn(
+        `Could not set Dressipi credentials to keychain: "${(error as Error).message}". Proceeding without storing credentials...`,
+        'KeyChainAdapter.ts'
       );
+
+      // throw new StorageError(
+      //   `Could not set Dressipi credentials to keychain: ${(error as Error).message}`
+      // );
     }
   }
 
@@ -113,5 +120,66 @@ export class KeyChainAdapter implements SecureStorageAdapter {
     await KeyChain.resetInternetCredentials({
       server: serverUrl,
     });
+  }
+
+  /**
+   * Sets a general key-value pair in the keychain using generic password storage.
+   *
+   * @param {string} key - The key for the data.
+   * @param {string} value - The value to store.
+   * @returns {Promise<void>} A promise that resolves when the data is set.
+   */
+  async setItem(key: string, value: string): Promise<void | null> {
+    try {
+      await KeyChain.setGenericPassword('dressipi', value, { service: key });
+    } catch (error) {
+      Log.error(
+        `Could not set item to keychain: "${(error as Error).message}"`,
+        'KeyChainAdapter.ts',
+        { key, value }
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Retrieves a value for a given key from the keychain.
+   *
+   * @param {string} key - The key for the data.
+   * @returns {Promise<string | null>} A promise that resolves to the
+   * value if found, or null if not found.
+   */
+  async getItem(key: string): Promise<string | null> {
+    try {
+      const credentials = await KeyChain.getGenericPassword({ service: key });
+      if (credentials && credentials.password) {
+        return credentials.password;
+      }
+      return null;
+    } catch (error) {
+      Log.error(
+        `Could not get item from keychain: "${(error as Error).message}"`,
+        'KeyChainAdapter.ts'
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Removes a key-value pair from the keychain.
+   *
+   * @param {string} key - The key for the data to remove.
+   * @returns {Promise<void>} A promise that resolves when the data is removed.
+   */
+  async removeItem(key: string): Promise<void> {
+    try {
+      await KeyChain.resetGenericPassword({ service: key });
+    } catch (error) {
+      Log.error(
+        `Could not remove item from keychain: "${(error as Error).message}"`,
+        'KeyChainAdapter.ts'
+      );
+      throw error;
+    }
   }
 }

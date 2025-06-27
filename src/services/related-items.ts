@@ -32,7 +32,7 @@ export const getRelatedItems = async (
      */
     const queryString: string = new URLSearchParams(parameters).toString();
 
-    Log.info('Fetching related items from Dressipi API', 'related-items.ts', {
+    Log.info('Fetching Related Items from Dressipi API', 'related-items.ts', {
       url: `https://${domain}/api/items/${encodeURIComponent(itemId)}/related?${queryString}`,
     });
 

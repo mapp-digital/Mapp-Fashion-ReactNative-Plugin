@@ -1,9 +1,9 @@
 import { AuthCredentials } from './auth';
 
 /**
- * Represents a secure storage adapter for managing credentials.
+ * Represents a secure storage adapter for managing credentials and general data.
  * This interface defines methods for setting, getting, and removing
- * credentials securely.
+ * credentials and general key-value pairs securely.
  */
 export interface SecureStorageAdapter {
   /**
@@ -42,4 +42,30 @@ export interface SecureStorageAdapter {
    * the credentials are removed.
    */
   removeCredentials(serverUrl: string): Promise<void>;
+
+  /**
+   * Sets a general key-value pair in secure storage.
+   *
+   * @param {string} key - The key for the data.
+   * @param {string} value - The value to store.
+   * @returns {Promise<void>} A promise that resolves when the data is set.
+   */
+  setItem(key: string, value: string): Promise<void | null>;
+
+  /**
+   * Retrieves a value for a given key from secure storage.
+   *
+   * @param {string} key - The key for the data.
+   * @returns {Promise<string | null>} A promise that resolves to the
+   * value if found, or null if not found.
+   */
+  getItem(key: string): Promise<string | null>;
+
+  /**
+   * Removes a key-value pair from secure storage.
+   *
+   * @param {string} key - The key for the data to remove.
+   * @returns {Promise<void>} A promise that resolves when the data is removed.
+   */
+  removeItem(key: string): Promise<void>;
 }

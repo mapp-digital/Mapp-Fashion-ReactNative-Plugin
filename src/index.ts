@@ -74,3 +74,8 @@ export type { DetailedItem } from './types/shared';
  * Exports the StorageType enum for specifying which storage adapter to use.
  */
 export { StorageType } from './enums/StorageType';
+
+/**
+ * Exports the useCompliance hook for managing user data tracking consent.
+ */
+export { useCompliance } from './hooks/useCompliance';
