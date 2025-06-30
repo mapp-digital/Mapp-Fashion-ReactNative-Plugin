@@ -27,6 +27,7 @@ type ProviderAdditionalProps = {
   clientId: string;
   enableLogging?: boolean;
   storage?: SecureStorageAdapter;
+  defaultConsent?: boolean;
 };
 
 /**

@@ -97,10 +97,28 @@ const DressipiContextProvider = ({
     /**
      * Create a tracker instance only if user has consented and networkUserId is available
      */
-    return shouldAuthenticate && networkUserId
-      ? createTracker(namespaceId, domain, networkUserId)
-      : null;
-  }, [namespaceId, domain, networkUserId, shouldAuthenticate]);
+    if (shouldAuthenticate && networkUserId) {
+      return createTracker(namespaceId, domain, networkUserId);
+    }
+
+    /**
+     * Log why tracker is not being created
+     */
+    if (!shouldAuthenticate) {
+      Log.info(
+        'Tracker not created - user has not consented to data usage',
+        'DressipiProvider.tsx',
+        { hasConsented }
+      );
+    } else if (!networkUserId) {
+      Log.info(
+        'Tracker not created - networkUserId not available (authentication pending)',
+        'DressipiProvider.tsx'
+      );
+    }
+
+    return null;
+  }, [namespaceId, domain, networkUserId, shouldAuthenticate, hasConsented]);
 
   useEffect(() => {
     /**
@@ -165,6 +183,7 @@ export const DressipiProvider = ({
   clientId,
   enableLogging = false,
   storage = new KeyChainAdapter(),
+  defaultConsent,
 }: ProviderProps) => {
   /**
    * Use the provided storage adapter instance.
@@ -186,7 +205,10 @@ export const DressipiProvider = ({
    * and the inner DressipiContextProvider handles conditional authentication based on consent.
    */
   return (
-    <ComplianceProvider storageAdapter={storageAdapter}>
+    <ComplianceProvider
+      storageAdapter={storageAdapter}
+      defaultConsent={defaultConsent}
+    >
       <DressipiContextProvider
         namespaceId={namespaceId}
         domain={domain}

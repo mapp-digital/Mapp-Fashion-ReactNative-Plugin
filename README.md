@@ -193,13 +193,15 @@ The main provider component that initializes the SDK and provides authentication
 
 #### Props
 
-| Prop          | Type          | Required | Description                                                              |
-| ------------- | ------------- | -------- | ------------------------------------------------------------------------ |
-| `namespaceId` | `string`      | Yes      | Your Dressipi namespace identifier                                       |
-| `domain`      | `string`      | Yes      | Your Dressipi domain                                                     |
-| `clientId`    | `string`      | Yes      | Your OAuth client ID for authentication                                  |
-| `storageType` | `StorageType` | No       | Storage type for secure credentials (defaults to `StorageType.KEYCHAIN`) |
-| `children`    | `ReactNode`   | Yes      | Your app components                                                      |
+| Prop             | Type                   | Required | Description                                                                        |
+| ---------------- | ---------------------- | -------- | ---------------------------------------------------------------------------------- |
+| `namespaceId`    | `string`               | Yes      | Your Dressipi namespace identifier                                                 |
+| `domain`         | `string`               | Yes      | Your Dressipi domain                                                               |
+| `clientId`       | `string`               | Yes      | Your OAuth client ID for authentication                                            |
+| `enableLogging`  | `boolean`              | No       | Enable debug logging for development (defaults to `false`)                         |
+| `storage`        | `SecureStorageAdapter` | No       | Custom storage adapter for credentials (defaults to KeyChain)                      |
+| `defaultConsent` | `boolean`              | No       | Default consent value when user hasn't made a choice yet (defaults to `undefined`) |
+| `children`       | `ReactNode`            | Yes      | Your app components                                                                |
 
 #### Features Provided
 
@@ -219,6 +221,34 @@ The main provider component that initializes the SDK and provides authentication
   <App />
 </DressipiProvider>
 ```
+
+#### Default Consent Configuration
+
+The `defaultConsent` prop allows you to set a default consent value for data usage when the user hasn't explicitly made a choice yet. This is useful for controlling the initial behavior of the SDK:
+
+```tsx
+// Default to allowing data usage (authentication enabled)
+<DressipiProvider
+  namespaceId="your-namespace-id"
+  domain="api.dressipi.com"
+  clientId="your-client-id"
+  defaultConsent={true}
+>
+  <App />
+</DressipiProvider>
+
+// Default to not allowing data usage (authentication disabled)
+<DressipiProvider
+  namespaceId="your-namespace-id"
+  domain="api.dressipi.com"
+  clientId="your-client-id"
+  defaultConsent={false}
+>
+  <App />
+</DressipiProvider>
+```
+
+**Note:** The default value is only used when no stored consent preference exists. Once a user explicitly accepts or rejects consent via `useCompliance`, their choice is stored and takes precedence over the default.
 
 ---
 

@@ -9,6 +9,7 @@ import {
 interface ComplianceProviderProps {
   children: React.ReactNode;
   storageAdapter: SecureStorageAdapter;
+  defaultConsent?: boolean;
 }
 
 const COMPLIANCE_STORAGE_KEY = 'dressipi_user_compliance';
@@ -20,6 +21,7 @@ const COMPLIANCE_STORAGE_KEY = 'dressipi_user_compliance';
 export const ComplianceProvider: React.FC<ComplianceProviderProps> = ({
   children,
   storageAdapter,
+  defaultConsent,
 }) => {
   const [hasConsented, setHasConsented] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -32,17 +34,26 @@ export const ComplianceProvider: React.FC<ComplianceProviderProps> = ({
           COMPLIANCE_STORAGE_KEY
         );
         if (storedConsent !== null) {
+          // Use stored value if it exists
           setHasConsented(storedConsent === 'true');
+        } else if (defaultConsent !== undefined) {
+          // Use default value if no stored value and default is provided
+          setHasConsented(defaultConsent);
         }
+        // If no stored value and no default, hasConsented remains null
       } catch (error) {
         console.warn('Failed to load compliance state:', error);
+        // On error, still try to use default if provided
+        if (defaultConsent !== undefined) {
+          setHasConsented(defaultConsent);
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
     loadComplianceState();
-  }, [storageAdapter]);
+  }, [storageAdapter, defaultConsent]);
 
   // Function to update consent and persist to storage
   const setConsent = useCallback(
