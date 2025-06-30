@@ -11,6 +11,7 @@ A React Native SDK that provides easy integration with Dressipi's fashion AI ser
   - [DressipiProvider](#dressipiprovider)
   - [useRelatedItems](#userelateditems)
   - [useFacettedSearch](#usefacettedsearch)
+  - [useCompliance](#usecompliance)
   - [Tracking](#tracking)
 - [Debug Logging](#debug-logging)
 - [Types](#types)
@@ -828,53 +829,262 @@ type ProductListPageEvent = {
 
 ### useCompliance
 
-A hook for accessing and changing compliance status within your application.
+A hook for managing user data tracking consent and compliance with privacy regulations like GDPR. This hook provides access to the user's consent status and functions to update their preferences. The SDK automatically respects the consent status, enabling or disabling data collection and API authentication based on the user's choice.
+
+#### Parameters
+
+This hook takes no parameters.
 
 #### Returns
 
-The compliance object with its properties and functions provided by the SDK.
+`ComplianceConfiguration` - An object containing the user's consent state and management functions.
 
-#### Example
+| Property       | Type                                  | Description                                                                                                                                   |
+| -------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hasConsented` | `boolean \| null`                     | The user's current consent status. `true` = consented, `false` = rejected, `null` = no choice made yet                                        |
+| `setConsent`   | `(consent: boolean) => Promise<void>` | Function to update the user's consent status. Accepts `true` for consent or `false` for rejection. The value is securely stored and persisted |
+| `isLoading`    | `boolean`                             | Indicates whether a consent operation is in progress. `true` during storage operations, `false` when idle                                     |
+
+#### Consent Behavior
+
+The consent status directly affects how the SDK operates:
+
+- **`true` (Consented)**: Full SDK functionality is enabled, including authentication, API calls, and tracking
+- **`false` (Rejected)**: API calls are disabled, no authentication occurs, and no tracking data is sent
+- **`null` (Not Set)**: Behavior depends on the `defaultConsent` prop set in `DressipiProvider`
+
+#### Storage
+
+User consent preferences are securely stored using the same storage adapter configured for the SDK (React Native Keychain or Expo SecureStore). The consent status persists across app restarts and device reboots, ensuring users don't need to re-consent on every session.
+
+#### Example Usage
+
+**Basic Compliance Management:**
 
 ```tsx
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useCompliance } from '@dressipi/react-native-sdk';
 
-function ComplianceInfo() {
-  const [showCompliancePopup, setShowCompliancePopup] = useState(false);
-
+function PrivacySettings() {
   const { hasConsented, setConsent, isLoading } = useCompliance();
 
-  const handleAcceptCompliance = async () => {
+  const handleConsentUpdate = async (consent: boolean) => {
     try {
-      await setConsent(true);
-      setShowCompliancePopup(false);
+      await setConsent(consent);
+      Alert.alert(
+        'Settings Updated',
+        `Data tracking ${consent ? 'enabled' : 'disabled'} successfully.`
+      );
     } catch (error) {
-      console.error('Failed to set compliance:', error);
-    }
-  };
-
-  const handleRejectCompliance = async () => {
-    try {
-      await setConsent(false);
-      setShowCompliancePopup(false);
-    } catch (error) {
+      Alert.alert('Error', 'Failed to update privacy settings.');
       console.error('Failed to set compliance:', error);
     }
   };
 
   return (
-    <View>
-      {/* Compliance Popup */}
-      <CompliancePopup
-        visible={showCompliancePopup}
-        onAccept={handleAcceptCompliance}
-        onReject={handleRejectCompliance}
-        isLoading={isLoading}
-      />
+    <View style={{ padding: 20 }}>
+      <Text style={{ fontSize: 18, marginBottom: 10 }}>Privacy Settings</Text>
+
+      <Text style={{ marginBottom: 20 }}>
+        Current Status:{' '}
+        {hasConsented === null
+          ? 'Not Set'
+          : hasConsented
+            ? 'Data Tracking Enabled'
+            : 'Data Tracking Disabled'}
+      </Text>
+
+      <TouchableOpacity
+        onPress={() => handleConsentUpdate(true)}
+        disabled={isLoading}
+        style={{
+          backgroundColor: hasConsented === true ? '#4CAF50' : '#E0E0E0',
+          padding: 15,
+          marginBottom: 10,
+          borderRadius: 8,
+        }}
+      >
+        <Text>Enable Data Tracking</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => handleConsentUpdate(false)}
+        disabled={isLoading}
+        style={{
+          backgroundColor: hasConsented === false ? '#F44336' : '#E0E0E0',
+          padding: 15,
+          borderRadius: 8,
+        }}
+      >
+        <Text>Disable Data Tracking</Text>
+      </TouchableOpacity>
+
+      {isLoading && <Text>Updating settings...</Text>}
     </View>
   );
 }
 ```
+
+**Compliance Popup for First-Time Users:**
+
+```tsx
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, Modal } from 'react-native';
+import { useCompliance } from '@dressipi/react-native-sdk';
+
+function CompliancePopup() {
+  const [showPopup, setShowPopup] = useState(false);
+  const { hasConsented, setConsent, isLoading } = useCompliance();
+
+  // Show popup if user hasn't made a choice yet
+  useEffect(() => {
+    if (hasConsented === null) {
+      setShowPopup(true);
+    }
+  }, [hasConsented]);
+
+  const handleAccept = async () => {
+    try {
+      await setConsent(true);
+      setShowPopup(false);
+    } catch (error) {
+      console.error('Failed to accept compliance:', error);
+    }
+  };
+
+  const handleReject = async () => {
+    try {
+      await setConsent(false);
+      setShowPopup(false);
+    } catch (error) {
+      console.error('Failed to reject compliance:', error);
+    }
+  };
+
+  return (
+    <Modal visible={showPopup} transparent animationType="fade">
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: 'white',
+            padding: 20,
+            borderRadius: 10,
+            margin: 20,
+          }}
+        >
+          <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15 }}>
+            Privacy & Data Usage
+          </Text>
+
+          <Text style={{ marginBottom: 20, lineHeight: 20 }}>
+            We use your data to provide personalized fashion recommendations and
+            improve your shopping experience. You can change this setting at any
+            time in your privacy preferences.
+          </Text>
+
+          <View
+            style={{ flexDirection: 'row', justifyContent: 'space-between' }}
+          >
+            <TouchableOpacity
+              onPress={handleReject}
+              disabled={isLoading}
+              style={{
+                backgroundColor: '#E0E0E0',
+                padding: 15,
+                borderRadius: 8,
+                flex: 1,
+                marginRight: 10,
+              }}
+            >
+              <Text style={{ textAlign: 'center' }}>Decline</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleAccept}
+              disabled={isLoading}
+              style={{
+                backgroundColor: '#2196F3',
+                padding: 15,
+                borderRadius: 8,
+                flex: 1,
+                marginLeft: 10,
+              }}
+            >
+              <Text style={{ color: 'white', textAlign: 'center' }}>
+                Accept
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {isLoading && (
+            <Text style={{ textAlign: 'center', marginTop: 10 }}>
+              Processing...
+            </Text>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+```
+
+**Conditional Feature Rendering Based on Consent:**
+
+```tsx
+import React from 'react';
+import { View, Text } from 'react-native';
+import { useCompliance, useRelatedItems } from '@dressipi/react-native-sdk';
+
+function ProductPage({ productId }: { productId: string }) {
+  const { hasConsented } = useCompliance();
+
+  // Only fetch recommendations if user has consented
+  const { relatedItems, loading } = useRelatedItems({
+    item_id: productId,
+    methods: ['outfits', 'similar_items'],
+  });
+
+  return (
+    <View>
+      <Text>Product Details</Text>
+
+      {hasConsented === true ? (
+        // Show personalized content when user has consented
+        <View>
+          {loading ? (
+            <Text>Loading personalized recommendations...</Text>
+          ) : (
+            relatedItems && (
+              <View>
+                <Text>Recommended for You</Text>
+                {/* Render recommendations */}
+              </View>
+            )
+          )}
+        </View>
+      ) : hasConsented === false ? (
+        // Show generic message when user declined
+        <Text>
+          Enable data tracking in settings to see personalized recommendations.
+        </Text>
+      ) : (
+        // Show loading state while consent status is being determined
+        <Text>Loading...</Text>
+      )}
+    </View>
+  );
+}
+```
+
+---
 
 ## Debug Logging
 
