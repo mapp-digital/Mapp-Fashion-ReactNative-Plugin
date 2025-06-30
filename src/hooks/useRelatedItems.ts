@@ -13,6 +13,7 @@ import {
   RelatedItemsState,
 } from '../types/related-items';
 import { createQueryParameters } from '../utils/http';
+import { useCompliance } from './useCompliance';
 
 export const useRelatedItems = (
   request: RelatedItemsApiRequest
@@ -23,6 +24,11 @@ export const useRelatedItems = (
    */
   const { credentials, domain, refreshAuthentication } =
     useContext(DressipiContext);
+
+  /**
+   * Get the user's consent status to determine if authenticated requests should be made
+   */
+  const { hasConsented } = useCompliance();
 
   /**
    * State to hold the items, loading status, and error of the related items
@@ -47,9 +53,17 @@ export const useRelatedItems = (
 
   useDeepCompareEffect(() => {
     /**
-     * If there are no credentials, return early.
+     * If user has consented but there are no credentials, return early.
+     * If user hasn't consented, we proceed without credentials.
      */
-    if (!credentials) {
+    if (hasConsented === true && !credentials) {
+      return;
+    }
+
+    /**
+     * If consent status is still loading (null), wait
+     */
+    if (hasConsented === null) {
       return;
     }
 
@@ -97,12 +111,13 @@ export const useRelatedItems = (
 
         /**
          * Fetch the related items of the item on the request.
+         * Pass credentials only if user has consented
          */
         const response: RelatedItemsApiResponse = await getRelatedItems(
           domain,
           parameters,
           request.item_id,
-          credentials
+          hasConsented === true ? credentials : null
         );
 
         /**
@@ -141,11 +156,13 @@ export const useRelatedItems = (
       /**
        * If the error is an instance of AuthenticationError,
        * and we are not currently refreshing the authentication,
+       * and the user has consented to data sharing,
        * attempt to refresh the authentication.
        */
       if (
         error instanceof AuthenticationError &&
-        !isRefreshingAuthentication.current
+        !isRefreshingAuthentication.current &&
+        hasConsented === true
       ) {
         /**
          * Set the refreshing authentication flag to true.
@@ -204,7 +221,7 @@ export const useRelatedItems = (
      * Run the related items handler.
      */
     handleRelatedItems();
-  }, [credentials, request, domain, refreshAuthentication]);
+  }, [credentials, request, domain, refreshAuthentication, hasConsented]);
 
   return state;
 };

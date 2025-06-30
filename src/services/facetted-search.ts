@@ -15,6 +15,7 @@ import { Log } from '../utils/logger';
  * @param request - The facetted search request object containing facets
  * and other parameters.
  * @param credentials - The authentication credentials to use for the request.
+ * Can be null when user hasn't consented to data sharing.
  * @returns {Promise<FacettedSearchApiResponse>} A promise that resolves to
  * the response from the facetted search API.
  * @throws {AuthenticationError} If the authentication fails (401 or 403).
@@ -24,7 +25,7 @@ export const performFacettedSearch = async (
   domain: string,
   parameters: Record<string, string>,
   request: FacettedSearchApiRequest,
-  credentials: AuthCredentials
+  credentials: AuthCredentials | null
 ): Promise<FacettedSearchApiResponse> => {
   try {
     /**
@@ -41,8 +42,25 @@ export const performFacettedSearch = async (
         payload: {
           facets: request ? request.facets : [],
         },
+        usingCredentials: !!credentials,
       }
     );
+
+    /**
+     * Build headers object, conditionally including Authorization
+     */
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    };
+
+    if (credentials) {
+      headers.Authorization = `Bearer ${credentials.access_token}`;
+    }
+
+    Log.info('Headers for the Facetted Search request', 'facetted-search.ts', {
+      headers,
+    });
 
     /**
      * Make the API call to the facetted search endpoint.
@@ -54,11 +72,7 @@ export const performFacettedSearch = async (
           facets: request ? request.facets : [],
         },
         {
-          headers: {
-            Authorization: `Bearer ${credentials.access_token}`,
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-          },
+          headers,
         }
       );
 

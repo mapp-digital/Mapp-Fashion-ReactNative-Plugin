@@ -12,6 +12,7 @@ import {
   FacettedSearchState,
 } from '../types/facetted-search';
 import { createQueryParameters } from '../utils/http';
+import { useCompliance } from './useCompliance';
 
 /**
  * Custom hook to perform a facetted search.
@@ -30,6 +31,11 @@ export const useFacettedSearch = (
    */
   const { credentials, domain, refreshAuthentication } =
     useContext(DressipiContext);
+
+  /**
+   * Get the user's consent status to determine if authenticated requests should be made
+   */
+  const { hasConsented } = useCompliance();
 
   /**
    * State to hold the items, loading status, and error of the facetted search.
@@ -53,9 +59,17 @@ export const useFacettedSearch = (
 
   useDeepCompareEffect(() => {
     /**
-     * If there are no credentials, return early.
+     * If user has consented but there are no credentials, return early.
+     * If user hasn't consented, we proceed without credentials.
      */
-    if (!credentials) {
+    if (hasConsented === true && !credentials) {
+      return;
+    }
+
+    /**
+     * If consent status is still loading (null), wait
+     */
+    if (hasConsented === null) {
       return;
     }
 
@@ -100,12 +114,13 @@ export const useFacettedSearch = (
 
         /**
          * Perform the facetted search.
+         * Pass credentials only if user has consented
          */
         const response: FacettedSearchApiResponse = await performFacettedSearch(
           domain,
           parameters,
           request,
-          credentials
+          hasConsented === true ? credentials : null
         );
 
         /**
@@ -139,11 +154,13 @@ export const useFacettedSearch = (
       /**
        * If the error is an instance of AuthenticationError,
        * and we are not currently refreshing the authentication,
+       * and the user has consented to data sharing,
        * attempt to refresh the authentication.
        */
       if (
         error instanceof AuthenticationError &&
-        !isRefreshingAuthentication.current
+        !isRefreshingAuthentication.current &&
+        hasConsented === true
       ) {
         /**
          * Set the refreshing authentication flag to true.
@@ -190,7 +207,7 @@ export const useFacettedSearch = (
      * Run the facetted search handler.
      */
     handleFacettedSearch();
-  }, [credentials, request, domain, refreshAuthentication]);
+  }, [credentials, request, domain, refreshAuthentication, hasConsented]);
 
   return state;
 };

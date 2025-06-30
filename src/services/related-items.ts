@@ -12,6 +12,7 @@ import { Log } from '../utils/logger';
  * @param parameters - The query parameters to include in the request.
  * @param itemId - The ID of the item for which related items are requested.
  * @param credentials - The authentication credentials to use for the request.
+ * Can be null when user hasn't consented to data sharing.
  * @returns {Promise<RelatedItemsApiResponse>} A promise that resolves to
  * the response from the related items API.
  * @throws {AuthenticationError} If the authentication fails (401 or 403).
@@ -23,7 +24,7 @@ export const getRelatedItems = async (
   domain: string,
   parameters: Record<string, string>,
   itemId: string,
-  credentials: AuthCredentials
+  credentials: AuthCredentials | null
 ): Promise<RelatedItemsApiResponse> => {
   try {
     /**
@@ -34,6 +35,20 @@ export const getRelatedItems = async (
 
     Log.info('Fetching Related Items from Dressipi API', 'related-items.ts', {
       url: `https://${domain}/api/items/${encodeURIComponent(itemId)}/related?${queryString}`,
+      usingCredentials: !!credentials,
+    });
+
+    /**
+     * Build headers object, conditionally including Authorization
+     */
+    const headers: Record<string, string> = {};
+
+    if (credentials) {
+      headers.Authorization = `Bearer ${credentials.access_token}`;
+    }
+
+    Log.info('Headers for the Related Items request', 'facetted-search.ts', {
+      headers,
     });
 
     /**
@@ -43,9 +58,7 @@ export const getRelatedItems = async (
       await axios.get<RelatedItemsApiResponse>(
         `https://${domain}/api/items/${encodeURIComponent(itemId)}/related?${queryString}`,
         {
-          headers: {
-            Authorization: `Bearer ${credentials.access_token}`,
-          },
+          headers,
         }
       );
 

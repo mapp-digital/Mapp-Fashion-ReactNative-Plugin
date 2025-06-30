@@ -11,12 +11,14 @@ import { Log } from '../utils/logger';
  * @param {string} clientId - The client ID for the Dressipi API.
  * @param {string} domain - The domain of the Dressipi API.
  * @param {SecureStorageAdapter} storageAdapter - The storage adapter to use for credentials.
+ * @param {boolean} shouldAuthenticate - Whether authentication should be performed. Defaults to true.
  * @return {AuthState} An object containing the authentication state.
  */
 export const useAuth = (
   clientId: string,
   domain: string,
-  storageAdapter: SecureStorageAdapter
+  storageAdapter: SecureStorageAdapter,
+  shouldAuthenticate: boolean = true
 ): AuthState => {
   /**
    * State to manage authentication status, credentials, and errors.
@@ -36,6 +38,13 @@ export const useAuth = (
    * and updates the state with the refreshed credentials.
    */
   const refresh = useCallback(async () => {
+    /**
+     * Exit early if authentication is disabled
+     */
+    if (!shouldAuthenticate) {
+      return;
+    }
+
     /**
      * Check if an user is already authenticating or if credentials are not set.
      * If either condition is true, exit the function early to avoid
@@ -100,13 +109,24 @@ export const useAuth = (
       setState(previous => ({ ...previous, isAuthenticating: false }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientId, domain, storageAdapter]);
+  }, [clientId, domain, storageAdapter, shouldAuthenticate]);
 
   /**
    * Effect hook to handle the authentication process
    * when the component mounts.
    */
   useEffect(() => {
+    /**
+     * Skip authentication if shouldAuthenticate is false
+     */
+    if (!shouldAuthenticate) {
+      Log.info(
+        'Authentication skipped - user consent not provided',
+        'useAuth.ts'
+      );
+      return;
+    }
+
     /**
      * Function to handle the authentication process.
      */
@@ -225,7 +245,7 @@ export const useAuth = (
      * Call the function to handle authentication when the component mounts.
      */
     handleAuthentication();
-  }, [clientId, domain, storageAdapter]);
+  }, [clientId, domain, storageAdapter, shouldAuthenticate]);
 
   return {
     isAuthenticating: state.isAuthenticating,
