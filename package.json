@@ -1,6 +1,12 @@
 {
-  "name": "dressipi-sdk",
-  "version": "1.0.0",
+  "name": "Mapp-Fashion-ReactNative-SDK",
+  "version": "0.1.0",
+  "author": "Mapp Digital <productmanagement@mapp.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mapp-digital/Mapp-Fashion-ReactNative-Plugin.git"
+  },
+  "homepage": "https://github.com/mapp-digital/Mapp-Fashion-ReactNative-Plugin#readme",
   "description": "SDK for Dressipi integration in React Native and Expo applications",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -31,7 +37,6 @@
     "expo",
     "typescript"
   ],
-  "author": "",
   "license": "MIT",
   "files": [
     "dist",
