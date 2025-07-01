@@ -70,17 +70,29 @@ export const createTracker = (
       snowplowNamespace,
       {
         endpoint: `https://${domain}`,
+        customPostPath: '/t/t',
       },
       {
         trackerConfig: {
           appId,
           ...baseTrackerConfiguration,
         },
+        /**
+         * This might not work, but we'll keep it anyway, it doesn't break
+         * anything.
+         */
         ...(networkUserId
           ? { subjectConfig: { networkUserId: networkUserId } }
           : {}),
       }
     );
+
+    /**
+     * This one really works.
+     */
+    if (networkUserId) {
+      tracker.setNetworkUserId(networkUserId);
+    }
 
     Log.info('Successfully created Snowplow tracker', 'tracker.ts', {
       appId,

@@ -150,14 +150,16 @@ export const productDetailPageView = async (
         schema: 'iglu:com.dressipi/item_view/jsonschema/1-0-0',
         data: omitBy(
           {
-            product_code: item.productCode,
-            sku: item.sku,
-            price: item.price,
-            currency: item.currency,
-            barcode: item.barcode,
-            size: item.size,
-            item_name: item.name,
-            item_brand: item.brand,
+            item: {
+              product_code: item.productCode,
+              sku: item.sku,
+              price: item.price,
+              currency: item.currency,
+              barcode: item.barcode,
+              size: item.size,
+              item_name: item.name,
+              item_brand: item.brand,
+            },
           },
           isNil
         ),
@@ -196,7 +198,7 @@ export const identify =
           /**
            * If the value does not contain an '@', return it as is.
            */
-          return { key, value };
+          return { name: key, value };
         }
 
         /**
@@ -207,7 +209,7 @@ export const identify =
           value + '_' + namespaceId
         ).toString();
 
-        return { key, value: hashedValue };
+        return { name: key, value: hashedValue };
       }
     );
 

@@ -90,7 +90,7 @@ export type TrackingItem = {
   currency?: string;
   listPrice?: string;
   name?: string;
-  price?: string;
+  price?: number;
   position?: number;
   productCode?: string;
   quantity?: number;

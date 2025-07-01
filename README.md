@@ -497,13 +497,14 @@ import { useDressipiAddToBasketTracking } from '@dressipi/react-native-sdk';
 function ProductCard({ product }) {
   // Track add to basket when component mounts with item data
   useDressipiAddToBasketTracking({
-    productCode: product.id,
-    name: product.name,
-    brand: product.brand,
-    price: product.price,
-    currency: 'USD',
+    productCode: '603081121',
+    category: '',
+    name: 'Product 603081121',
+    brand: '',
+    price: 0.0,
+    currency: 'GBP',
     quantity: 1,
-    category: product.category,
+    sku: '603081121',
   });
 
   return (
@@ -537,12 +538,14 @@ import { useDressipiRemoveFromBasketTracking } from '@dressipi/react-native-sdk'
 function BasketItem({ item, onRemove }) {
   // Track remove from basket when component mounts with item data
   useDressipiRemoveFromBasketTracking({
-    productCode: item.id,
-    name: item.name,
-    brand: item.brand,
-    price: item.price,
-    currency: 'USD',
-    quantity: item.quantity,
+    sku: '603081121',
+    productCode: '603081121',
+    category: '',
+    name: 'Product 603081121',
+    brand: '',
+    price: 0.0,
+    currency: 'GBP',
+    quantity: 1,
   });
 
   return (
@@ -576,22 +579,17 @@ import { useDressipiOrderTracking } from '@dressipi/react-native-sdk';
 function OrderConfirmation({ orderData }) {
   // Track order completion when component mounts
   useDressipiOrderTracking({
-    orderId: orderData.id,
-    totalValue: orderData.total,
-    currency: 'USD',
-    items: orderData.items.map(item => ({
-      sku: item.sku,
-      name: item.name,
-      category: item.category,
-      price: item.price,
-      quantity: item.quantity,
-    })),
-    affiliation: 'Online Store',
-    taxValue: orderData.tax,
-    shipping: orderData.shippingCost,
-    city: orderData.shippingAddress.city,
-    state: orderData.shippingAddress.state,
-    country: orderData.shippingAddress.country,
+    orderId: '1234567890',
+    currency: 'GBP',
+    totalValue: 0.0,
+    items: [
+      {
+        sku: '603081121',
+        price: 0.0,
+        quantity: 1,
+        name: 'Product 603081121',
+      },
+    ],
   });
 
   return (
@@ -623,8 +621,8 @@ import { useDressipiIdentifyTracking } from '@dressipi/react-native-sdk';
 function UserProfile({ user }) {
   // Track user identification when component mounts
   useDressipiIdentifyTracking({
-    customerId: user.id,
-    email: user.email,
+    customerId: '1234567890',
+    email: 'test@test.com',
   });
 
   return (
@@ -642,8 +640,8 @@ function LoginScreen() {
 
     // Track user identification after successful login
     useDressipiIdentifyTracking({
-      customerId: user.id,
-      email: user.email,
+      customerId: '1234567890',
+      email: 'test@test.com',
     });
   };
 
@@ -671,13 +669,14 @@ import { useDressipiProductDisplayPageTracking } from '@dressipi/react-native-sd
 function ProductDetailPage({ product }) {
   // Track product page view when component mounts
   useDressipiProductDisplayPageTracking({
-    productCode: product.id,
-    name: product.name,
-    brand: product.brand,
-    price: product.price,
-    currency: 'USD',
-    category: product.category,
-    sku: product.sku,
+    productCode: '603081121',
+    category: '',
+    name: 'Product 603081121',
+    brand: '',
+    price: 0.0,
+    currency: 'GBP',
+    quantity: 1,
+    sku: '603081121',
   });
 
   return (
@@ -712,16 +711,20 @@ function ProductListPage({ products, filters, currentPage }) {
   // Track product list page view when component mounts
   useDressipiProductListPageTracking({
     page: {
-      number: currentPage,
+      number: 1,
     },
-    items: products.map(product => ({
-      sku: product.sku,
-      productCode: product.id,
-    })),
-    filters: filters.map(filter => ({
-      name: filter.name,
-      selected: filter.selectedValues,
-    })),
+    items: [
+      {
+        sku: '603081121',
+        productCode: '603081121',
+      },
+    ],
+    filters: [
+      {
+        selected: [],
+        name: 'garment_category',
+      },
+    ],
   });
 
   return (
@@ -738,20 +741,20 @@ function ProductListPage({ products, filters, currentPage }) {
 // Example with search results
 function SearchResults({ searchQuery, results, appliedFilters, page }) {
   useDressipiProductListPageTracking({
-    page: { number: page },
-    items: results.map(item => ({
-      productCode: item.id,
-      sku: item.sku,
-    })),
+    page: {
+      number: 1,
+    },
+    items: [
+      {
+        sku: '603081121',
+        productCode: '603081121',
+      },
+    ],
     filters: [
       {
-        name: 'search_query',
-        selected: [searchQuery],
+        selected: [],
+        name: 'garment_category',
       },
-      ...appliedFilters.map(filter => ({
-        name: filter.key,
-        selected: filter.values,
-      })),
     ],
   });
 
@@ -1290,8 +1293,14 @@ function ProductScreen() {
 
   // Track page view
   useDressipiProductDisplayPageTracking({
-    product_id: productId,
-    view_timestamp: Date.now(),
+    productCode: '603081121',
+    category: '',
+    name: 'Product 603081121',
+    brand: '',
+    price: 0.0,
+    currency: 'GBP',
+    quantity: 1,
+    sku: '603081121',
   });
 
   return (
