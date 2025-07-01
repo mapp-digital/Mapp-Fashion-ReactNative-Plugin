@@ -90,3 +90,4 @@ temp/
 
 # Documentation (internal)
 docs/
+.npmrc
