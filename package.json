@@ -1,6 +1,6 @@
 {
   "name": "mapp-fashion-react-native-sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "Mapp Digital <productmanagement@mapp.com>",
   "repository": {
     "type": "git",
@@ -79,5 +79,8 @@
     "react-native-uuid": "^2.0.3",
     "snakecase-keys": "^8.0.1",
     "use-deep-compare-effect": "^1.8.1"
+  },
+  "browser": {
+    "axios": "axios/dist/browser/axios.cjs"
   }
 }
