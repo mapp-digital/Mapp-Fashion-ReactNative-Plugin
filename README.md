@@ -19,10 +19,8 @@ A React Native SDK that provides easy integration with Dressipi's fashion AI ser
 
 ## Installation
 
-(This is a placeholder information)
-
 ```bash
-npm install @dressipi/react-native-sdk
+npm install mapp-fashion-react-native-sdk
 ```
 
 ### Additional Dependencies
@@ -41,7 +39,7 @@ Wrap your app with the `DressipiProvider` to initialize the SDK:
 
 ```tsx
 import React from 'react';
-import { DressipiProvider } from '@dressipi/react-native-sdk';
+import { DressipiProvider } from 'mapp-fashion-react-native-sdk';
 import { YourAppComponent } from './YourAppComponent';
 
 export default function App() {
@@ -57,6 +55,8 @@ export default function App() {
 }
 ```
 
+For an Expo setup, you need to install the [Expo Storage plugin](https://www.npmjs.com/package/mapp-fashion-react-native-sdk-expo).
+
 ### 2. Use the Hooks
 
 Once wrapped with the provider, you can use the SDK hooks in any component:
@@ -68,7 +68,7 @@ import {
   useRelatedItems,
   useFacettedSearch,
   RelatedItemsMethod,
-} from '@dressipi/react-native-sdk';
+} from 'mapp-fashion-react-native-sdk';
 
 export function ProductRecommendations({ productId }: { productId: string }) {
   // Get related items for a product
@@ -117,7 +117,7 @@ The Dressipi SDK supports different secure storage solutions depending on your R
 By default, the SDK uses **React Native Keychain** (`react-native-keychain`) for secure credential storage. This works seamlessly in standard React Native applications without any additional configuration.
 
 ```tsx
-import { DressipiProvider } from '@dressipi/react-native-sdk';
+import { DressipiProvider } from 'mapp-fashion-react-native-sdk';
 
 // Uses React Native Keychain by default
 <DressipiProvider
@@ -131,30 +131,22 @@ import { DressipiProvider } from '@dressipi/react-native-sdk';
 
 ### Explicit Storage Configuration
 
-For Expo applications or when you want to explicitly control the storage method, you can specify the `storageType` prop:
+For Expo applications or when you want to explicitly control the storage method, you can specify the `storage` prop:
 
 ```tsx
-import { DressipiProvider, StorageType } from '@dressipi/react-native-sdk';
+import { DressipiProvider } from 'mapp-fashion-react-native-sdk';
+import { SecureStoreAdapter } from 'mapp-fashion-react-native-sdk-expo';
 
 // Explicitly use Expo SecureStore for Expo applications
 <DressipiProvider
   namespaceId="your-namespace-id"
   domain="your-domain.com"
   clientId="your-client-id"
-  storageType={StorageType.SECURE_STORE}
+  storage={new SecureStoreAdapter()}
 >
   <App />
 </DressipiProvider>;
 ```
-
-### Available Storage Types
-
-The SDK provides two storage options:
-
-| Storage Type               | Value            | Description                                   | Use Case                                         |
-| -------------------------- | ---------------- | --------------------------------------------- | ------------------------------------------------ |
-| `StorageType.KEYCHAIN`     | `'keychain'`     | Uses React Native Keychain for secure storage | **Default** - Standard React Native applications |
-| `StorageType.SECURE_STORE` | `'secure-store'` | Uses Expo SecureStore for secure storage      | Expo applications and Expo Go                    |
 
 ### Storage Dependencies
 
@@ -299,7 +291,7 @@ The `relatedItems` object contains the following properties:
 import {
   useRelatedItems,
   RelatedItemsMethod,
-} from '@dressipi/react-native-sdk';
+} from 'mapp-fashion-react-native-sdk';
 
 function ProductPage({ productId }: { productId: string }) {
   const { relatedItems, loading, error } = useRelatedItems({
@@ -423,7 +415,7 @@ The `items` object contains the following properties:
 #### Example
 
 ```tsx
-import { useFacettedSearch } from '@dressipi/react-native-sdk';
+import { useFacettedSearch } from 'mapp-fashion-react-native-sdk';
 
 function SearchResults() {
   const { items, loading, error } = useFacettedSearch({
@@ -492,7 +484,7 @@ Tracks when a user adds an item to their shopping basket.
 **Usage:**
 
 ```tsx
-import { useDressipiAddToBasketTracking } from '@dressipi/react-native-sdk';
+import { useDressipiAddToBasketTracking } from 'mapp-fashion-react-native-sdk';
 
 function ProductCard({ product }) {
   // Track add to basket when component mounts with item data
@@ -533,7 +525,7 @@ Tracks when a user removes an item from their shopping basket.
 **Usage:**
 
 ```tsx
-import { useDressipiRemoveFromBasketTracking } from '@dressipi/react-native-sdk';
+import { useDressipiRemoveFromBasketTracking } from 'mapp-fashion-react-native-sdk';
 
 function BasketItem({ item, onRemove }) {
   // Track remove from basket when component mounts with item data
@@ -574,7 +566,7 @@ Tracks when a user completes an order or makes a purchase.
 **Usage:**
 
 ```tsx
-import { useDressipiOrderTracking } from '@dressipi/react-native-sdk';
+import { useDressipiOrderTracking } from 'mapp-fashion-react-native-sdk';
 
 function OrderConfirmation({ orderData }) {
   // Track order completion when component mounts
@@ -616,7 +608,7 @@ Tracks user identification events such as login, registration, or profile update
 **Usage:**
 
 ```tsx
-import { useDressipiIdentifyTracking } from '@dressipi/react-native-sdk';
+import { useDressipiIdentifyTracking } from 'mapp-fashion-react-native-sdk';
 
 function UserProfile({ user }) {
   // Track user identification when component mounts
@@ -664,7 +656,7 @@ Tracks when a user views a product detail page (PDP).
 **Usage:**
 
 ```tsx
-import { useDressipiProductDisplayPageTracking } from '@dressipi/react-native-sdk';
+import { useDressipiProductDisplayPageTracking } from 'mapp-fashion-react-native-sdk';
 
 function ProductDetailPage({ product }) {
   // Track product page view when component mounts
@@ -705,7 +697,7 @@ Tracks when a user views a product listing page (PLP) such as category pages or 
 **Usage:**
 
 ```tsx
-import { useDressipiProductListPageTracking } from '@dressipi/react-native-sdk';
+import { useDressipiProductListPageTracking } from 'mapp-fashion-react-native-sdk';
 
 function ProductListPage({ products, filters, currentPage }) {
   // Track product list page view when component mounts
@@ -867,7 +859,7 @@ User consent preferences are securely stored using the same storage adapter conf
 ```tsx
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
-import { useCompliance } from '@dressipi/react-native-sdk';
+import { useCompliance } from 'mapp-fashion-react-native-sdk';
 
 function PrivacySettings() {
   const { hasConsented, setConsent, isLoading } = useCompliance();
@@ -934,7 +926,7 @@ function PrivacySettings() {
 ```tsx
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
-import { useCompliance } from '@dressipi/react-native-sdk';
+import { useCompliance } from 'mapp-fashion-react-native-sdk';
 
 function CompliancePopup() {
   const [showPopup, setShowPopup] = useState(false);
@@ -1044,7 +1036,7 @@ function CompliancePopup() {
 ```tsx
 import React from 'react';
 import { View, Text } from 'react-native';
-import { useCompliance, useRelatedItems } from '@dressipi/react-native-sdk';
+import { useCompliance, useRelatedItems } from 'mapp-fashion-react-native-sdk';
 
 function ProductPage({ productId }: { productId: string }) {
   const { hasConsented } = useCompliance();
@@ -1272,7 +1264,7 @@ import {
   RelatedItemsMethod,
   type DetailedItem,
   type Outfit,
-} from '@dressipi/react-native-sdk';
+} from 'mapp-fashion-react-native-sdk';
 
 // Main App with Provider
 export default function App() {
@@ -1417,7 +1409,7 @@ function ItemCard({ item }: { item: DetailedItem }) {
 ### Error Handling Example
 
 ```tsx
-import { useRelatedItems } from '@dressipi/react-native-sdk';
+import { useRelatedItems } from 'mapp-fashion-react-native-sdk';
 
 function ProductWithErrorHandling({ productId }: { productId: string }) {
   const { relatedItems, loading, error } = useRelatedItems({
