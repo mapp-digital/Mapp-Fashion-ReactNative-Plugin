@@ -1,5 +1,6 @@
 import type {
-  EcommerceItem,
+  EcommerceTransactionProps,
+  PageViewProps,
   ReactNativeTracker,
 } from '@snowplow/react-native-tracker';
 
@@ -10,12 +11,18 @@ import type {
  * product display pages views, and product list pages views.
  */
 export type TrackingState = {
-  order: (order: Order) => void;
-  addToBasket: (item: TrackingItem) => void;
-  removeFromBasket: (item: TrackingItem) => void;
-  identify: (identifiers: Identification) => void;
-  productDisplayPage: (item: TrackingItem) => void;
-  productListPage: (data: ProductListPageEvent) => void;
+  order: (order: OrderEventPayload) => void;
+  addToBasket: (item: AddToBasketEventPayload) => void;
+  removeFromBasket: (item: RemoveFromBasketEventPayload) => void;
+  identify: (identifiers: IdentifyEventPayload) => void;
+  productDisplayPage: (item: ProductDetailPageEventPayload) => void;
+  productListPage: (data: ProductListPageEventPayload) => void;
+  tabClick: (tabClick: TabClickEventPayload) => void;
+  itemClickQuickView: (
+    itemClickQuickView: ItemClickQuickViewEventPayload
+  ) => void;
+  itemClickPdp: (itemClickPdp: ItemClickPdpEventPayload) => void;
+  pageView: (pageView: PageViewEventPayload) => void;
 };
 
 /**
@@ -45,7 +52,8 @@ export type QueuedEvent<T extends keyof ReactNativeTracker> = {
  */
 export type QueueableEvents =
   | 'trackSelfDescribingEvent'
-  | 'trackEcommerceTransactionEvent';
+  | 'trackEcommerceTransactionEvent'
+  | 'trackPageViewEvent';
 
 /**
  * Represents a function that can be queued for execution.
@@ -59,78 +67,261 @@ export type QueueableFunction = (
 ) => Promise<QueuedEvent<QueueableEvents>>;
 
 /**
- * Represents an order in an e-commerce context.
+ * Represents a single product used in a tracking event.
  */
-export type Order = {
-  orderId: string;
-  totalValue: number;
-  items: OrderLine[];
-  affiliation?: string;
-  taxValue?: number;
-  shipping?: number;
-  city?: string;
-  state?: string;
-  country?: string;
-  currency?: string;
-};
-
-/**
- * Represents an item in an order, including its details.
- */
-export type OrderLine = EcommerceItem;
-
-/**
- * Represents an item in a tracking event, such as an item
- * in a shopping cart or an order.
- */
-export type TrackingItem = {
+export type ProductPayload = {
+  /**
+   * This is an identifier that is unique to the style and
+   * color/pattern of the item.
+   */
+  product_code: string;
+  /**
+   * This is an identifier that is unique to the style, color/pattern and size of the item.
+   */
+  sku: string;
+  /**
+   * This is an identifier.
+   */
+  dressipi_item_id?: string;
+  /**
+   * The name of the item.
+   */
+  item_name?: string;
+  /**
+   * The barcode for this variant.
+   */
   barcode?: string;
-  brand?: string;
-  category?: string;
-  currency?: string;
-  listPrice?: string;
-  name?: string;
-  price?: number;
-  position?: number;
-  productCode?: string;
-  quantity?: number;
+  /**
+   * The size of the item/garment being viewed.
+   */
   size?: string;
-  sku?: string;
+  /**
+   * A product affiliation to designate a supplying company or brick and mortar store location.
+   */
+  affiliation?: string;
+  /**
+   * The coupon name or code associated with the item.
+   */
+  coupon?: string;
+  /**
+   * The currency of the item.
+   */
+  currency?: string;
+  /**
+   * The monetary discount value associated with the item.
+   */
+  discount?: number;
+  /**
+   * The brand of the item.
+   */
+  item_brand?: string;
+  /**
+   * The category of the item.
+   */
+  item_category?: string;
+  /**
+   * The second category hierarchy or additional taxonomy for the item.
+   */
+  item_category2?: string;
+  /**
+   * The third category hierarchy or additional taxonomy for the item.
+   */
+  item_category3?: string;
+  /**
+   * The fourth category hierarchy or additional taxonomy for the item.
+   */
+  item_category4?: string;
+  /**
+   * The fifth category hierarchy or additional taxonomy for the item.
+   */
+  item_category5?: string;
+  /**
+   * The location associated with the item.
+   */
+  location_id?: string;
+  /**
+   * The price of the item.
+   */
+  price?: number;
+  /**
+   * The quantity of the item.
+   */
+  quantity?: number;
 };
 
 /**
- * Represents a product list page event, which includes information
- * about the current page, items displayed, and any filters applied.
+ * Represents the payload for a product detail page view event.
  */
-export type ProductListPageEvent = {
-  page: {
-    number: number;
+export type ProductDetailPageEventPayload = ProductPayload;
+
+/**
+ * Represents the payload for a product list page view event.
+ */
+export type ProductListPageEventPayload = {
+  /**
+   * The page object.
+   */
+  page?: {
+    /**
+     * The page number currently visible.
+     */
+    number?: number;
   };
-  items: ProductListPageItem[];
-  filters: ProductListPageFilter[];
+  /**
+   * A list of products.
+   */
+  items: ProductPayload[];
+  /**
+   * A list of filters applied to the product list page.
+   */
+  filters?: ProductListPageFilterItem[];
 };
 
 /**
- * Represents an item in a product list page, which can be identified
- * by its SKU or product code.
+ * A filter object.
  */
-export type ProductListPageItem = {
-  sku?: string;
-  productCode?: string;
-};
-
-/**
- * Represents a filter applied on a product list page.
- */
-export type ProductListPageFilter = {
-  selected: any[];
+export type ProductListPageFilterItem = {
   name: string;
+  selected: any[];
 };
+
+/**
+ * Represents the payload for an add to basket event.
+ */
+export type AddToBasketEventPayload = {
+  /**
+   * The SKU of the item.
+   */
+  sku: string;
+  /**
+   * The name of the item.
+   */
+  name?: string;
+  /**
+   * The category of the item.
+   */
+  category?: string;
+  /**
+   * The price of the item.
+   */
+  unitPrice?: number;
+  /**
+   * The quantity of the item.
+   */
+  quantity: number;
+  /**
+   * The currency of the item.
+   */
+  currency?: string;
+};
+
+/**
+ * Represents the payload for a remove from basket event.
+ */
+export type RemoveFromBasketEventPayload = {
+  /**
+   * The SKU of the item.
+   */
+  sku: string;
+  /**
+   * The name of the item.
+   */
+  name?: string;
+  /**
+   * The category of the item.
+   */
+  category?: string;
+  /**
+   * The price of the item.
+   */
+  unitPrice?: number;
+  /**
+   * The quantity of the item.
+   */
+  quantity: number;
+  /**
+   * The currency of the item.
+   */
+  currency?: string;
+};
+
+/**
+ * Represents the payload for an order event.
+ */
+export type OrderEventPayload = EcommerceTransactionProps;
 
 /**
  * Represents the identification information for a user or customer.
  */
-export type Identification = {
+export type IdentifyEventPayload = {
+  /**
+   * The customer ID.
+   */
   customerId?: string;
+  /**
+   * The email address of the user.
+   */
   email?: string;
 };
+
+/**
+ * Represents the payload for a tab click event.
+ */
+export type TabClickEventPayload = {
+  /**
+   * The id of request to the server that generated the content,
+   * returned in the response as event_id.
+   */
+  request_id: string;
+  /**
+   * The name of the tab that was clicked on.
+   */
+  tab_name: string;
+};
+
+/**
+ * Represents the payload for an item click quick view event.
+ */
+export type ItemClickQuickViewEventPayload = {
+  /**
+   * The id of request to the server that generated the content,
+   * returned in the response as event_id.
+   */
+  request_id: string;
+  /**
+   * The id of the set containing the item that was clicked on,
+   * returned in the API request as content_id.
+   */
+  related_items_set_id?: string;
+  /**
+   * The id of the item that was clicked on,
+   * returned in the request as raw_garment_id.
+   */
+  dressipi_item_id: number;
+};
+
+/**
+ * Represents the payload for an item click on a product detail page event.
+ */
+export type ItemClickPdpEventPayload = {
+  /**
+   * The id of request to the server that generated the content,
+   * returned in the response as event_id.
+   */
+  request_id: string;
+  /**
+   * The id of the set containing the item that was clicked on,
+   * returned in the API request as content_id.
+   */
+  related_items_set_id?: string;
+  /**
+   * The id of the item that was clicked on,
+   * returned in the request as raw_garment_id.
+   */
+  dressipi_item_id: number;
+};
+
+/**
+ * Represents the context of the parent event.
+ */
+export type PageViewEventPayload = PageViewProps;

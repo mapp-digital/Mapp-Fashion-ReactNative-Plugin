@@ -1,5 +1,5 @@
 import useDeepCompareEffect from 'use-deep-compare-effect';
-import { TrackingItem } from '../../types/tracking';
+import { ProductDetailPageEventPayload } from '../../types/tracking';
 import { useDressipiTracking } from '../useDressipiTracking';
 
 /**
@@ -7,12 +7,12 @@ import { useDressipiTracking } from '../useDressipiTracking';
  * This hook uses the `useDressipiTracking` hook to
  * send tracking data for a product display page view.
  *
- * @param {TrackingItem} item - The item to track on the product display page.
+ * @param {ProductDetailPageEventPayload} item - The item to track on the product display page.
  * @return {void} This hook does not return anything,
  * it simply triggers the tracking event.
  */
 export const useDressipiProductDisplayPageTracking = (
-  item: TrackingItem
+  item: ProductDetailPageEventPayload
 ): void => {
   const { productDisplayPage } = useDressipiTracking();
 

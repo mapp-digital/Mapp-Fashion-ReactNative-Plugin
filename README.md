@@ -479,7 +479,7 @@ Tracks when a user adds an item to their shopping basket.
 
 **Parameters:**
 
-- `item: TrackingItem` - The item being added to the basket
+- `item: AddToBasketEventPayload` - The item being added to the basket
 
 **Usage:**
 
@@ -489,14 +489,12 @@ import { useDressipiAddToBasketTracking } from 'mapp-fashion-react-native-sdk';
 function ProductCard({ product }) {
   // Track add to basket when component mounts with item data
   useDressipiAddToBasketTracking({
-    productCode: '603081121',
-    category: '',
-    name: 'Product 603081121',
-    brand: '',
-    price: 0.0,
-    currency: 'GBP',
-    quantity: 1,
     sku: '603081121',
+    name: 'Product 603081121',
+    category: '',
+    unitPrice: 0.0,
+    quantity: 1,
+    currency: 'GBP',
   });
 
   return (
@@ -510,6 +508,37 @@ function ProductCard({ product }) {
 }
 ```
 
+**AddToBasketEventPayload Type:**
+
+```typescript
+type AddToBasketEventPayload = {
+  /**
+   * The SKU of the item.
+   */
+  sku: string;
+  /**
+   * The name of the item.
+   */
+  name?: string;
+  /**
+   * The category of the item.
+   */
+  category?: string;
+  /**
+   * The price of the item.
+   */
+  unitPrice?: number;
+  /**
+   * The quantity of the item.
+   */
+  quantity: number;
+  /**
+   * The currency of the item.
+   */
+  currency?: string;
+};
+```
+
 ---
 
 #### useDressipiRemoveFromBasketTracking
@@ -520,7 +549,7 @@ Tracks when a user removes an item from their shopping basket.
 
 **Parameters:**
 
-- `item: TrackingItem` - The item being removed from the basket
+- `item: RemoveFromBasketEventPayload` - The item being removed from the basket
 
 **Usage:**
 
@@ -531,13 +560,11 @@ function BasketItem({ item, onRemove }) {
   // Track remove from basket when component mounts with item data
   useDressipiRemoveFromBasketTracking({
     sku: '603081121',
-    productCode: '603081121',
-    category: '',
     name: 'Product 603081121',
-    brand: '',
-    price: 0.0,
-    currency: 'GBP',
+    category: '',
+    unitPrice: 0.0,
     quantity: 1,
+    currency: 'GBP',
   });
 
   return (
@@ -551,6 +578,37 @@ function BasketItem({ item, onRemove }) {
 }
 ```
 
+**RemoveFromBasketEventPayload Type:**
+
+```typescript
+type RemoveFromBasketEventPayload = {
+  /**
+   * The SKU of the item.
+   */
+  sku: string;
+  /**
+   * The name of the item.
+   */
+  name?: string;
+  /**
+   * The category of the item.
+   */
+  category?: string;
+  /**
+   * The price of the item.
+   */
+  unitPrice?: number;
+  /**
+   * The quantity of the item.
+   */
+  quantity: number;
+  /**
+   * The currency of the item.
+   */
+  currency?: string;
+};
+```
+
 ---
 
 #### useDressipiOrderTracking
@@ -561,7 +619,7 @@ Tracks when a user completes an order or makes a purchase.
 
 **Parameters:**
 
-- `order: Order` - The completed order details including items, total value, and customer information
+- `order: OrderEventPayload` - The completed order details including items, total value, and customer information
 
 **Usage:**
 
@@ -593,6 +651,74 @@ function OrderConfirmation({ orderData }) {
 }
 ```
 
+**OrderEventPayload Type:**
+
+```typescript
+type OrderEventPayload = EcommerceTransactionProps;
+```
+
+Note: `OrderEventPayload` is an alias for `EcommerceTransactionProps` from the `@snowplow/react-native-tracker` library, which includes properties like `orderId`, `totalValue`, `items`, `currency`, and other e-commerce transaction details.
+
+---
+
+#### useDressipiPageViewTracking
+
+Tracks when a user views a page or navigates to a new screen.
+
+**Event Tracked:** `page_view` - Records page navigation and screen views for understanding user browsing behavior, measuring page performance, and tracking user journeys through the application.
+
+**Parameters:**
+
+- `pageViewPayload: PageViewEventPayload` - The page view event data including URL and page details
+
+**Usage:**
+
+```tsx
+import { useDressipiPageViewTracking } from 'mapp-fashion-react-native-sdk';
+
+function ProductListPage() {
+  // Track page view when component mounts
+  useDressipiPageViewTracking({
+    pageUrl: 'https://www.example.com/products',
+    pageTitle: 'Product Listing',
+    referrer: 'https://www.example.com/home',
+  });
+
+  return (
+    <View>
+      <Text>Product List</Text>
+      {/* Page content */}
+    </View>
+  );
+}
+
+// Or track page view for different screen transitions
+function HomePage() {
+  useDressipiPageViewTracking({
+    pageUrl: 'https://www.example.com/home',
+    pageTitle: 'Home Page',
+  });
+
+  return (
+    <View>
+      <Text>Welcome to our store!</Text>
+    </View>
+  );
+}
+```
+
+**PageViewEventPayload Type:**
+
+```typescript
+type PageViewEventPayload = PageViewProps;
+```
+
+Note: `PageViewEventPayload` is an alias for `PageViewProps` from the `@snowplow/react-native-tracker` library, which includes properties such as:
+
+- `pageUrl`: The URL of the page being viewed
+- `pageTitle`: The title of the page (optional)
+- `referrer`: The referrer URL (optional)
+
 ---
 
 #### useDressipiIdentifyTracking
@@ -603,7 +729,7 @@ Tracks user identification events such as login, registration, or profile update
 
 **Parameters:**
 
-- `identification: Identification` - User identification details including customer ID and email
+- `identification: IdentifyEventPayload` - User identification details including customer ID and email
 
 **Usage:**
 
@@ -641,6 +767,21 @@ function LoginScreen() {
 }
 ```
 
+**IdentifyEventPayload Type:**
+
+```typescript
+type IdentifyEventPayload = {
+  /**
+   * The customer ID.
+   */
+  customerId?: string;
+  /**
+   * The email address of the user.
+   */
+  email?: string;
+};
+```
+
 ---
 
 #### useDressipiProductDisplayPageTracking
@@ -651,7 +792,7 @@ Tracks when a user views a product detail page (PDP).
 
 **Parameters:**
 
-- `item: TrackingItem` - The product being viewed on the detail page
+- `item: ProductDetailPageEventPayload` - The product being viewed on the detail page
 
 **Usage:**
 
@@ -661,13 +802,7 @@ import { useDressipiProductDisplayPageTracking } from 'mapp-fashion-react-native
 function ProductDetailPage({ product }) {
   // Track product page view when component mounts
   useDressipiProductDisplayPageTracking({
-    productCode: '603081121',
-    category: '',
-    name: 'Product 603081121',
-    brand: '',
-    price: 0.0,
-    currency: 'GBP',
-    quantity: 1,
+    product_code: '603081121',
     sku: '603081121',
   });
 
@@ -682,6 +817,96 @@ function ProductDetailPage({ product }) {
 }
 ```
 
+**ProductDetailPageEventPayload Type:**
+
+```typescript
+type ProductDetailPageEventPayload = ProductPayload;
+```
+
+**ProductPayload Type:**
+
+```typescript
+type ProductPayload = {
+  /**
+   * This is an identifier that is unique to the style and
+   * color/pattern of the item.
+   */
+  product_code: string;
+  /**
+   * This is an identifier that is unique to the style, color/pattern and size of the item.
+   */
+  sku: string;
+  /**
+   * This is an identifier.
+   */
+  dressipi_item_id?: string;
+  /**
+   * The name of the item.
+   */
+  item_name?: string;
+  /**
+   * The barcode for this variant.
+   */
+  barcode?: string;
+  /**
+   * The size of the item/garment being viewed.
+   */
+  size?: string;
+  /**
+   * A product affiliation to designate a supplying company or brick and mortar store location.
+   */
+  affiliation?: string;
+  /**
+   * The coupon name or code associated with the item.
+   */
+  coupon?: string;
+  /**
+   * The currency of the item.
+   */
+  currency?: string;
+  /**
+   * The monetary discount value associated with the item.
+   */
+  discount?: number;
+  /**
+   * The brand of the item.
+   */
+  item_brand?: string;
+  /**
+   * The category of the item.
+   */
+  item_category?: string;
+  /**
+   * The second category hierarchy or additional taxonomy for the item.
+   */
+  item_category2?: string;
+  /**
+   * The third category hierarchy or additional taxonomy for the item.
+   */
+  item_category3?: string;
+  /**
+   * The fourth category hierarchy or additional taxonomy for the item.
+   */
+  item_category4?: string;
+  /**
+   * The fifth category hierarchy or additional taxonomy for the item.
+   */
+  item_category5?: string;
+  /**
+   * The location associated with the item.
+   */
+  location_id?: string;
+  /**
+   * The price of the item.
+   */
+  price?: number;
+  /**
+   * The quantity of the item.
+   */
+  quantity?: number;
+};
+```
+
 ---
 
 #### useDressipiProductListPageTracking
@@ -692,7 +917,7 @@ Tracks when a user views a product listing page (PLP) such as category pages or 
 
 **Parameters:**
 
-- `data: ProductListPageEvent` - The product list page data including items, filters, and pagination information
+- `data: ProductListPageEventPayload` - The product list page data including items, filters, and pagination information
 
 **Usage:**
 
@@ -708,12 +933,12 @@ function ProductListPage({ products, filters, currentPage }) {
     items: [
       {
         sku: '603081121',
-        productCode: '603081121',
+        product_code: '603081121',
       },
     ],
     filters: [
       {
-        selected: [],
+        selected: ['selected'],
         name: 'garment_category',
       },
     ],
@@ -739,12 +964,12 @@ function SearchResults({ searchQuery, results, appliedFilters, page }) {
     items: [
       {
         sku: '603081121',
-        productCode: '603081121',
+        product_code: '603081121',
       },
     ],
     filters: [
       {
-        selected: [],
+        selected: ['selected'],
         name: 'garment_category',
       },
     ],
@@ -759,68 +984,206 @@ function SearchResults({ searchQuery, results, appliedFilters, page }) {
 }
 ```
 
+**ProductListPageEventPayload Type:**
+
+```typescript
+type ProductListPageEventPayload = {
+  /**
+   * The page object.
+   */
+  page?: {
+    /**
+     * The page number currently visible.
+     */
+    number?: number;
+  };
+  /**
+   * A list of products.
+   */
+  items: ProductPayload[];
+  /**
+   * A list of filters applied to the product list page.
+   */
+  filters?: ProductListPageFilterItem[];
+};
+```
+
+**ProductListPageFilterItem Type:**
+
+```typescript
+type ProductListPageFilterItem = {
+  name: string;
+  selected: any[];
+};
+```
+
 ---
 
-#### Tracking Types
+#### useDressipiTabClickTracking
 
-The tracking hooks use the following type definitions:
+Tracks when a user clicks on a tab in the interface.
 
-**TrackingItem:**
+**Event Tracked:** `tab_click` - Records tab interactions for understanding user navigation patterns and content engagement.
+
+**Parameters:**
+
+- `tabClickPayload: TabClickEventPayload` - The tab click event data
+
+**Usage:**
+
+```tsx
+import { useDressipiTabClickTracking } from 'mapp-fashion-react-native-sdk';
+
+function TabComponent({ activeTab }) {
+  // Track tab click when component mounts
+  useDressipiTabClickTracking({
+    request_id: '1234567890',
+    tab_name: 'tab1',
+  });
+
+  return (
+    <View>
+      <TouchableOpacity>
+        <Text>Tab 1</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+```
+
+**TabClickEventPayload Type:**
 
 ```typescript
-type TrackingItem = {
-  barcode?: string;
-  brand?: string;
-  category?: string;
-  currency?: string;
-  listPrice?: string;
-  name?: string;
-  price?: string;
-  position?: number;
-  productCode?: string;
-  quantity?: number;
-  size?: string;
-  sku?: string;
+type TabClickEventPayload = {
+  /**
+   * The id of request to the server that generated the content,
+   * returned in the response as event_id.
+   */
+  request_id: string;
+  /**
+   * The name of the tab that was clicked on.
+   */
+  tab_name: string;
 };
 ```
 
-**Order:**
+---
+
+#### useDressipiItemClickQuickViewTracking
+
+Tracks when a user clicks on an item in a quick view interface.
+
+**Event Tracked:** `item_click_quick_view` - Records item clicks in quick view contexts for understanding user engagement with product previews.
+
+**Parameters:**
+
+- `itemClickQuickViewPayload: ItemClickQuickViewEventPayload` - The item click quick view event data
+
+**Usage:**
+
+```tsx
+import { useDressipiItemClickQuickViewTracking } from 'mapp-fashion-react-native-sdk';
+
+function QuickViewModal({ item }) {
+  // Track item click in quick view when component mounts
+  useDressipiItemClickQuickViewTracking({
+    request_id: '1234567890',
+    dressipi_item_id: 1,
+    related_items_set_id: '1234567890',
+  });
+
+  return (
+    <Modal>
+      <Text>{item.name}</Text>
+      <Text>${item.price}</Text>
+    </Modal>
+  );
+}
+```
+
+**ItemClickQuickViewEventPayload Type:**
 
 ```typescript
-type Order = {
-  orderId: string;
-  totalValue: number;
-  items: OrderLine[];
-  affiliation?: string;
-  taxValue?: number;
-  shipping?: number;
-  city?: string;
-  state?: string;
-  country?: string;
-  currency?: string;
+type ItemClickQuickViewEventPayload = {
+  /**
+   * The id of request to the server that generated the content,
+   * returned in the response as event_id.
+   */
+  request_id: string;
+  /**
+   * The id of the set containing the item that was clicked on,
+   * returned in the API request as content_id.
+   */
+  related_items_set_id?: string;
+  /**
+   * The id of the item that was clicked on,
+   * returned in the request as raw_garment_id.
+   */
+  dressipi_item_id: number;
 };
 ```
 
-**Identification:**
+---
+
+#### useDressipiItemClickPdpTracking
+
+Tracks when a user clicks on an item on a product detail page (PDP).
+
+**Event Tracked:** `item_click_pdp` - Records item clicks on product detail pages for understanding user interaction with related products and recommendations.
+
+**Parameters:**
+
+- `itemClickPdpPayload: ItemClickPdpEventPayload` - The item click PDP event data
+
+**Usage:**
+
+```tsx
+import { useDressipiItemClickPdpTracking } from 'mapp-fashion-react-native-sdk';
+
+function RelatedItemsSection({ relatedItems }) {
+  // Track item click on PDP when component mounts
+  useDressipiItemClickPdpTracking({
+    request_id: '1234567890',
+    dressipi_item_id: 1,
+    related_items_set_id: '1234567890',
+  });
+
+  return (
+    <View>
+      <Text>Related Items</Text>
+      {relatedItems.map(item => (
+        <TouchableOpacity key={item.id}>
+          <Text>{item.name}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+}
+```
+
+**ItemClickPdpEventPayload Type:**
 
 ```typescript
-type Identification = {
-  customerId?: string;
-  email?: string;
+type ItemClickPdpEventPayload = {
+  /**
+   * The id of request to the server that generated the content,
+   * returned in the response as event_id.
+   */
+  request_id: string;
+  /**
+   * The id of the set containing the item that was clicked on,
+   * returned in the API request as content_id.
+   */
+  related_items_set_id?: string;
+  /**
+   * The id of the item that was clicked on,
+   * returned in the request as raw_garment_id.
+   */
+  dressipi_item_id: number;
 };
 ```
 
-**ProductListPageEvent:**
-
-```typescript
-type ProductListPageEvent = {
-  page: {
-    number: number;
-  };
-  items: ProductListPageItem[];
-  filters: ProductListPageFilter[];
-};
-```
+---
 
 ### useCompliance
 

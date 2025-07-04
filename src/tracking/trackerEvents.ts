@@ -1,24 +1,29 @@
-import type { EcommerceTransactionProps } from '@snowplow/react-native-tracker';
 import CryptoJS from 'crypto-js';
 import { isNil, omitBy } from 'lodash-es';
-import snakecaseKeys from 'snakecase-keys';
 import {
-  Identification,
-  ProductListPageEvent,
+  AddToBasketEventPayload,
+  IdentifyEventPayload,
+  ItemClickPdpEventPayload,
+  ItemClickQuickViewEventPayload,
+  OrderEventPayload,
+  PageViewEventPayload,
+  ProductDetailPageEventPayload,
+  ProductListPageEventPayload,
   QueueableEvents,
   QueuedEvent,
-  TrackingItem,
+  RemoveFromBasketEventPayload,
+  TabClickEventPayload,
 } from '../types/tracking';
 
 /**
  * Create a queued event for tracking an order.
  *
- * @param order - The order details to be tracked.
+ * @param {OrderEventPayload} order - The order details to be tracked.
  * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to
  * a queued event object.
  */
 export const order = async (
-  order: EcommerceTransactionProps
+  order: OrderEventPayload
 ): Promise<QueuedEvent<QueueableEvents>> => {
   return {
     event: 'trackEcommerceTransactionEvent',
@@ -29,13 +34,13 @@ export const order = async (
 /**
  * Creates a queued event for tracking an "add to basket" action.
  *
- * @param item - The item added to the basket, containing properties
- * like sku, quantity, etc.
+ * @param {AddToBasketEventPayload} item - The item added to the basket,
+ * containing properties like sku, quantity, etc.
  * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to
  * a queued event object.
  */
 export const addToBasket = async (
-  item: TrackingItem
+  item: AddToBasketEventPayload
 ): Promise<QueuedEvent<QueueableEvents>> => {
   /**
    * Validates the item object to ensure it contains the required properties
@@ -53,14 +58,7 @@ export const addToBasket = async (
       {
         schema:
           'iglu:com.snowplowanalytics.snowplow/add_to_cart/jsonschema/1-0-0',
-        data: {
-          sku: item.sku,
-          name: item.name,
-          category: item.category,
-          unitPrice: item.price,
-          quantity: item.quantity,
-          currency: item.currency,
-        },
+        data: item,
       },
     ],
   };
@@ -69,12 +67,13 @@ export const addToBasket = async (
 /**
  * Creates a queued event for tracking an "remove from basket" action.
  *
- * @param item - The item removed from the basket.
+ * @param {RemoveFromBasketEventPayload} item - The item removed from
+ * the basket.
  * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to
  * a queued event object.
  */
 export const removeFromBasket = async (
-  item: TrackingItem
+  item: RemoveFromBasketEventPayload
 ): Promise<QueuedEvent<QueueableEvents>> => {
   /**
    * Validates the item object to ensure it contains the required properties
@@ -92,14 +91,7 @@ export const removeFromBasket = async (
       {
         schema:
           'iglu:com.snowplowanalytics.snowplow/remove_from_cart/jsonschema/1-0-0',
-        data: {
-          sku: item.sku,
-          name: item.name,
-          category: item.category,
-          unitPrice: item.price,
-          quantity: item.quantity,
-          currency: item.currency,
-        },
+        data: item,
       },
     ],
   };
@@ -108,26 +100,20 @@ export const removeFromBasket = async (
 /**
  * Creates a queued event for tracking a product list page view.
  *
- * @param event - The product list page event containing page number, items
- * and filters.
+ * @param {ProductListPageEventPayload} payload - The product list page event
+ * containing page number, items and filters.
  * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to
  * a queued event object.
  */
 export const productListPageView = async (
-  event: ProductListPageEvent
+  payload: ProductListPageEventPayload
 ): Promise<QueuedEvent<QueueableEvents>> => {
   return {
     event: 'trackSelfDescribingEvent',
     data: [
       {
         schema: 'iglu:com.dressipi/listings_view/jsonschema/1-0-0',
-        data: {
-          page: {
-            number: event.page.number,
-          },
-          items: event.items.map(item => snakecaseKeys(item)),
-          filters: event.filters,
-        },
+        data: payload,
       },
     ],
   };
@@ -136,12 +122,13 @@ export const productListPageView = async (
 /**
  * Creates a queued event for tracking a product detail page view.
  *
- * @param item - The item being viewed on the product detail page.
+ * @param {ProductDetailPageEventPayload} item - The item being viewed
+ * on the product detail page.
  * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to
  * a queued event object.
  */
 export const productDetailPageView = async (
-  item: TrackingItem
+  item: ProductDetailPageEventPayload
 ): Promise<QueuedEvent<QueueableEvents>> => {
   return {
     event: 'trackSelfDescribingEvent',
@@ -150,16 +137,7 @@ export const productDetailPageView = async (
         schema: 'iglu:com.dressipi/item_view/jsonschema/1-0-0',
         data: omitBy(
           {
-            item: {
-              product_code: item.productCode,
-              sku: item.sku,
-              price: item.price,
-              currency: item.currency,
-              barcode: item.barcode,
-              size: item.size,
-              item_name: item.name,
-              item_brand: item.brand,
-            },
+            item,
           },
           isNil
         ),
@@ -175,7 +153,7 @@ export const productDetailPageView = async (
  */
 export const identify =
   (namespaceId: string) =>
-  async (data: Identification): Promise<QueuedEvent<QueueableEvents>> => {
+  async (data: IdentifyEventPayload): Promise<QueuedEvent<QueueableEvents>> => {
     /**
      * If the data object does not contain either an email or customerId,
      * throw an error indicating that at least one of these identifiers
@@ -225,3 +203,76 @@ export const identify =
       ],
     };
   };
+
+/**
+ * Creates an event for tracking a tab click.
+ *
+ * @param {TabClickEventPayload} tabClick - Tab click information.
+ * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to
+ * a queued event object.
+ */
+export const tabClick = async (
+  tabClick: TabClickEventPayload
+): Promise<QueuedEvent<QueueableEvents>> => {
+  return {
+    event: 'trackSelfDescribingEvent',
+    data: [
+      {
+        schema: 'iglu:com.dressipi/tab_click/jsonschema/1-0-0',
+        data: tabClick,
+      },
+    ],
+  };
+};
+
+/**
+ * Creates an event for tracking an item click on a quick view.
+ *
+ * @param {ItemClickQuickViewEventPayload} itemClickQuickView - Item click
+ * quick view information.
+ * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to
+ * a queued event object.
+ */
+export const itemClickQuickView = async (
+  itemClickQuickView: ItemClickQuickViewEventPayload
+): Promise<QueuedEvent<QueueableEvents>> => {
+  return {
+    event: 'trackSelfDescribingEvent',
+    data: [
+      {
+        schema: 'iglu:com.dressipi/item_click_quickview/jsonschema/1-0-0',
+        data: itemClickQuickView,
+      },
+    ],
+  };
+};
+
+/**
+ * Creates an event for tracking an item click on a product detail page.
+ *
+ * @param {ItemClickPdpEventPayload} itemClickPdp - Item click PDP information.
+ * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to
+ * a queued event object.
+ */
+export const itemClickPdp = async (
+  itemClickPdp: ItemClickPdpEventPayload
+): Promise<QueuedEvent<QueueableEvents>> => {
+  return {
+    event: 'trackSelfDescribingEvent',
+    data: [
+      {
+        schema: 'iglu:com.dressipi/item_click_pdp/jsonschema/1-0-0',
+        data: itemClickPdp,
+      },
+    ],
+  };
+};
+
+export const pageView = async (
+  pageView: PageViewEventPayload
+): Promise<QueuedEvent<QueueableEvents>> => {
+  return {
+    event: 'trackPageViewEvent',
+    data: [pageView],
+  };
+};

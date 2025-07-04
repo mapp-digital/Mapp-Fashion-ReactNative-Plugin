@@ -1,5 +1,5 @@
 import useDeepCompareEffect from 'use-deep-compare-effect';
-import { Identification } from '../../types/tracking';
+import { IdentifyEventPayload } from '../../types/tracking';
 import { useDressipiTracking } from '../useDressipiTracking';
 
 /**
@@ -7,13 +7,13 @@ import { useDressipiTracking } from '../useDressipiTracking';
  * This hook uses the Dressipi tracking service to send
  * the identification event to the tracking system.
  *
- * @param {Identification} identification - The identification object
+ * @param {IdentifyEventPayload} identification - The identification object
  * containing user details.
  * @return {void} This hook does not return anything,
  * it simply triggers the tracking event.
  */
 export const useDressipiIdentifyTracking = (
-  identification: Identification
+  identification: IdentifyEventPayload
 ): void => {
   const { identify } = useDressipiTracking();
 

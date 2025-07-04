@@ -3,10 +3,14 @@ import { DressipiContext } from '../context/DressipiContext';
 import {
   addToBasket as addToBasketEventFunction,
   identify as identifyEventFunction,
+  itemClickPdp as itemClickPdpEventFunction,
+  itemClickQuickView as itemClickQuickViewEventFunction,
   order as orderEventFunction,
+  pageView as pageViewEventFunction,
   productDetailPageView as productDisplayPageViewEventFunction,
   productListPageView as productListPageViewEventFunction,
   removeFromBasket as removeFromBasketEventFunction,
+  tabClick as tabClickEventFunction,
 } from '../tracking/trackerEvents';
 import {
   QueueableEvents,
@@ -37,15 +41,22 @@ export const useDressipiTracking = (): TrackingState => {
           ...args
         );
 
-        Log.info('Sending event to Snowplow:', 'useDressipiTracking.ts', {
-          event: event.event,
-          data: event.data,
-        });
+        if (tracker?.[event.event]) {
+          Log.info('Sending event to Snowplow:', 'useDressipiTracking.ts', {
+            event: event.event,
+            name: eventFunction.name,
+            data: event.data,
+          });
 
-        if (queue?.current) {
-          queue.current.push(event);
-        } else if (tracker?.[event.event]) {
           (tracker[event.event] as Function).apply(tracker, event.data);
+        } else if (queue?.current) {
+          Log.info('Pushing event to queue:', 'useDressipiTracking.ts', {
+            event: event.event,
+            name: eventFunction.name,
+            data: event.data,
+          });
+
+          queue.current.push(event);
         }
       } catch (error) {
         console.error('Error tracking event:', error);
@@ -66,6 +77,11 @@ export const useDressipiTracking = (): TrackingState => {
         trackEvent(productDisplayPageViewEventFunction, ...args),
       productListPage: (...args) =>
         trackEvent(productListPageViewEventFunction, ...args),
+      tabClick: (...args) => trackEvent(tabClickEventFunction, ...args),
+      itemClickQuickView: (...args) =>
+        trackEvent(itemClickQuickViewEventFunction, ...args),
+      itemClickPdp: (...args) => trackEvent(itemClickPdpEventFunction, ...args),
+      pageView: (...args) => trackEvent(pageViewEventFunction, ...args),
     }),
     [namespaceId, trackEvent]
   );

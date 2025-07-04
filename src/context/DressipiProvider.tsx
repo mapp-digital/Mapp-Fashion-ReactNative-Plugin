@@ -144,6 +144,10 @@ const DressipiContextProvider = ({
      * Each queued event contains the event name and the data to be sent.
      */
     eventsToProcess.forEach((queuedEvent: QueuedEvent<QueueableEvents>) => {
+      Log.info('Processing queued event', 'DressipiProvider.tsx', {
+        event: queuedEvent.event,
+      });
+
       (tracker[queuedEvent.event] as Function).apply(tracker, queuedEvent.data);
     });
   }, [tracker]);
