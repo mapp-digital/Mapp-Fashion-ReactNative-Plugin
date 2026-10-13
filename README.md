@@ -38,83 +38,27 @@ In Expo projects, let Expo choose the versions that match your SDK:
 npx expo install @react-native-async-storage/async-storage react-native-get-random-values
 ```
 
-Snowplow is owned by Fashion and does not need to be installed directly. Rebuild
-native applications after adding the native companion packages (including iOS pods).
-The existing keychain dependency still requires native linking.
+The SDK includes the Snowplow tracker, so you don't need to install it yourself.
+After adding these packages, rebuild your native app (including `pod install` on
+iOS). `react-native-keychain` also still needs native linking.
 
-### Snowplow 4 migration (0.2.0)
+### Upgrading from 0.1.x
 
-Version 0.2.0 pins Snowplow to **4.10.2** and uses **React Native 0.86.3** with
-**React 19.2.8** for development. 0.86.3 is the React Native version of Expo SDK 57,
-the latest stable Expo SDK; Fashion must support Expo, and no stable Expo SDK uses
-0.87.x yet (npm reports 0.87.1 as latest). Versions were checked against npm
-on 2026-10-13; these are validation targets, not a claim of native certification.
-Peer ranges are `react-native >=0.85.0` and `react >=19.2.3`. Tested so far:
-RN 0.86.3 / Expo SDK 57 on an Android emulator (debug build) and RN 0.85.3 / Expo
-SDK 56 (Android JavaScript export only). See [CHANGELOG.md](CHANGELOG.md).
+Version 0.2.0 replaces Snowplow tracker 2.x with 4.x. The hooks and their arguments
+are unchanged, but the installation changes:
 
-The Fashion hooks and their event arguments are unchanged. The adapter retains
-`/t/t`, Base64 encoding, `networkUserId`, Dressipi schemas and legacy order `ti`/`tr`
-events. The private Axios browser redirect has been removed. Consumers should
-remove their direct Snowplow 2 dependency and Snowplow Kotlin patches when adopting
-0.2.0; do not apply those patches to Snowplow 4.
+1. Remove `@snowplow/react-native-tracker` from your app's dependencies. Fashion
+   now installs the Snowplow version it needs.
+2. Remove any `patch-package` patches for `@snowplow/react-native-tracker` 2.x
+   (for example the Kotlin nullability patch).
+3. Install the new peer dependencies (see [Additional Dependencies](#additional-dependencies)).
+4. Pass your app's real version and build number to `DressipiProvider` with the
+   `appVersion` and `appBuild` props. Snowplow 4 no longer reads them automatically.
+5. Rebuild the native app.
 
-Tracker initialization is now asynchronous and runs in a React effect. Events
-queue only after consent. Withdrawal, identity/configuration changes and provider
-unmount abort the old tracker, discard its queue and clear Fashion-scoped tracker
-storage. Keep one provider mounted for the application lifetime. Reinitialization
-starts a new session and may emit another install event; this is a known difference
-requiring native/backend review. Existing v2 native sessions and queued events are
-not migrated to v4 AsyncStorage, and rollback does not translate that storage back.
-A request already received by the collector cannot be recalled.
-
-Pass optional `appVersion` and `appBuild` props to `DressipiProvider` to retain the
-mobile application context. These must be the host app's actual version/build;
-Snowplow 4 no longer discovers them automatically. Platform context contains fewer
-automatic fields and native Activity/UIKit screen autotracking is removed. Native
-background delivery, retries, session continuity and enrichment acceptance require
-capture-based comparison before release. See the
-[official Snowplow migration guide](https://docs.snowplow.io/docs/sources/react-native-tracker/migration-guides/migrating-from-v2-x-to-v4/).
-
-Validation commands:
-
-```bash
-npm ci
-npm run build
-npm test -- --run
-npm run test:tracker
-npm pack
-```
-
-`test:tracker` exercises the actual installed Snowplow serializer/emitter and all
-Fashion event builders with synthetic inputs. It asserts routing, schemas, event
-counts, identity, encoding, application context and withdrawal. Its native platform,
-storage and collector response are simulated; it does not prove device behavior
-or live backend compatibility. You can also run it against an extracted/installed
-package with `node scripts/check-tracker.cjs /path/to/package`.
-
-Baseline: commit `5f5e5a2d50196a1caad262a694b5b190359899e9`, Fashion 0.1.5,
-Snowplow 2.1.2, RN 0.79.3, React 19.1.0, Node 22.23.2 and npm 10.9.8. Baseline
-TypeScript build passed; the existing test suite had 322 passing and 14 failing
-tests (13 in `useRelatedItems`, one authentication-flow callback identity test).
-The original source and installed baseline are preserved locally at
-`/private/tmp/fashion-upgrade-baseline`; Git retains the authoritative old lockfile.
-
-Candidate validation on 2026-10-13: TypeScript build and lint of changed production
-files passed; 36 focused tracking/lifecycle tests passed. The complete suite had
-337 passing tests and the same 14 baseline failures (re-run on RN 0.86.3). The tarball contains no test
-helpers and installs in a temporary copy of `Mapp-Fashion-ReactNative-Plugin-TestApp`
-(source commit `36e160c3291ba8d576ad19f7c4523a73a3b18597`) without a direct Snowplow
-dependency or its Kotlin patch. The installed-package serialization check and
-Android Metro/Hermes export passed. That app uses Expo 56 and RN **0.85.3**, not the
-0.86.3 development target. Its Android tooling is Gradle 9.3.1, AGP 8.12.0,
-Kotlin 2.3.20, JDK 21.0.11, SDK 36/min SDK 24 and NDK 27.1.12297006.
-Full Xcode is not installed, so iOS build/run checks are unavailable.
-
-Android/iOS baseline network recordings, their comparator, unchanged-backend
-validation, upgrade-install/rollback validation, and debug/release device runs
-remain release gates. No native captures or backend results are fabricated by the
-JavaScript harness. Version 0.2.0 is not published yet.
+Sessions and queued events stored by Snowplow 2 are not migrated, so the first
+launch after upgrading starts a new tracking session. See [CHANGELOG.md](CHANGELOG.md)
+for all changes and known differences.
 
 ## Quick Start
 
@@ -133,6 +77,8 @@ export default function App() {
       namespaceId="your-namespace-id"
       domain="your-domain.com"
       clientId="your-client-id"
+      appVersion="1.0.0" // your app's real version
+      appBuild="1" // your app's real build number
     >
       <YourAppComponent />
     </DressipiProvider>
@@ -279,8 +225,8 @@ The main provider component that initializes the SDK and provides authentication
 | `enableLogging`  | `boolean`              | No       | Enable debug logging for development (defaults to `false`)                         |
 | `storage`        | `SecureStorageAdapter` | No       | Custom storage adapter for credentials (defaults to KeyChain)                      |
 | `defaultConsent` | `boolean`              | No       | Default consent value when user hasn't made a choice yet (defaults to `undefined`) |
-| `appVersion` | `string` | No | Host app version for the application context |
-| `appBuild` | `string` | No | Host app build number for the mobile application context |
+| `appVersion`     | `string`               | No       | Your app's version, sent in the tracking application context                       |
+| `appBuild`       | `string`               | No       | Your app's build number, sent in the tracking application context                  |
 | `children`       | `ReactNode`            | Yes      | Your app components                                                                |
 
 #### Features Provided
@@ -741,10 +687,26 @@ function OrderConfirmation({ orderData }) {
 **OrderEventPayload Type:**
 
 ```typescript
-type OrderEventPayload = EcommerceTransactionProps;
+type OrderEventPayload = {
+  orderId: string;
+  totalValue: number;
+  items: {
+    sku: string;
+    price: number;
+    quantity: number;
+    name?: string;
+    category?: string;
+    currency?: string;
+  }[];
+  affiliation?: string;
+  taxValue?: number;
+  shipping?: number;
+  city?: string;
+  state?: string;
+  country?: string;
+  currency?: string;
+};
 ```
-
-Note: `OrderEventPayload` is an alias for `EcommerceTransactionProps` from the `@snowplow/react-native-tracker` library, which includes properties like `orderId`, `totalValue`, `items`, `currency`, and other e-commerce transaction details.
 
 ---
 
@@ -797,14 +759,12 @@ function HomePage() {
 **PageViewEventPayload Type:**
 
 ```typescript
-type PageViewEventPayload = PageViewProps;
+type PageViewEventPayload = {
+  pageUrl: string; // The URL of the page being viewed
+  pageTitle?: string; // The title of the page
+  referrer?: string; // The referrer URL
+};
 ```
-
-Note: `PageViewEventPayload` is an alias for `PageViewProps` from the `@snowplow/react-native-tracker` library, which includes properties such as:
-
-- `pageUrl`: The URL of the page being viewed
-- `pageTitle`: The title of the page (optional)
-- `referrer`: The referrer URL (optional)
 
 ---
 

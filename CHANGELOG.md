@@ -44,8 +44,7 @@ steps under **Upgrading from 0.1.x**.
   `PageViewEventPayload` are now Fashion's own types with the same fields.
   The internal tracker type is `FashionTracker` instead of Snowplow's
   `ReactNativeTracker`.
-- Development environment: React Native 0.86.3 (the version used by Expo SDK
-  57) and React 19.2.8.
+- Development environment: React Native 0.86.3 (the version used by Expo SDK 57) and React 19.2.8.
 
 ### Kept the same
 
