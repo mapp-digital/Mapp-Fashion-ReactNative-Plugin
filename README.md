@@ -59,8 +59,19 @@ are unchanged, but the installation changes:
 5. Rebuild the native app.
 
 Sessions and queued events stored by Snowplow 2 are not migrated, so the first
-launch after upgrading starts a new tracking session. See [CHANGELOG.md](CHANGELOG.md)
-for all changes and known differences.
+launch after upgrading starts a new tracking session.
+
+Some tracking data also changes, which matters if you have reports built on
+0.1.x data:
+
+- automatic screen view events and the `screen` context are no longer sent;
+- the device context has fewer fields (no carrier, network type, battery,
+  storage or memory);
+- the language is sent as a locale tag (`en-US` instead of `English`/`eng`);
+- the network user ID is sent as `nuid` as well as `tnuid`;
+- background/foreground events can be sent more often.
+
+See [CHANGELOG.md](CHANGELOG.md) for all changes and known differences.
 
 ## Quick Start
 
@@ -207,6 +218,11 @@ Both storage adapters provide identical functionality:
 - **Cross-Session Persistence**: Credentials persist across app restarts and device reboots
 - **Platform Security**: Leverages iOS Keychain and Android Keystore for maximum security
 
+Tracking data is stored separately: the Snowplow tracker keeps its session and
+event queue in AsyncStorage under keys starting with `fashion:dressipi:`
+(`dressipi` is the tracker namespace; it can be changed with the
+`EXPO_PUBLIC_SNOWPLOW_TRACKER_NAMESPACE` environment variable).
+
 ### Migration Between Storage Types
 
 If you need to switch storage types (e.g., migrating from React Native to Expo), users will need to re-authenticate as credentials from different storage adapters are not automatically migrated.
@@ -235,7 +251,7 @@ The main provider component that initializes the SDK and provides authentication
 
 - **Authentication Management**: Automatically handles OAuth token lifecycle and refresh
 - **Tracking Infrastructure**: Sets up Snowplow tracking for analytics
-- **Request Queue**: Manages API request queuing when offline
+- **Event Queue**: Keeps tracking events in memory until the user has consented and the tracker is ready, then sends them
 - **Global Configuration**: Provides configuration context to all child components
 
 #### Example
@@ -510,7 +526,7 @@ The SDK provides comprehensive tracking capabilities through specialized hooks t
 
 Tracks when a user adds an item to their shopping basket.
 
-**Event Tracked:** `add_to_basket` - Records product additions to the shopping cart for conversion tracking and recommendation optimization.
+**Event Tracked:** Snowplow `add_to_cart` (`iglu:com.snowplowanalytics.snowplow/add_to_cart/jsonschema/1-0-0`) - Records product additions to the shopping cart for conversion tracking and recommendation optimization.
 
 **Parameters:**
 
@@ -580,7 +596,7 @@ type AddToBasketEventPayload = {
 
 Tracks when a user removes an item from their shopping basket.
 
-**Event Tracked:** `remove_from_basket` - Records product removals from the shopping cart for understanding user behavior and cart abandonment patterns.
+**Event Tracked:** Snowplow `remove_from_cart` (`iglu:com.snowplowanalytics.snowplow/remove_from_cart/jsonschema/1-0-0`) - Records product removals from the shopping cart for understanding user behavior and cart abandonment patterns.
 
 **Parameters:**
 
@@ -650,7 +666,7 @@ type RemoveFromBasketEventPayload = {
 
 Tracks when a user completes an order or makes a purchase.
 
-**Event Tracked:** `order` - Records completed transactions for revenue tracking, conversion analysis, and personalization improvements.
+**Event Tracked:** Snowplow legacy e-commerce transaction events: one `tr` (transaction) event for the order and one `ti` (transaction item) event per item - Records completed transactions for revenue tracking, conversion analysis, and personalization improvements.
 
 **Parameters:**
 
@@ -716,7 +732,7 @@ type OrderEventPayload = {
 
 Tracks when a user views a page or navigates to a new screen.
 
-**Event Tracked:** `page_view` - Records page navigation and screen views for understanding user browsing behavior, measuring page performance, and tracking user journeys through the application.
+**Event Tracked:** Snowplow page view (`pv`) - Records page navigation and screen views for understanding user browsing behavior, measuring page performance, and tracking user journeys through the application.
 
 **Parameters:**
 
@@ -774,11 +790,13 @@ type PageViewEventPayload = {
 
 Tracks user identification events such as login, registration, or profile updates.
 
-**Event Tracked:** `identify` - Records user identification information to enhance personalization and link user sessions across devices.
+**Event Tracked:** `iglu:com.dressipi/identify/jsonschema/1-0-0` - Records user identification information to enhance personalization and link user sessions across devices.
 
 **Parameters:**
 
-- `identification: IdentifyEventPayload` - User identification details including customer ID and email
+- `identification: IdentifyEventPayload` - User identification details. Both `customerId` and `email` are required; if either is missing, no event is sent and an error is logged.
+
+The email is not sent in plain text: it is hashed with SHA-256 (together with your `namespaceId`) before tracking.
 
 **Usage:**
 
@@ -821,11 +839,12 @@ function LoginScreen() {
 ```typescript
 type IdentifyEventPayload = {
   /**
-   * The customer ID.
+   * The customer ID. Required by the identify event.
    */
   customerId?: string;
   /**
-   * The email address of the user.
+   * The email address of the user. Required by the identify event;
+   * sent as a SHA-256 hash.
    */
   email?: string;
 };
@@ -837,7 +856,7 @@ type IdentifyEventPayload = {
 
 Tracks when a user views a product detail page (PDP).
 
-**Event Tracked:** `product_display_page` - Records product page views for understanding user interest, improving recommendations, and measuring engagement.
+**Event Tracked:** `iglu:com.dressipi/item_view/jsonschema/1-0-0` - Records product page views for understanding user interest, improving recommendations, and measuring engagement.
 
 **Parameters:**
 
@@ -962,7 +981,7 @@ type ProductPayload = {
 
 Tracks when a user views a product listing page (PLP) such as category pages or search results.
 
-**Event Tracked:** `product_list_page` - Records product list page views with information about displayed items, applied filters, and pagination for understanding browsing patterns.
+**Event Tracked:** `iglu:com.dressipi/listings_view/jsonschema/1-0-0` - Records product list page views with information about displayed items, applied filters, and pagination for understanding browsing patterns.
 
 **Parameters:**
 
@@ -1072,7 +1091,7 @@ type ProductListPageFilterItem = {
 
 Tracks when a user clicks on a tab in the interface.
 
-**Event Tracked:** `tab_click` - Records tab interactions for understanding user navigation patterns and content engagement.
+**Event Tracked:** `iglu:com.dressipi/tab_click/jsonschema/1-0-0` - Records tab interactions for understanding user navigation patterns and content engagement.
 
 **Parameters:**
 
@@ -1122,7 +1141,7 @@ type TabClickEventPayload = {
 
 Tracks when a user clicks on an item in a quick view interface.
 
-**Event Tracked:** `item_click_quick_view` - Records item clicks in quick view contexts for understanding user engagement with product previews.
+**Event Tracked:** `iglu:com.dressipi/item_click_quickview/jsonschema/1-0-0` - Records item clicks in quick view contexts for understanding user engagement with product previews.
 
 **Parameters:**
 
@@ -1178,7 +1197,7 @@ type ItemClickQuickViewEventPayload = {
 
 Tracks when a user clicks on an item on a product detail page (PDP).
 
-**Event Tracked:** `item_click_pdp` - Records item clicks on product detail pages for understanding user interaction with related products and recommendations.
+**Event Tracked:** `iglu:com.dressipi/item_click_pdp/jsonschema/1-0-0` - Records item clicks on product detail pages for understanding user interaction with related products and recommendations.
 
 **Parameters:**
 
@@ -1461,7 +1480,8 @@ import { useCompliance, useRelatedItems } from 'mapp-fashion-react-native-sdk';
 function ProductPage({ productId }: { productId: string }) {
   const { hasConsented } = useCompliance();
 
-  // Only fetch recommendations if user has consented
+  // Fetches with authentication when consented, without it when rejected,
+  // and waits while consent is not set.
   const { relatedItems, loading } = useRelatedItems({
     item_id: productId,
     methods: ['outfits', 'similar_items'],
