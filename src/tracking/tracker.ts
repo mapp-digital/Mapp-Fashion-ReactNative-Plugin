@@ -6,6 +6,7 @@ import {
   buildEcommerceTransactionItem,
 } from '@snowplow/tracker-core';
 import type { TrackerCore } from '@snowplow/tracker-core';
+import { Dimensions, PixelRatio } from 'react-native';
 import type {
   OrderEventPayload,
   PageViewEventPayload,
@@ -15,10 +16,52 @@ import { Log } from '../utils/logger';
 const snowplowNamespace =
   process.env.EXPO_PUBLIC_SNOWPLOW_TRACKER_NAMESPACE || 'dressipi';
 
+// React Native's AbortController polyfill drops abort reasons, so withdrawal
+// is recorded separately from the abort itself.
+const withdrawals = new WeakSet<AbortSignal>();
+
+/**
+ * Stops a tracker because consent was withdrawn. As in 0.1.x, events Snowplow
+ * already holds are still delivered and its stored queue and session are kept;
+ * a plain `controller.abort()` discards them.
+ */
+export const abortForConsentWithdrawal = (controller: AbortController) => {
+  withdrawals.add(controller.signal);
+  controller.abort();
+};
+
 export type FashionTracker = {
   trackSelfDescribingEvent: ReactNativeTracker['trackSelfDescribingEvent'];
   trackPageViewEvent: (event: PageViewEventPayload) => void;
   trackEcommerceTransactionEvent: (event: OrderEventPayload) => void;
+};
+
+export type TrackerOptions = {
+  appVersion?: string;
+  appBuild?: string;
+};
+
+/**
+ * Device details Snowplow 2 read natively and Snowplow 4 does not:
+ * physical resolution, locale and time zone.
+ */
+const deviceDetails = () => {
+  try {
+    const { width, height } = Dimensions.get('screen');
+    const scale = PixelRatio.get();
+    const [shortSide, longSide] = [width, height]
+      .map(side => Math.round(side * scale))
+      .sort((a, b) => a - b);
+    const { locale, timeZone } = Intl.DateTimeFormat().resolvedOptions();
+    return {
+      resolution: [shortSide, longSide] as [number, number],
+      portrait: height >= width,
+      locale,
+      timeZone,
+    };
+  } catch {
+    return undefined;
+  }
 };
 
 // Serialize initialization so a cancelled effect cannot remove its replacement.
@@ -30,18 +73,21 @@ export const createTracker = (
   domain: string,
   networkUserId: string | null,
   signal: AbortSignal,
-  application?: { appVersion?: string; appBuild?: string }
+  application: TrackerOptions = {}
 ): Promise<FashionTracker | null> => {
   const initialize = async (): Promise<FashionTracker | null> => {
     await cleanup;
     if (!networkUserId || signal.aborted) return null;
 
     let failed = false;
-    const stopped = () => signal.aborted || failed;
+    const withdrawn = () => withdrawals.has(signal);
+    // After withdrawal, storage and delivery keep working for pending events.
+    const stopped = () => (signal.aborted && !withdrawn()) || failed;
     let tracker: ReactNativeTracker | undefined;
     let core: TrackerCore | undefined;
     const storageKeys = new Set<string>();
     let storageWork = Promise.resolve();
+    const device = deviceDetails();
     const storageKey = (key: string) => {
       const scoped = `fashion:${snowplowNamespace}:${key}`;
       storageKeys.add(scoped);
@@ -55,7 +101,19 @@ export const createTracker = (
         });
       return storageWork;
     };
+    const detach = async () => {
+      try {
+        await tracker?.flush();
+      } catch {
+        Log.warn('Could not deliver pending events', 'tracker.ts');
+      }
+      if (tracker) removeTracker(snowplowNamespace);
+    };
     const stop = () => {
+      if (withdrawn()) {
+        cleanup = detach();
+        return;
+      }
       if (tracker) removeTracker(snowplowNamespace);
       cleanup = clearStorage();
       void cleanup.catch(() => {
@@ -79,6 +137,18 @@ export const createTracker = (
         screenContext: true,
         installAutotracking: true,
         lifecycleAutotracking: true,
+        ...(device
+          ? {
+              language: device.locale,
+              timezone: device.timeZone,
+              screenResolution: device.resolution,
+              platformContextRetriever: {
+                getResolution: async () => device.resolution.join('x'),
+                isPortrait: async () => device.portrait,
+                getLanguage: async () => device.locale,
+              },
+            }
+          : {}),
         ...application,
         asyncStorage: {
           getItem: async key => {
@@ -96,10 +166,13 @@ export const createTracker = (
         },
         customFetch: async (request, options) => {
           if (stopped()) throw new Error('Fashion tracking stopped');
-          // Preserve the emitter timeout while aborting on consent withdrawal.
+          // Preserve the emitter timeout; cancel on any abort except withdrawal.
           const controller = new AbortController();
           const abort = () => controller.abort();
-          signal.addEventListener('abort', abort, { once: true });
+          const cancel = () => {
+            if (!withdrawn()) abort();
+          };
+          signal.addEventListener('abort', cancel, { once: true });
           request.signal?.addEventListener('abort', abort, { once: true });
           if (request.signal?.aborted) controller.abort();
           try {
@@ -108,7 +181,7 @@ export const createTracker = (
               signal: controller.signal,
             });
           } finally {
-            signal.removeEventListener('abort', abort);
+            signal.removeEventListener('abort', cancel);
             request.signal?.removeEventListener('abort', abort);
           }
         },
@@ -117,14 +190,20 @@ export const createTracker = (
             activateCorePlugin: value => {
               core = value;
             },
+            // Snowplow 2 sent the network user ID as tnuid; 4.x sends nuid.
+            beforeTrack: payload => {
+              payload.add('tnuid', networkUserId);
+            },
           },
         ],
       });
 
       if (signal.aborted) {
         removeTracker(snowplowNamespace);
-        cleanup = clearStorage();
-        await cleanup;
+        if (!withdrawn()) {
+          cleanup = clearStorage();
+          await cleanup;
+        }
         return null;
       }
 

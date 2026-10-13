@@ -1254,11 +1254,19 @@ This hook takes no parameters.
 
 #### Consent Behavior
 
-The consent status directly affects how the SDK operates:
+The consent status controls authentication, API calls and tracking:
 
-- **`true` (Consented)**: Full SDK functionality is enabled, including authentication, API calls, and tracking
-- **`false` (Rejected)**: API calls are disabled, no authentication occurs, and no tracking data is sent
-- **`null` (Not Set)**: Behavior depends on the `defaultConsent` prop set in `DressipiProvider`
+| Consent state                              | Behavior                                                                                                                                                                                                                                                |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`null`** (not set)                       | No authentication, and `useRelatedItems`/`useFacettedSearch` wait. No tracking data is sent, but tracked events are kept in memory and sent once the user consents. Set `defaultConsent` on `DressipiProvider` to start from `true` or `false` instead. |
+| **`true`** (consented)                     | The SDK authenticates with the Dressipi API and stores the tokens securely. API calls are authenticated and tracking events are sent, including events kept in memory before consent.                                                                   |
+| **`false`** (rejected)                     | No authentication, and stored Dressipi API tokens are deleted. `useRelatedItems`/`useFacettedSearch` still call the API, without authentication. No tracking data is sent, but tracked events are kept in memory and sent if the user consents later.   |
+| **Withdrawn** (`true` → `false`)           | Same as `false`. Events the tracker already holds are still delivered. No new events are sent, and automatic background/foreground events stop. Tracking session data stays on the device.                                                              |
+| **Consent given again** (`false` → `true`) | The SDK authenticates again and tracking resumes. Events kept in memory while consent was off are sent.                                                                                                                                                 |
+
+Events kept in memory are lost if the app is closed before the user consents.
+Keep a single `DressipiProvider` mounted for the app's lifetime; unmounting it
+stops tracking and discards its pending events.
 
 #### Storage
 

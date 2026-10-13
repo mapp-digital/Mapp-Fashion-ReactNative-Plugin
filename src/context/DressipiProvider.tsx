@@ -4,7 +4,7 @@ import { RefObject, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useCompliance } from '../hooks/useCompliance';
 import { KeyChainAdapter } from '../keychain/KeyChainAdapter';
-import { createTracker } from '../tracking/tracker';
+import { abortForConsentWithdrawal, createTracker } from '../tracking/tracker';
 import { ProviderProps } from '../types/context';
 import { Queue, QueueableEvents, QueuedEvent } from '../types/tracking';
 import { Log } from '../utils/logger';
@@ -98,6 +98,13 @@ const DressipiContextProvider = ({
         refresh: () => Promise.resolve(),
       };
 
+  /**
+   * Latest consent value, read when the tracker effect is cleaned up to tell
+   * consent withdrawal apart from identity/configuration changes and unmount.
+   */
+  const consentRef = useRef(hasConsented);
+  consentRef.current = hasConsented;
+
   const [tracker, setTracker] = useState<FashionTracker | null>(null);
 
   useEffect(() => {
@@ -122,8 +129,10 @@ const DressipiContextProvider = ({
         });
     }
     return () => {
-      controller.abort();
-      if (networkUserId || !shouldAuthenticate) queue.current = [];
+      // As in 0.1.x, withdrawal keeps the event queue and lets Snowplow
+      // deliver what it already holds.
+      if (consentRef.current === true) controller.abort();
+      else abortForConsentWithdrawal(controller);
     };
   }, [
     namespaceId,
@@ -139,7 +148,7 @@ const DressipiContextProvider = ({
      * If the tracker instance is created successfully,
      * process queued events and return the tracker. Otherwise, return null.
      */
-    if (!tracker || !shouldAuthenticate) return;
+    if (!tracker) return;
 
     /**
      * Retrieve the queued events from the queue.
@@ -164,7 +173,7 @@ const DressipiContextProvider = ({
 
       (tracker[queuedEvent.event] as Function).apply(tracker, queuedEvent.data);
     });
-  }, [tracker, shouldAuthenticate]);
+  }, [tracker]);
 
   return (
     <DressipiContext.Provider
@@ -173,7 +182,9 @@ const DressipiContextProvider = ({
         domain,
         clientId,
         tracker: shouldAuthenticate ? tracker : null,
-        queue: shouldAuthenticate ? queue : null,
+        // As in 0.1.x, events are queued before consent and while rejected,
+        // and sent once the user consents.
+        queue,
         credentials,
         refreshAuthentication: refresh,
       }}

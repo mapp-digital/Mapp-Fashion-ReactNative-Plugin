@@ -144,6 +144,9 @@ async function main() {
     for (const payload of payloads) {
       assert.equal(payload.aid, 'synthetic-shop');
       assert.equal(payload.nuid, 'synthetic-user');
+      assert.equal(payload.tnuid, 'synthetic-user');
+      assert.equal(payload.res, '800x1600');
+      assert.ok(payload.lang && payload.tz, 'lang and tz restored');
       assert.equal(payload.tna, 'dressipi');
       assert.equal(payload.tv, 'rn-4.10.2');
       assert.match(payload.eid, /^[0-9a-f-]{36}$/i);
@@ -158,6 +161,11 @@ async function main() {
             context.data.version === '1.0.0'
         )
       );
+      const mobile = contexts.find(context =>
+        context.schema.includes('/mobile_context/')
+      );
+      assert.equal(mobile.data.resolution, '800x1600');
+      assert.equal(mobile.data.isPortrait, true);
     }
     const custom = payloads
       .filter(payload => payload.ue_px)
@@ -204,6 +212,34 @@ async function main() {
     await new Promise(resolve => setTimeout(resolve, 20));
     assert.equal(requests.length, count);
     assert.equal(values.size, 0, 'Fashion storage cleared');
+
+    // Consent withdrawn: pending events are delivered and storage is kept.
+    const { abortForConsentWithdrawal } = fromPackage(
+      './dist/tracking/tracker.js'
+    );
+    const withdrawal = new AbortController();
+    const consented = await createTracker(
+      'synthetic-shop',
+      'collector.example',
+      'synthetic-user',
+      withdrawal.signal,
+      { appVersion: '1.0.0', appBuild: '1' }
+    );
+    assert.ok(consented, 'tracker re-initialization');
+    await new Promise(resolve => setTimeout(resolve, 20));
+    const beforeWithdrawal = requests.length;
+    consented.trackPageViewEvent({ pageUrl: '/before-withdrawal' });
+    abortForConsentWithdrawal(withdrawal);
+    consented.trackPageViewEvent({ pageUrl: '/after-withdrawal' });
+    await new Promise(resolve => setTimeout(resolve, 50));
+    const urls = requests
+      .slice(beforeWithdrawal)
+      .flatMap(request => request.body.data)
+      .filter(payload => payload.e === 'pv')
+      .map(payload => payload.url);
+    assert.deepEqual(urls, ['/before-withdrawal'], 'pending event delivered');
+    assert.ok(values.size > 0, 'Snowplow storage kept after withdrawal');
+    assert.ok(!getTracker('dressipi'), 'tracker removed after delivery');
     console.log(
       `PASS: ${payloads.length} real Snowplow payloads; all Fashion event builders, routing, identity, encoding and withdrawal checked (simulated platform/collector).`
     );

@@ -2,11 +2,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { newTracker, removeTracker } from '@snowplow/react-native-tracker';
 import { trackerCore } from '@snowplow/tracker-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createTracker } from '../../../tracking/tracker';
+import {
+  abortForConsentWithdrawal,
+  createTracker,
+} from '../../../tracking/tracker';
 
 const native = {
   trackSelfDescribingEvent: vi.fn(),
   trackPageViewEvent: vi.fn(),
+  flush: vi.fn().mockResolvedValue(undefined),
 };
 let controller: AbortController;
 let payloads: Record<string, unknown>[];
@@ -19,7 +23,7 @@ beforeEach(() => {
     const core = trackerCore({
       callback: payload => payloads.push(payload.build()),
     });
-    config.plugins?.forEach(plugin => plugin.activateCorePlugin?.(core));
+    config.plugins?.forEach(plugin => core.addPlugin({ plugin }));
     return native as any;
   });
 });
@@ -87,6 +91,30 @@ describe('Snowplow 4 adapter', () => {
     });
   });
 
+  it('restores tnuid and device details Snowplow 2 sent', async () => {
+    const tracker = await create();
+    expect(newTracker).toHaveBeenCalledWith(
+      expect.objectContaining({
+        screenResolution: [800, 1600],
+        language: expect.any(String),
+        timezone: expect.any(String),
+        sessionContext: true,
+      })
+    );
+    const config = vi.mocked(newTracker).mock.calls[0][0];
+    expect(config.platformContextProperties).toBeUndefined();
+    expect(await config.platformContextRetriever?.getResolution?.()).toBe(
+      '800x1600'
+    );
+    expect(await config.platformContextRetriever?.isPortrait?.()).toBe(true);
+    tracker!.trackEcommerceTransactionEvent({
+      orderId: 'order-1',
+      totalValue: 1,
+      items: [],
+    });
+    expect(payloads[0]).toMatchObject({ tnuid: 'synthetic-user' });
+  });
+
   it('emits legacy transaction fields without changing totalValue/taxValue API', async () => {
     const tracker = await create();
     tracker!.trackEcommerceTransactionEvent({
@@ -135,7 +163,33 @@ describe('Snowplow 4 adapter', () => {
     });
   });
 
-  it('disables retained callbacks and transport after withdrawal', async () => {
+  it('on consent withdrawal, delivers pending events and keeps storage', async () => {
+    const tracker = await create();
+    const config = vi.mocked(newTracker).mock.calls[0][0];
+    await config.asyncStorage!.setItem('queue', '[1]');
+    const fetch = vi.fn().mockResolvedValue(new Response(''));
+    vi.stubGlobal('fetch', fetch);
+    let deliver!: () => void;
+    native.flush.mockImplementationOnce(
+      () => new Promise<void>(resolve => (deliver = resolve))
+    );
+    const sending = config.customFetch!({} as Request);
+    abortForConsentWithdrawal(controller);
+    tracker!.trackPageViewEvent({ pageUrl: '/late' });
+    expect(native.trackPageViewEvent).not.toHaveBeenCalled();
+    expect(native.flush).toHaveBeenCalled();
+    expect(removeTracker).not.toHaveBeenCalled();
+    await expect(sending).resolves.toBeInstanceOf(Response);
+    expect(fetch.mock.calls[0][1].signal.aborted).toBe(false);
+    deliver();
+    await vi.waitFor(() =>
+      expect(removeTracker).toHaveBeenCalledWith('dressipi')
+    );
+    expect(AsyncStorage.multiRemove).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it('disables retained callbacks and transport after a non-consent stop', async () => {
     const tracker = await create();
     const config = vi.mocked(newTracker).mock.calls[0][0];
     controller.abort();

@@ -39,19 +39,13 @@ export const useDressipiTracking = (): TrackingState => {
     async (eventFunction: QueueableFunction, ...args: any[]) => {
       if (!queue?.current && !tracker) return;
 
-      const pendingQueue = queue?.current;
       try {
         const event: QueuedEvent<QueueableEvents> = await eventFunction(
           ...args
         );
 
-        // Event builders are async; discard work from an expired consent/identity.
-        if (
-          currentTracking.current.queue !== queue ||
-          currentTracking.current.tracker !== tracker ||
-          queue?.current !== pendingQueue
-        )
-          return;
+        // Event builders are async; route to the tracker/queue active now.
+        const { tracker, queue } = currentTracking.current;
 
         if (tracker?.[event.event]) {
           Log.info('Sending event to Snowplow:', 'useDressipiTracking.ts', {

@@ -5,11 +5,19 @@ import { DressipiProvider } from '../../../context/DressipiProvider';
 import { useDressipiTracking } from '../../../hooks/useDressipiTracking';
 import { useAuth } from '../../../hooks/useAuth';
 import { useCompliance } from '../../../hooks/useCompliance';
-import { createTracker } from '../../../tracking/tracker';
+import {
+  abortForConsentWithdrawal,
+  createTracker,
+} from '../../../tracking/tracker';
 
 vi.mock('../../../hooks/useAuth');
 vi.mock('../../../hooks/useCompliance');
-vi.mock('../../../tracking/tracker', () => ({ createTracker: vi.fn() }));
+vi.mock('../../../tracking/tracker', () => ({
+  abortForConsentWithdrawal: vi.fn((controller: AbortController) =>
+    controller.abort()
+  ),
+  createTracker: vi.fn(),
+}));
 const storage = {
   getItem: vi.fn().mockResolvedValue(null),
   removeCredentials: vi.fn(),
@@ -49,7 +57,7 @@ beforeEach(() => {
 
 describe('tracker lifecycle', () => {
   it.each([null, false])(
-    'does not initialize or replay activity with consent %s',
+    'queues events with consent %s and sends them after consent (as in 0.1.x)',
     async value => {
       consent(value);
       const { result, rerender } = renderHook(useDressipiTracking, { wrapper });
@@ -59,8 +67,12 @@ describe('tracker lifecycle', () => {
       expect(createTracker).not.toHaveBeenCalled();
       consent(true);
       rerender();
-      await waitFor(() => expect(createTracker).toHaveBeenCalledOnce());
-      expect(tracker.trackPageViewEvent).not.toHaveBeenCalled();
+      await waitFor(() =>
+        expect(tracker.trackPageViewEvent).toHaveBeenCalledWith({
+          pageUrl: '/before-consent',
+        })
+      );
+      expect(createTracker).toHaveBeenCalledOnce();
     }
   );
 
@@ -91,37 +103,38 @@ describe('tracker lifecycle', () => {
     ]);
   });
 
-  it('aborts initialization and discards its queue on withdrawal', async () => {
-    let finish!: (value: any) => void;
-    vi.mocked(createTracker).mockImplementationOnce(
-      () =>
-        new Promise(resolve => {
-          finish = resolve;
-        })
-    );
+  it('on withdrawal, keeps pending events and queues new ones until re-consent', async () => {
     const { result, rerender, unmount } = renderHook(useDressipiTracking, {
       wrapper,
     });
-    await act(async () => {
-      result.current.pageView({ pageUrl: '/queued' });
-    });
+    await waitFor(() => expect(createTracker).toHaveBeenCalledOnce());
+    await act(async () => {});
     const signal = vi.mocked(createTracker).mock.calls[0][3];
     consent(false);
     rerender();
     expect(signal.aborted).toBe(true);
+    expect(vi.mocked(abortForConsentWithdrawal).mock.calls[0][0].signal).toBe(
+      signal
+    );
     await act(async () => {
-      finish(tracker);
+      result.current.pageView({ pageUrl: '/while-withdrawn' });
     });
+    expect(tracker.trackPageViewEvent).not.toHaveBeenCalled();
+    expect(createTracker).toHaveBeenCalledOnce();
     consent(true);
     rerender();
-    await waitFor(() => expect(createTracker).toHaveBeenCalledTimes(2));
-    expect(tracker.trackPageViewEvent).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(tracker.trackPageViewEvent).toHaveBeenCalledWith({
+        pageUrl: '/while-withdrawn',
+      })
+    );
     const replacementSignal = vi.mocked(createTracker).mock.calls[1][3];
     unmount();
     expect(replacementSignal.aborted).toBe(true);
+    expect(abortForConsentWithdrawal).toHaveBeenCalledOnce();
   });
 
-  it('drops an event still being built when consent is withdrawn', async () => {
+  it('queues an event still being built when consent is withdrawn', async () => {
     const { result, rerender } = renderHook(useDressipiTracking, { wrapper });
     await act(async () => {});
     const pending = result.current.pageView({ pageUrl: '/in-flight' });
@@ -131,6 +144,13 @@ describe('tracker lifecycle', () => {
       await pending;
     });
     expect(tracker.trackPageViewEvent).not.toHaveBeenCalled();
+    consent(true);
+    rerender();
+    await waitFor(() =>
+      expect(tracker.trackPageViewEvent).toHaveBeenCalledWith({
+        pageUrl: '/in-flight',
+      })
+    );
   });
 
   it('aborts the previous identity before replacing its tracker', async () => {
@@ -140,6 +160,7 @@ describe('tracker lifecycle', () => {
     identity('user-2');
     rerender();
     expect(signal.aborted).toBe(true);
+    expect(abortForConsentWithdrawal).not.toHaveBeenCalled();
     await waitFor(() =>
       expect(createTracker).toHaveBeenCalledWith(
         'shop',

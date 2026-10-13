@@ -24,6 +24,11 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
   },
 }));
 
+vi.mock('react-native', () => ({
+  Dimensions: { get: vi.fn(() => ({ width: 400, height: 800 })) },
+  PixelRatio: { get: vi.fn(() => 2) },
+}));
+
 vi.mock('@snowplow/react-native-tracker', () => ({
   newTracker: vi.fn(),
   removeTracker: vi.fn(),

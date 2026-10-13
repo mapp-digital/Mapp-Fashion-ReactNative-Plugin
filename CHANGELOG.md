@@ -39,7 +39,7 @@ steps under **Upgrading from 0.1.x**.
   session and event queue there) and `react-native-get-random-values`
   `^1.11.0 || ^2.0.0`.
 - Tracker initialization is now asynchronous and runs in a React effect.
-  Events tracked before it finishes are queued, but only after consent.
+  Events tracked before it finishes are queued and sent once it's ready.
 - Public types no longer reference Snowplow types. `OrderEventPayload` and
   `PageViewEventPayload` are now Fashion's own types with the same fields.
   The internal tracker type is `FashionTracker` instead of Snowplow's
@@ -56,17 +56,26 @@ steps under **Upgrading from 0.1.x**.
   through `@snowplow/tracker-core`.
 - Lifecycle (background/foreground), install, session, platform, screen and
   deep-link contexts remain enabled.
+- Consent handling:
+  - Before a consent decision and while consent is rejected, nothing is sent.
+    Events tracked meanwhile are kept in memory and sent, with the user's
+    network user ID, once the user consents.
+  - On withdrawal, Fashion stops sending new events to Snowplow; they are kept
+    in memory for a possible re-consent. Events Snowplow already holds are
+    still delivered, and its stored queue and session are kept.
 
 ### Added
 
+- `tnuid` is sent alongside `nuid` with the same value, as in 0.1.x.
+- `lang`, `tz` and `res` (physical pixels) are sent again, and `mobile_context`
+  gets `resolution` in physical pixels, `isPortrait` and `language`. They come
+  from React Native, so no extra native dependency is needed.
 - `appVersion` and `appBuild` props on `DressipiProvider` for the mobile
   application context.
-- Consent withdrawal, a change of identity or configuration, and provider
-  unmount now stop the tracker. They discard its queued events, cancel
-  in-flight requests and delete Fashion's Snowplow keys from AsyncStorage.
-  Snowplow storage keys are scoped to `fashion:<namespace>:`.
-- Events whose payload is still being built when consent is withdrawn are
-  dropped.
+- A change of identity or configuration, and provider unmount, stop the
+  current tracker: they discard its queued events, cancel in-flight requests
+  and delete Fashion's Snowplow keys from AsyncStorage. Snowplow storage keys
+  are scoped to `fashion:<namespace>:`.
 - `npm run test:tracker` (`scripts/check-tracker.cjs`): sends every Fashion
   event through the real Snowplow 4 serializer and emitter and checks the
   resulting requests. The platform and collector are simulated.
@@ -80,6 +89,13 @@ steps under **Upgrading from 0.1.x**.
   autotracking (Android Activity / iOS UIViewController) and some automatic
   platform context fields.
 
+### Fixed
+
+- Android: tracking events are sent to `https://<domain>/t/t`. With 0.1.x, the
+  Snowplow 2 native Android emitter posted to `https://<domain>//t/t` (double
+  slash). In testing, the collector answered that with HTTP 404, so the events
+  were rejected and resent repeatedly.
+
 ### Known differences and limitations
 
 - Sessions and queued events stored by Snowplow 2 are not migrated. After
@@ -92,10 +108,25 @@ steps under **Upgrading from 0.1.x**.
   network returns. They are sent together with the next tracked event.
   Snowplow 2's native emitter resent them on reconnect.
 - Screen and deep-link contexts are attached only after a screen-view or
-  deep-link event has been tracked.
-- Not yet verified: captured request payloads compared with 0.1.x, backend
-  enrichment acceptance, iOS builds, Android release builds, offline retry,
-  and upgrade from an existing 0.1.x install.
+  deep-link event has been tracked. The `screen` and `screen_summary`
+  contexts and the automatic `screen_view` events from Snowplow 2 are no
+  longer sent.
+- The network user ID is sent in both `nuid` (new in Snowplow 4) and `tnuid`
+  (as in 0.1.x).
+- Less device data: `mobile_context` no longer includes carrier, network type,
+  battery, storage or memory. These need native code that Snowplow 4 doesn't
+  have. `lang` is now a locale tag such as `en-GB` (0.1.x sent the language
+  name, e.g. `English`), and `mobile_context.language` is the same locale
+  tag instead of a 3-letter code such as `eng`.
+- After consent withdrawal, the Snowplow tracker is removed once it has
+  delivered its pending events, so no further automatic background/foreground
+  events are sent. 0.1.x left the native tracker running.
+- Background/foreground events follow React Native `AppState`, so Android
+  activity switches can produce extra lifecycle events.
+- Not yet verified: backend enrichment acceptance, iOS (including iOS
+  request payloads), Android release builds, and upgrade from an existing
+  0.1.x install. Android request payloads were compared with 0.1.5 on an
+  emulator.
 - `mapp-intelligence-reactnative-plugin` 2.0.0 declares
   `react-native <0.86.0`. Apps using it on Expo SDK 57 need an npm `overrides`
   entry until that package widens its range.
