@@ -89,6 +89,12 @@ steps under **Upgrading from 0.1.x**.
   autotracking (Android Activity / iOS UIViewController) and some automatic
   platform context fields.
 
+### Fixed
+
+- The identify event's error message now says that both `email` and
+  `customerId` are required. It previously said "either", although both were
+  already required. Behaviour is unchanged.
+
 ### Known differences and limitations
 
 - Sessions and queued events stored by Snowplow 2 are not migrated. After

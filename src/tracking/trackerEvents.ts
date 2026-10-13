@@ -155,13 +155,12 @@ export const identify =
   (namespaceId: string) =>
   async (data: IdentifyEventPayload): Promise<QueuedEvent<QueueableEvents>> => {
     /**
-     * If the data object does not contain either an email or customerId,
-     * throw an error indicating that at least one of these identifiers
-     * is required.
+     * Both an email and a customerId are required; if either is missing,
+     * throw an error and send no event.
      */
     if (!data || !data.customerId || !data.email) {
       throw new Error(
-        'Dressipi identify event requires either an `email` or `customerId` to be provided.'
+        'Dressipi identify event requires both an `email` and a `customerId` to be provided.'
       );
     }
 
