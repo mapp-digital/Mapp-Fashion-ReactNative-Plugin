@@ -1,6 +1,6 @@
 {
   "name": "mapp-fashion-react-native-sdk",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "author": "Mapp Digital <productmanagement@mapp.com>",
   "repository": {
     "type": "git",
@@ -28,7 +28,8 @@
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage",
     "prepublishOnly": "npm run build",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "test:tracker": "npm run build && node scripts/check-tracker.cjs"
   },
   "keywords": [
     "dressipi",
@@ -40,13 +41,17 @@
   "license": "MIT",
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md"
   ],
   "peerDependencies": {
-    "react": ">=16.8.0",
-    "react-native": ">=0.60.0"
+    "@react-native-async-storage/async-storage": "^2.0.0",
+    "react": ">=19.2.3",
+    "react-native": ">=0.85.0",
+    "react-native-get-random-values": "^1.11.0 || ^2.0.0"
   },
   "devDependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@testing-library/react": "^16.3.0",
     "@types/crypto-js": "^4.2.2",
     "@types/lodash-es": "^4.17.12",
@@ -64,6 +69,10 @@
     "eslint-plugin-react-native": "^4.1.0",
     "jsdom": "^26.1.0",
     "prettier": "^3.0.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-native": "0.86.3",
+    "react-native-get-random-values": "2.0.0",
     "typescript": "^5.0.0",
     "vitest": "^3.2.3"
   },
@@ -71,7 +80,8 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@snowplow/react-native-tracker": "^2.1.1",
+    "@snowplow/react-native-tracker": "4.10.2",
+    "@snowplow/tracker-core": "4.10.2",
     "axios": "^1.9.0",
     "crypto-js": "^4.2.0",
     "lodash-es": "^4.17.21",
@@ -79,8 +89,5 @@
     "react-native-uuid": "^2.0.3",
     "snakecase-keys": "^8.0.1",
     "use-deep-compare-effect": "^1.8.1"
-  },
-  "browser": {
-    "axios": "axios/dist/browser/axios.cjs"
   }
 }

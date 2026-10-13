@@ -16,8 +16,16 @@ vi.mock('react-native-keychain', () => ({
   },
 }));
 
+vi.mock('@react-native-async-storage/async-storage', () => ({
+  default: {
+    getItem: vi.fn().mockResolvedValue(null),
+    setItem: vi.fn().mockResolvedValue(undefined),
+    multiRemove: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 vi.mock('@snowplow/react-native-tracker', () => ({
-  createTracker: vi.fn(),
+  newTracker: vi.fn(),
   removeTracker: vi.fn(),
 }));
 

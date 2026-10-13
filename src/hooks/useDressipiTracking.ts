@@ -1,4 +1,4 @@
-import { useCallback, useContext, useMemo } from 'react';
+import { useCallback, useContext, useMemo, useRef } from 'react';
 import { DressipiContext } from '../context/DressipiContext';
 import {
   addToBasket as addToBasketEventFunction,
@@ -32,14 +32,26 @@ import { Log } from '../utils/logger';
 export const useDressipiTracking = (): TrackingState => {
   const { namespaceId, queue, tracker } = useContext(DressipiContext);
 
+  const currentTracking = useRef({ queue, tracker });
+  currentTracking.current = { queue, tracker };
+
   const trackEvent = useCallback(
     async (eventFunction: QueueableFunction, ...args: any[]) => {
       if (!queue?.current && !tracker) return;
 
+      const pendingQueue = queue?.current;
       try {
         const event: QueuedEvent<QueueableEvents> = await eventFunction(
           ...args
         );
+
+        // Event builders are async; discard work from an expired consent/identity.
+        if (
+          currentTracking.current.queue !== queue ||
+          currentTracking.current.tracker !== tracker ||
+          queue?.current !== pendingQueue
+        )
+          return;
 
         if (tracker?.[event.event]) {
           Log.info('Sending event to Snowplow:', 'useDressipiTracking.ts', {

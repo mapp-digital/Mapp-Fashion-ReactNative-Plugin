@@ -1,4 +1,4 @@
-import { ReactNativeTracker } from '@snowplow/react-native-tracker';
+import type { FashionTracker } from '../tracking/tracker';
 import { PropsWithChildren, RefObject } from 'react';
 import { AuthCredentials } from './auth';
 import { SecureStorageAdapter } from './keychain';
@@ -12,7 +12,7 @@ export type ContextConfiguration = {
   namespaceId: string;
   domain: string;
   clientId: string;
-  tracker: ReactNativeTracker | null;
+  tracker: FashionTracker | null;
   queue: RefObject<Queue<QueueableEvents> | null> | null;
   credentials: AuthCredentials | null;
   refreshAuthentication: () => void;
@@ -28,6 +28,9 @@ type ProviderAdditionalProps = {
   enableLogging?: boolean;
   storage?: SecureStorageAdapter;
   defaultConsent?: boolean;
+  /** Host application version/build for the Snowplow application context. */
+  appVersion?: string;
+  appBuild?: string;
 };
 
 /**

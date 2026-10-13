@@ -1,5 +1,6 @@
-import type { ReactNativeTracker } from '@snowplow/react-native-tracker';
-import { RefObject, useEffect, useMemo, useRef } from 'react';
+import type { FashionTracker } from '../tracking/tracker';
+import type { ReactNode } from 'react';
+import { RefObject, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useCompliance } from '../hooks/useCompliance';
 import { KeyChainAdapter } from '../keychain/KeyChainAdapter';
@@ -20,12 +21,16 @@ const DressipiContextProvider = ({
   domain,
   clientId,
   storageAdapter,
+  appVersion,
+  appBuild,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   namespaceId: string;
   domain: string;
   clientId: string;
   storageAdapter: any;
+  appVersion?: string;
+  appBuild?: string;
 }) => {
   /**
    * Create a reference object to the queue of events
@@ -93,39 +98,48 @@ const DressipiContextProvider = ({
         refresh: () => Promise.resolve(),
       };
 
-  const tracker: ReactNativeTracker | null = useMemo(() => {
-    /**
-     * Create a tracker instance only if user has consented and networkUserId is available
-     */
+  const [tracker, setTracker] = useState<FashionTracker | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setTracker(null);
     if (shouldAuthenticate && networkUserId) {
-      return createTracker(namespaceId, domain, networkUserId);
+      void createTracker(
+        namespaceId,
+        domain,
+        networkUserId,
+        controller.signal,
+        {
+          appVersion,
+          appBuild,
+        }
+      )
+        .then(value => {
+          if (!controller.signal.aborted) setTracker(value);
+        })
+        .catch(() => {
+          Log.warn('Tracker initialization failed', 'DressipiProvider.tsx');
+        });
     }
-
-    /**
-     * Log why tracker is not being created
-     */
-    if (!shouldAuthenticate) {
-      Log.info(
-        'Tracker not created - user has not consented to data usage',
-        'DressipiProvider.tsx',
-        { hasConsented }
-      );
-    } else if (!networkUserId) {
-      Log.info(
-        'Tracker not created - networkUserId not available (authentication pending)',
-        'DressipiProvider.tsx'
-      );
-    }
-
-    return null;
-  }, [namespaceId, domain, networkUserId, shouldAuthenticate, hasConsented]);
+    return () => {
+      controller.abort();
+      if (networkUserId || !shouldAuthenticate) queue.current = [];
+    };
+  }, [
+    namespaceId,
+    domain,
+    networkUserId,
+    shouldAuthenticate,
+    appVersion,
+    appBuild,
+  ]);
 
   useEffect(() => {
     /**
      * If the tracker instance is created successfully,
      * process queued events and return the tracker. Otherwise, return null.
      */
-    if (!tracker) return;
+    if (!tracker || !shouldAuthenticate) return;
 
     /**
      * Retrieve the queued events from the queue.
@@ -150,7 +164,7 @@ const DressipiContextProvider = ({
 
       (tracker[queuedEvent.event] as Function).apply(tracker, queuedEvent.data);
     });
-  }, [tracker]);
+  }, [tracker, shouldAuthenticate]);
 
   return (
     <DressipiContext.Provider
@@ -158,8 +172,8 @@ const DressipiContextProvider = ({
         namespaceId,
         domain,
         clientId,
-        tracker,
-        queue,
+        tracker: shouldAuthenticate ? tracker : null,
+        queue: shouldAuthenticate ? queue : null,
         credentials,
         refreshAuthentication: refresh,
       }}
@@ -188,6 +202,8 @@ export const DressipiProvider = ({
   enableLogging = false,
   storage = new KeyChainAdapter(),
   defaultConsent,
+  appVersion,
+  appBuild,
 }: ProviderProps) => {
   /**
    * Use the provided storage adapter instance.
@@ -218,6 +234,8 @@ export const DressipiProvider = ({
         domain={domain}
         clientId={clientId}
         storageAdapter={storageAdapter}
+        appVersion={appVersion}
+        appBuild={appBuild}
       >
         {children}
       </DressipiContextProvider>
