@@ -89,13 +89,6 @@ steps under **Upgrading from 0.1.x**.
   autotracking (Android Activity / iOS UIViewController) and some automatic
   platform context fields.
 
-### Fixed
-
-- Android: tracking events are sent to `https://<domain>/t/t`. With 0.1.x, the
-  Snowplow 2 native Android emitter posted to `https://<domain>//t/t` (double
-  slash). In testing, the collector answered that with HTTP 404, so the events
-  were rejected and resent repeatedly.
-
 ### Known differences and limitations
 
 - Sessions and queued events stored by Snowplow 2 are not migrated. After
