@@ -5,6 +5,8 @@ A React Native SDK that provides easy integration with Dressipi's fashion AI ser
 ## Table of Contents
 
 - [Installation](#installation)
+  - [Additional Dependencies](#additional-dependencies)
+  - [Upgrading from 0.1.x](#upgrading-from-01x)
 - [Quick Start](#quick-start)
 - [Storage Configuration](#storage-configuration)
 - [API Reference](#api-reference)
