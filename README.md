@@ -58,8 +58,10 @@ are unchanged, but the installation changes:
    `appVersion` and `appBuild` props. Snowplow 4 no longer reads them automatically.
 5. Rebuild the native app.
 
-Sessions and queued events stored by Snowplow 2 are not migrated, so the first
-launch after upgrading starts a new tracking session.
+Snowplow 2's stored device user ID, session history and unsent events are not
+migrated: after upgrading, tracking starts with a new device user ID and its
+session count starts again. The network user ID used to link a user's data is
+kept, because it comes from Fashion's stored login.
 
 Some tracking data also changes, which matters if you have reports built on
 0.1.x data:

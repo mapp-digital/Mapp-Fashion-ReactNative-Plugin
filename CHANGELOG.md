@@ -97,11 +97,18 @@ steps under **Upgrading from 0.1.x**.
 
 ### Known differences and limitations
 
-- Sessions and queued events stored by Snowplow 2 are not migrated. After
-  upgrading, the first launch starts a new Snowplow session and may send a
-  new install event. Rolling back to 0.1.x does not read the 0.2.0 storage.
-- Re-initializing the tracker (after consent withdrawal and re-acceptance, or
-  an identity change) starts a new session.
+- Snowplow 2's stored device user ID, session history and unsent events are
+  not migrated. After upgrading, `client_session.userId` is new,
+  `sessionIndex` starts at 1 again with no link to the last 0.1.x session, and
+  an `application_install` event may be sent. The network user ID
+  (`nuid`/`tnuid`) is not affected: it comes from Fashion's stored login,
+  which the upgrade keeps. Rolling back to 0.1.x does not read the 0.2.0
+  storage.
+- Snowplow 4 starts a new session on every app launch. It keeps the device
+  user ID and links the previous session (`previousSessionId`), but session
+  counts can differ from 0.1.x.
+- Re-consent after withdrawal starts a new session with the same device user
+  ID. An identity change starts a new session with a new device user ID.
 - Keep one `DressipiProvider` mounted for the app's lifetime.
 - Events queued while the device is offline are not resent as soon as the
   network returns. They are sent together with the next tracked event.
