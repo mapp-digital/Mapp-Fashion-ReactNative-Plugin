@@ -1,7 +1,9 @@
+import { sanitizeLogData, sanitizeLogText } from './logData';
+
 /**
  * Logger utility class for consistent logging throughout the application.
  * Provides different log levels with timestamp and optional file prefixes.
- * Logging is controlled via EXPO_PUBLIC_DRESSIPI_DEBUG environment variable.
+ * Logging is controlled via the DressipiProvider enableLogging prop.
  */
 export class Log {
   /**
@@ -13,6 +15,7 @@ export class Log {
    * Flag to determine if logging is enabled.
    */
   private isLoggingEnabled: boolean;
+  private shouldLogTokens = false;
 
   /**
    * Private constructor to enforce singleton pattern.
@@ -29,14 +32,18 @@ export class Log {
    * @param {boolean} isLoggingEnabled Whether logging is enabled or not.
    * @returns {Log} Singleton instance of Log.
    */
-  public static init(isLoggingEnabled = false): Log {
+  public static init(isLoggingEnabled?: boolean, logTokens = false): Log {
     /**
      * Check if the Log instance already exists.
      * If it does not exist, create a new instance with
      * the provided logging flag.
      */
     if (!Log.instance) {
-      Log.instance = new Log(isLoggingEnabled);
+      Log.instance = new Log(isLoggingEnabled ?? false);
+    }
+    if (isLoggingEnabled !== undefined) {
+      Log.instance.isLoggingEnabled = isLoggingEnabled;
+      Log.instance.shouldLogTokens = logTokens;
     }
 
     /**
@@ -44,6 +51,10 @@ export class Log {
      * This ensures that all logging calls use the same instance,
      */
     return Log.instance;
+  }
+
+  public static get enabled(): boolean {
+    return Log.init().isLoggingEnabled;
   }
 
   /**
@@ -71,7 +82,7 @@ export class Log {
   private formatMessage(message: string, prefix?: string): string {
     const timestamp = this.formatTimestamp();
     const prefixPart = prefix ? ` [${prefix}]` : '';
-    const messagePart = ` ${message}`;
+    const messagePart = ` ${sanitizeLogText(message)}`;
 
     return `${timestamp}${prefixPart}${messagePart}`;
   }
@@ -83,14 +94,15 @@ export class Log {
    */
   private formatArgs(...args: unknown[]): unknown[] {
     return args.map(arg => {
+      const sanitized = sanitizeLogData(arg, this.shouldLogTokens);
       if (typeof arg === 'object' && arg !== null) {
         try {
-          return JSON.stringify(arg, null, 2);
+          return JSON.stringify(sanitized, null, 2);
         } catch {
-          return arg;
+          return '[Unable to format log data]';
         }
       }
-      return arg;
+      return sanitized;
     });
   }
 

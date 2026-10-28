@@ -28,6 +28,11 @@ export type AuthCredentials = {
   refresh_token: string;
   token_type: string;
   expires_in: number;
+  /** Server-issued subn retained locally when a refresh omits it. */
+  trackingIdentity?: {
+    profileId: string;
+    networkUserId: string;
+  };
 };
 
 /**

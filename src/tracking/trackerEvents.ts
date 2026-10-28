@@ -15,6 +15,21 @@ import {
   TabClickEventPayload,
 } from '../types/tracking';
 
+const pageContextArguments = (
+  id?: string
+): [] | [{ schema: string; data: { id: string } }[]] =>
+  id
+    ? [
+        [
+          {
+            schema:
+              'iglu:com.snowplowanalytics.snowplow/web_page/jsonschema/1-0-0',
+            data: { id },
+          },
+        ],
+      ]
+    : [];
+
 /**
  * Create a queued event for tracking an order.
  *
@@ -210,9 +225,10 @@ export const identify =
  * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to
  * a queued event object.
  */
-export const tabClick = async (
-  tabClick: TabClickEventPayload
-): Promise<QueuedEvent<QueueableEvents>> => {
+export const tabClick = async ({
+  parentPageViewId,
+  ...tabClick
+}: TabClickEventPayload): Promise<QueuedEvent<QueueableEvents>> => {
   return {
     event: 'trackSelfDescribingEvent',
     data: [
@@ -220,6 +236,7 @@ export const tabClick = async (
         schema: 'iglu:com.dressipi/tab_click/jsonschema/1-0-0',
         data: tabClick,
       },
+      ...pageContextArguments(parentPageViewId),
     ],
   };
 };
@@ -232,9 +249,10 @@ export const tabClick = async (
  * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to
  * a queued event object.
  */
-export const itemClickQuickView = async (
-  itemClickQuickView: ItemClickQuickViewEventPayload
-): Promise<QueuedEvent<QueueableEvents>> => {
+export const itemClickQuickView = async ({
+  parentPageViewId,
+  ...itemClickQuickView
+}: ItemClickQuickViewEventPayload): Promise<QueuedEvent<QueueableEvents>> => {
   return {
     event: 'trackSelfDescribingEvent',
     data: [
@@ -242,6 +260,7 @@ export const itemClickQuickView = async (
         schema: 'iglu:com.dressipi/item_click_quickview/jsonschema/1-0-0',
         data: itemClickQuickView,
       },
+      ...pageContextArguments(parentPageViewId),
     ],
   };
 };
@@ -253,9 +272,10 @@ export const itemClickQuickView = async (
  * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to
  * a queued event object.
  */
-export const itemClickPdp = async (
-  itemClickPdp: ItemClickPdpEventPayload
-): Promise<QueuedEvent<QueueableEvents>> => {
+export const itemClickPdp = async ({
+  parentPageViewId,
+  ...itemClickPdp
+}: ItemClickPdpEventPayload): Promise<QueuedEvent<QueueableEvents>> => {
   return {
     event: 'trackSelfDescribingEvent',
     data: [
@@ -263,15 +283,17 @@ export const itemClickPdp = async (
         schema: 'iglu:com.dressipi/item_click_pdp/jsonschema/1-0-0',
         data: itemClickPdp,
       },
+      ...pageContextArguments(parentPageViewId),
     ],
   };
 };
 
-export const pageView = async (
-  pageView: PageViewEventPayload
-): Promise<QueuedEvent<QueueableEvents>> => {
+export const pageView = async ({
+  pageViewId,
+  ...pageView
+}: PageViewEventPayload): Promise<QueuedEvent<QueueableEvents>> => {
   return {
     event: 'trackPageViewEvent',
-    data: [pageView],
+    data: [pageView, ...pageContextArguments(pageViewId)],
   };
 };

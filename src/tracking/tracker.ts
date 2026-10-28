@@ -12,6 +12,7 @@ import type {
   PageViewEventPayload,
 } from '../types/tracking';
 import { Log } from '../utils/logger';
+import { fetchWithLogging } from '../utils/httpLogging';
 
 const snowplowNamespace =
   process.env.EXPO_PUBLIC_SNOWPLOW_TRACKER_NAMESPACE || 'dressipi';
@@ -32,7 +33,10 @@ export const abortForConsentWithdrawal = (controller: AbortController) => {
 
 export type FashionTracker = {
   trackSelfDescribingEvent: ReactNativeTracker['trackSelfDescribingEvent'];
-  trackPageViewEvent: (event: PageViewEventPayload) => void;
+  trackPageViewEvent: (
+    event: PageViewEventPayload,
+    contexts?: Parameters<ReactNativeTracker['trackPageViewEvent']>[1]
+  ) => void;
   trackEcommerceTransactionEvent: (event: OrderEventPayload) => void;
 };
 
@@ -176,7 +180,7 @@ export const createTracker = (
           request.signal?.addEventListener('abort', abort, { once: true });
           if (request.signal?.aborted) controller.abort();
           try {
-            return await fetch(request, {
+            return await fetchWithLogging(request, {
               ...options,
               signal: controller.signal,
             });
@@ -212,9 +216,12 @@ export const createTracker = (
           if (!signal.aborted)
             tracker!.trackSelfDescribingEvent(event, contexts);
         },
-        trackPageViewEvent: ({ pageUrl, pageTitle, referrer }) => {
+        trackPageViewEvent: ({ pageUrl, pageTitle, referrer }, contexts) => {
           if (!signal.aborted) {
-            tracker!.trackPageViewEvent({ pageUrl, pageTitle, referrer });
+            tracker!.trackPageViewEvent(
+              { pageUrl, pageTitle, referrer },
+              contexts
+            );
           }
         },
         trackEcommerceTransactionEvent: order => {

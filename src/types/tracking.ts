@@ -278,10 +278,14 @@ export type IdentifyEventPayload = {
   email?: string;
 };
 
-/**
- * Represents the payload for a tab click event.
- */
-export type TabClickEventPayload = {
+/** Optional source page context for recommendation interactions. */
+export type RecommendationPageContext = {
+  /** The source page's Snowplow web_page context UUID. */
+  parentPageViewId?: string;
+};
+
+/** Represents the payload for a tab click event. */
+export type TabClickEventPayload = RecommendationPageContext & {
   /**
    * The id of request to the server that generated the content,
    * returned in the response as event_id.
@@ -296,7 +300,7 @@ export type TabClickEventPayload = {
 /**
  * Represents the payload for an item click quick view event.
  */
-export type ItemClickQuickViewEventPayload = {
+export type ItemClickQuickViewEventPayload = RecommendationPageContext & {
   /**
    * The id of request to the server that generated the content,
    * returned in the response as event_id.
@@ -317,7 +321,7 @@ export type ItemClickQuickViewEventPayload = {
 /**
  * Represents the payload for an item click on a product detail page event.
  */
-export type ItemClickPdpEventPayload = {
+export type ItemClickPdpEventPayload = RecommendationPageContext & {
   /**
    * The id of request to the server that generated the content,
    * returned in the response as event_id.
@@ -342,4 +346,6 @@ export type PageViewEventPayload = {
   pageUrl: string;
   pageTitle?: string;
   referrer?: string;
+  /** Reuse this UUID as parentPageViewId on recommendation interactions. */
+  pageViewId?: string;
 };

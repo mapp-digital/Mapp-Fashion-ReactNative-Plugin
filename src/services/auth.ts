@@ -1,7 +1,8 @@
-import axios, { AxiosResponse } from 'axios';
+import type { AxiosResponse } from 'axios';
 import uuid from 'react-native-uuid';
 import { AuthCredentials, AuthorizationResponse } from '../types/auth';
-import { Log } from '../utils/logger';
+import { httpGet, httpPost } from '../utils/httpLogging';
+import { retainTrackingIdentity } from '../utils/jwt';
 import { PKCEChallenge, pkceChallenge } from '../utils/pkce';
 
 /**
@@ -43,23 +44,13 @@ export const authenticate = async (
   }).toString();
 
   try {
-    Log.info('Fetching OAuth authorization from Dressipi API.', 'auth.ts', {
-      url: `https://${domain}/api/oauth/authorize?${authorizationRequestQueryString}`,
-      payload: {
-        clientId,
-        domain,
-      },
-    });
-
     /**
      * Send the authentication request to the server.
      */
     const response: AxiosResponse<AuthorizationResponse> =
-      await axios.get<AuthorizationResponse>(
+      await httpGet<AuthorizationResponse>(
         `https://${domain}/api/oauth/authorize?${authorizationRequestQueryString}`
       );
-
-    Log.info('Received OAuth authorization from Dressipi API.', 'auth.ts');
 
     /**
      * If the response is successful, set the authentication response.
@@ -99,19 +90,13 @@ export const authenticate = async (
   }).toString();
 
   try {
-    Log.info('Fetching OAuth token from Dressipi API.', 'auth.ts', {
-      url: `https://${domain}/api/oauth/token?${tokenRequestQueryString}`,
-    });
-
     /**
      * Send the token request to the server.
      */
     const response: AxiosResponse<AuthCredentials> =
-      await axios.post<AuthCredentials>(
+      await httpPost<AuthCredentials>(
         `https://${domain}/api/oauth/token?${tokenRequestQueryString}`
       );
-
-    Log.info('Received OAuth token from Dressipi API.', 'auth.ts');
 
     /**
      * If the response is successful, set the token data.
@@ -126,7 +111,7 @@ export const authenticate = async (
     );
   }
 
-  return tokenResponse;
+  return retainTrackingIdentity(tokenResponse);
 };
 
 /**
@@ -159,14 +144,14 @@ export const refreshToken = async (
      * Send the refresh token request to the server.
      */
     const response: AxiosResponse<AuthCredentials> =
-      await axios.post<AuthCredentials>(
+      await httpPost<AuthCredentials>(
         `https://${domain}/api/oauth/token?${refreshTokenRequestQueryString}`
       );
 
     /**
      * If the response is successful, return the token data.
      */
-    return response.data;
+    return retainTrackingIdentity(response.data, outdatedCredentials);
   } catch (error) {
     /**
      * If there was an error sending the request, throw an error.

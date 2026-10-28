@@ -8,6 +8,7 @@ import { abortForConsentWithdrawal, createTracker } from '../tracking/tracker';
 import { ProviderProps } from '../types/context';
 import { Queue, QueueableEvents, QueuedEvent } from '../types/tracking';
 import { Log } from '../utils/logger';
+import { logTrackingEvent } from '../utils/trackingLogging';
 import { ComplianceProvider } from './ComplianceProvider';
 import { DressipiContext } from './DressipiContext';
 
@@ -107,6 +108,21 @@ const DressipiContextProvider = ({
 
   const [tracker, setTracker] = useState<FashionTracker | null>(null);
 
+  const hasCredentials = Boolean(credentials);
+  useEffect(() => {
+    if (shouldAuthenticate && hasCredentials && !networkUserId) {
+      Log.warn(
+        'Tracking is waiting: no network user ID is available from the token subn claim or the saved identity for this profile. Events remain queued.',
+        'Fashion Tracking',
+        { status: 'BLOCKED', reason: 'missing_network_user_id' }
+      );
+      // Also make already queued events visible after a development refresh.
+      queue.current.forEach(event =>
+        logTrackingEvent(event, 'QUEUED', 'missing_network_user_id')
+      );
+    }
+  }, [shouldAuthenticate, hasCredentials, networkUserId]);
+
   useEffect(() => {
     const controller = new AbortController();
     setTracker(null);
@@ -167,11 +183,8 @@ const DressipiContextProvider = ({
      * Each queued event contains the event name and the data to be sent.
      */
     eventsToProcess.forEach((queuedEvent: QueuedEvent<QueueableEvents>) => {
-      Log.info('Processing queued event', 'DressipiProvider.tsx', {
-        event: queuedEvent.event,
-      });
-
       (tracker[queuedEvent.event] as Function).apply(tracker, queuedEvent.data);
+      logTrackingEvent(queuedEvent, 'DISPATCHED');
     });
   }, [tracker]);
 
@@ -211,6 +224,7 @@ export const DressipiProvider = ({
   domain,
   clientId,
   enableLogging = false,
+  logTokens = false,
   storage = new KeyChainAdapter(),
   defaultConsent,
   appVersion,
@@ -228,7 +242,7 @@ export const DressipiProvider = ({
    * If enableLogging is true, the Log class will log messages to the console.
    * Otherwise, logging will be disabled.
    */
-  Log.init(enableLogging);
+  Log.init(enableLogging, logTokens);
 
   /**
    * The DressipiProvider component provides the DressipiContext

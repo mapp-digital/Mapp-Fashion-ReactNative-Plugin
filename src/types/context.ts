@@ -26,6 +26,8 @@ type ProviderAdditionalProps = {
   domain: string;
   clientId: string;
   enableLogging?: boolean;
+  /** Print access_token and refresh_token values in log objects. Defaults to false. */
+  logTokens?: boolean;
   storage?: SecureStorageAdapter;
   defaultConsent?: boolean;
   /** Host application version/build for the Snowplow application context. */

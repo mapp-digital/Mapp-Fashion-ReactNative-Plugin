@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { newTracker, removeTracker } from '@snowplow/react-native-tracker';
 import { trackerCore } from '@snowplow/tracker-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Log } from '../../../utils/logger';
 import {
   abortForConsentWithdrawal,
   createTracker,
@@ -27,7 +28,11 @@ beforeEach(() => {
     return native as any;
   });
 });
-afterEach(() => controller.abort());
+afterEach(() => {
+  controller.abort();
+  Log.init(false);
+  vi.unstubAllGlobals();
+});
 
 const create = () =>
   createTracker(
@@ -38,6 +43,47 @@ const create = () =>
   );
 
 describe('Snowplow 4 adapter', () => {
+  it('logs requests sent through the collector transport', async () => {
+    Log.init(true);
+    await create();
+    const transport = vi.mocked(newTracker).mock.calls[0][0].customFetch!;
+    const response = new Response('accepted');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+    expect(
+      await transport(
+        new Request('https://collector.example/t/t', {
+          method: 'POST',
+          body: JSON.stringify({ data: [{ eid: 'click-1' }] }),
+        })
+      )
+    ).toBe(response);
+    await vi.waitFor(() =>
+      expect(
+        vi
+          .mocked(console.info)
+          .mock.calls.filter(([message]) =>
+            String(message).includes('[Fashion HTTP]')
+          )
+      ).toHaveLength(2)
+    );
+    const logs = vi
+      .mocked(console.info)
+      .mock.calls.filter(([message]) =>
+        String(message).includes('[Fashion HTTP]')
+      )
+      .map(([, data]) => JSON.parse(String(data)));
+    expect(logs[0]).toMatchObject({
+      method: 'POST',
+      url: 'https://collector.example/t/t',
+      body: { data: [{ eid: 'click-1' }] },
+    });
+    expect(logs[1]).toMatchObject({
+      requestId: logs[0].requestId,
+      status: 200,
+      body: 'accepted',
+    });
+  });
+
   it('preserves routing, identity and base64 encoding', async () => {
     await create();
     expect(newTracker).toHaveBeenCalledWith(
@@ -84,11 +130,34 @@ describe('Snowplow 4 adapter', () => {
       event,
       undefined
     );
-    expect(native.trackPageViewEvent).toHaveBeenCalledWith({
-      pageUrl: '/products',
-      pageTitle: 'Products',
-      referrer: '/home',
-    });
+    expect(native.trackPageViewEvent).toHaveBeenCalledWith(
+      { pageUrl: '/products', pageTitle: 'Products', referrer: '/home' },
+      undefined
+    );
+  });
+
+  it('forwards the page context on page views and recommendation clicks', async () => {
+    const tracker = await create();
+    const contexts = [
+      {
+        schema: 'iglu:com.snowplowanalytics.snowplow/web_page/jsonschema/1-0-0',
+        data: { id: '44ff586f-ac79-4810-bbac-146f49f02f9c' },
+      },
+    ];
+    const event = {
+      schema: 'iglu:com.dressipi/item_click_pdp/jsonschema/1-0-0',
+      data: { request_id: 'request', dressipi_item_id: 123 },
+    };
+    tracker!.trackPageViewEvent({ pageUrl: '/products' }, contexts);
+    tracker!.trackSelfDescribingEvent(event, contexts);
+    expect(native.trackPageViewEvent).toHaveBeenCalledWith(
+      { pageUrl: '/products' },
+      contexts
+    );
+    expect(native.trackSelfDescribingEvent).toHaveBeenCalledWith(
+      event,
+      contexts
+    );
   });
 
   it('restores tnuid and device details Snowplow 2 sent', async () => {

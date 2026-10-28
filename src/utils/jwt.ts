@@ -1,5 +1,8 @@
 import { AccessToken, AuthCredentials } from '../types/auth';
 
+const hasIdentity = (value: unknown): value is string =>
+  typeof value === 'string' && value.trim().length > 0;
+
 /**
  * Decodes the access token from the provided JWT string.
  *
@@ -63,7 +66,9 @@ export const accessTokenHasExpired = (
 };
 
 /**
- * Retrieves the user ID from the access token in the provided credentials.
+ * Retrieves the server-issued tracking ID from the token or from an earlier
+ * token for the same profile. OAuth sub is only used to check the profile;
+ * it is never used as the tracking ID.
  *
  * @param {AuthCredentials} credentials - The authentication credentials
  * containing the access token.
@@ -99,5 +104,41 @@ export const getNetworkUserId = (
   /**
    * Return the user ID from the decoded access token.
    */
-  return decodedAccessToken.subn || null;
+  if (hasIdentity(decodedAccessToken.subn)) return decodedAccessToken.subn;
+
+  const saved = credentials.trackingIdentity;
+  return hasIdentity(decodedAccessToken.sub) &&
+    saved?.profileId === decodedAccessToken.sub &&
+    hasIdentity(saved.networkUserId)
+    ? saved.networkUserId
+    : null;
+};
+
+/**
+ * Refresh responses can omit subn. Retain the server-issued ID with the new
+ * credentials only when both tokens identify the same profile. This local
+ * metadata is persisted by the storage adapter; the JWT is never modified.
+ */
+export const retainTrackingIdentity = (
+  credentials: AuthCredentials,
+  previousCredentials?: AuthCredentials
+): AuthCredentials => {
+  const result = { ...credentials };
+  // Identity metadata is created here, never accepted from an OAuth response.
+  delete result.trackingIdentity;
+  const current = decodeAccessToken(result.access_token);
+  if (!current || !hasIdentity(current.sub)) return result;
+
+  const previous = previousCredentials
+    ? decodeAccessToken(previousCredentials.access_token)
+    : false;
+  const networkUserId =
+    getNetworkUserId(result) ??
+    (previousCredentials && previous && previous.sub === current.sub
+      ? getNetworkUserId(previousCredentials)
+      : null);
+  if (networkUserId) {
+    result.trackingIdentity = { profileId: current.sub, networkUserId };
+  }
+  return result;
 };

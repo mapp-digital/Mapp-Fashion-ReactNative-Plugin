@@ -18,7 +18,8 @@ import {
   QueuedEvent,
   TrackingState,
 } from '../types/tracking';
-import { Log } from '../utils/logger';
+import { logTrackingEvent } from '../utils/trackingLogging';
+import { getNetworkUserId } from '../utils/jwt';
 
 /**
  * Custom hook to access and manage Dressipi tracking events.
@@ -30,10 +31,15 @@ import { Log } from '../utils/logger';
  * different events.
  */
 export const useDressipiTracking = (): TrackingState => {
-  const { namespaceId, queue, tracker } = useContext(DressipiContext);
+  const { namespaceId, queue, tracker, credentials } =
+    useContext(DressipiContext);
+  const queueReason =
+    credentials && !getNetworkUserId(credentials)
+      ? 'missing_network_user_id'
+      : 'tracker_not_ready';
 
-  const currentTracking = useRef({ queue, tracker });
-  currentTracking.current = { queue, tracker };
+  const currentTracking = useRef({ queue, tracker, queueReason });
+  currentTracking.current = { queue, tracker, queueReason };
 
   const trackEvent = useCallback(
     async (eventFunction: QueueableFunction, ...args: any[]) => {
@@ -45,24 +51,14 @@ export const useDressipiTracking = (): TrackingState => {
         );
 
         // Event builders are async; route to the tracker/queue active now.
-        const { tracker, queue } = currentTracking.current;
+        const { tracker, queue, queueReason } = currentTracking.current;
 
         if (tracker?.[event.event]) {
-          Log.info('Sending event to Snowplow:', 'useDressipiTracking.ts', {
-            event: event.event,
-            name: eventFunction.name,
-            data: event.data,
-          });
-
           (tracker[event.event] as Function).apply(tracker, event.data);
+          logTrackingEvent(event, 'DISPATCHED');
         } else if (queue?.current) {
-          Log.info('Pushing event to queue:', 'useDressipiTracking.ts', {
-            event: event.event,
-            name: eventFunction.name,
-            data: event.data,
-          });
-
           queue.current.push(event);
+          logTrackingEvent(event, 'QUEUED', queueReason);
         }
       } catch (error) {
         console.error('Error tracking event:', error);

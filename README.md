@@ -2,6 +2,34 @@
 
 A React Native SDK that provides easy integration with Dressipi's fashion AI services, including related items discovery, facetted search, and tracking capabilities.
 
+## Linking recommendations to their source page
+
+From version 0.2.1, `itemClickPdp`, `itemClickQuickView`, and `tabClick` accept
+optional `parentPageViewId`. Pass the source page's Snowplow `web_page` context
+UUID. It is serialized as a context with `data.id`, not inside the Dressipi event
+data. Existing calls without this field keep their existing payloads.
+
+Generate a UUID once per page/screen visit, pass it as `pageViewId` to `pageView`,
+and reuse it for interactions on that visit before navigating:
+
+```tsx
+const { pageView, itemClickPdp } = useDressipiTracking();
+const pageViewId = uuid.v4(); // Once per visit, not once per render or click.
+pageView({ pageUrl: '/pdp/603081121', pageViewId });
+
+itemClickPdp({
+  request_id: relatedItems.response_id, // API event_id
+  related_items_set_id: outfit.content_id,
+  dressipi_item_id: item.dressipi_item_id, // API raw_garment_id
+  parentPageViewId: pageViewId,
+});
+```
+
+The request ID, page context ID, and Snowplow event ID are separate identifiers.
+The SDK preserves the explicit page context when events are queued. This uses
+the Fashion SDK's Snowplow tracker and does not require Mapp Intelligence.
+See [Mapp's recommendation tracking reference](https://docs.mapp.com/docs/recommendation-tracking-fashion).
+
 ## Table of Contents
 
 - [Installation](#installation)
@@ -243,6 +271,7 @@ The main provider component that initializes the SDK and provides authentication
 | `domain`         | `string`               | Yes      | Your Dressipi domain                                                               |
 | `clientId`       | `string`               | Yes      | Your OAuth client ID for authentication                                            |
 | `enableLogging`  | `boolean`              | No       | Enable debug logging for development (defaults to `false`)                         |
+| `logTokens`      | `boolean`              | No       | Print access and refresh token fields when logging is enabled (defaults to `false`) |
 | `storage`        | `SecureStorageAdapter` | No       | Custom storage adapter for credentials (defaults to KeyChain)                      |
 | `defaultConsent` | `boolean`              | No       | Default consent value when user hasn't made a choice yet (defaults to `undefined`) |
 | `appVersion`     | `string`               | No       | Your app's version, sent in the tracking application context                       |
@@ -1525,11 +1554,8 @@ function ProductPage({ productId }: { productId: string }) {
 
 ## Debug Logging
 
-The Dressipi SDK includes comprehensive internal logging for debugging purposes. By default, these logs are disabled to prevent sensitive information from appearing in production applications.
-
-### Enabling Debug Logs
-
-To enable debug logging during development or troubleshooting, set the following configuration on your DressipiProvider:
+Set `enableLogging={true}` on `DressipiProvider` to log Fashion SDK activity.
+The test app already enables it in `app/_layout.tsx`.
 
 ```tsx
 <DressipiProvider
@@ -1542,36 +1568,73 @@ To enable debug logging during development or troubleshooting, set the following
 </DressipiProvider>
 ```
 
-### What Gets Logged
+From SDK 0.2.4, **search for `parentPageViewId` in the DevTools Console** to
+see recommendation clicks before an HTTP request exists. These logs use the
+`[Fashion Tracking]` prefix, so clear any `Fashion HTTP` filter first:
 
-When debug logging is enabled, you'll see detailed information about:
-
-- **API Requests**: URLs, parameters, and request timing
-- **Authentication Flow**: OAuth token acquisition and refresh processes
-- **Response Data**: API responses and data mapping operations
-- **Error Details**: Detailed error messages and stack traces
-- **Storage Operations**: Keychain/SecureStore read/write operations
-
-### Security Note
-
-Debug logs may contain sensitive information such as:
-
-- API endpoints and request parameters
-- Authentication tokens and user identifiers
-- Product data and search queries
-
-**Important**: Only enable debug logging in development environments. Never enable this in production builds distributed to end users.
-
-### Example Debug Output
-
-With debug logging enabled, you'll see console output like:
-
+```text
+[Fashion Tracking] item_click_pdp QUEUED parentPageViewId=<source-page-UUID>
 ```
-[25-06-2025 14:30:15] [auth.ts] Fetching OAuth authorization from Dressipi API.
-[25-06-2025 14:30:16] [auth.ts] Received OAuth authorization from Dressipi API.
-[25-06-2025 14:30:17] [related-items.ts] Fetching Related Items from Dressipi API
-[25-06-2025 14:30:18] [related-items.ts] Received related items from Dressipi API
+
+`QUEUED` means the SDK retained the event while the tracker is unavailable.
+`DISPATCHED` means it handed the event to Snowplow; only the `[Fashion HTTP]`
+request/response pair describes network delivery. The page ID is read from the
+built event's context, and a missing ID is logged as `parentPageViewId=null`.
+A token without the tracking `subn` claim or a saved tracking identity for the
+same profile produces a `Tracking is waiting` warning with
+`reason: missing_network_user_id`; this warning contains no credentials.
+From SDK 0.2.5, every affected queued event also includes this specific reason
+in its log line and details instead of the generic `tracker_not_ready`.
+From SDK 0.2.8, OAuth refresh preserves a previously issued `subn` in local
+`trackingIdentity` metadata alongside the credentials. The SDK reuses it only
+when the refreshed token has the same profile (`sub`), including after a storage
+round trip or app restart. A new token's `subn` takes precedence. The SDK does
+not change the JWT or use `sub` as the tracking ID.
+
+If stored credentials already lost `subn` before this update and have no saved
+identity, refreshing cannot reconstruct it. Recover the identity with the
+Fashion backend, or explicitly create a new demo profile if losing that profile's
+personalization is acceptable. The SDK does not reset profiles automatically.
+
+From Fashion SDK 0.2.2, filter the JavaScript console for **`[Fashion HTTP]`**.
+Each network attempt has a matching `requestId` (for example, `fashion-12`):
+
+- `REQUEST`: HTTP method, full URL/query string, and request body (`null` for no body).
+- `RESPONSE`: status, status text, response body, and `durationMs`.
+- `ERROR`: network/timeout/cancellation errors, or HTTP errors with their status and response body.
+
+This covers OAuth authorization, token exchange/refresh, related items, facetted
+search, and Snowplow collector batches at `/t/t`. Retries have their own request
+IDs. Logs describe actual transport attempts; an event waiting in the SDK queue
+has no HTTP response yet.
+
+Collector requests also include `decodedEvents`, a readable copy of Snowplow's
+base64 event and context fields. From SDK 0.2.3, search for
+`decodedEvents[].parentPageViewId` on recommendation events, and `pageViewId` on
+source page-view events. These diagnostic fields are read from the actual
+serialized `web_page` context's `data.id`; missing context is shown as `null`.
+The encoded request body is preserved in `body`, and the transmitted payload is
+unchanged. `parentPageViewId` is an SDK argument; its wire representation is the
+`web_page` context inside `cx` (base64) or `co` (JSON), as in Mapp's web tracker.
+
+Example output (body fields abbreviated):
+
+```text
+[Fashion HTTP] fashion-12 REQUEST
+{ "requestId": "fashion-12", "method": "POST", "url": "https://fashion.example/t/t", "body": { "data": [...] }, "decodedEvents": [...] }
+[Fashion HTTP] fashion-12 RESPONSE
+{ "requestId": "fashion-12", "method": "POST", "url": "https://fashion.example/t/t", "status": 200, "statusText": "OK", "durationMs": 128, "body": "" }
 ```
+
+Empty responses remain empty strings; JSON responses are displayed as objects.
+Authorization headers, OAuth codes/verifiers, tokens, and password fields are
+masked as `[REDACTED]` in diagnostic copies by default. From SDK 0.2.6, set
+`logTokens={true}` alongside `enableLogging={true}` to print complete
+`access_token` and `refresh_token` fields in HTTP response bodies and cached
+credential logs. For development builds, use `logTokens={__DEV__}`. Search for
+`access_token` or `refresh_token` in the DevTools Console after reloading the app.
+Set `logTokens={false}` to restore token redaction, or `enableLogging={false}` to
+turn off all SDK logging. Logging does not change requests or credentials.
 
 ## Types
 

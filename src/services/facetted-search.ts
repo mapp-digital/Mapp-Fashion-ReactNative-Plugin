@@ -1,11 +1,11 @@
-import axios, { AxiosError, AxiosResponse } from 'axios';
+import type { AxiosError, AxiosResponse } from 'axios';
 import { AuthenticationError } from '../errors/AuthenticationError';
 import { AuthCredentials } from '../types/auth';
 import {
   FacettedSearchApiRequest,
   FacettedSearchApiResponse,
 } from '../types/facetted-search';
-import { Log } from '../utils/logger';
+import { httpPost } from '../utils/httpLogging';
 
 /**
  * Function to perform a facetted search against the Dressipi API.
@@ -34,18 +34,6 @@ export const performFacettedSearch = async (
      */
     const queryString: string = new URLSearchParams(parameters).toString();
 
-    Log.info(
-      'Performing facetted search against Dressipi API',
-      'facetted-search.ts',
-      {
-        url: `https://${domain}/api/recommendations/facetted?${queryString}`,
-        payload: {
-          facets: request ? request.facets : [],
-        },
-        usingCredentials: !!credentials,
-      }
-    );
-
     /**
      * Build headers object, conditionally including Authorization
      */
@@ -58,15 +46,11 @@ export const performFacettedSearch = async (
       headers.Authorization = `Bearer ${credentials.access_token}`;
     }
 
-    Log.info('Headers for the Facetted Search request', 'facetted-search.ts', {
-      headers,
-    });
-
     /**
      * Make the API call to the facetted search endpoint.
      */
     const response: AxiosResponse<FacettedSearchApiResponse> =
-      await axios.post<FacettedSearchApiResponse>(
+      await httpPost<FacettedSearchApiResponse>(
         `https://${domain}/api/recommendations/facetted?${queryString}`,
         {
           facets: request ? request.facets : [],
@@ -75,14 +59,6 @@ export const performFacettedSearch = async (
           headers,
         }
       );
-
-    Log.info(
-      'Received response from Dressipi API for facetted search',
-      'facetted-search.ts',
-      {
-        response: response.data,
-      }
-    );
 
     /**
      * Return the response data from the API call.

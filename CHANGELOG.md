@@ -5,6 +5,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 the project uses [Semantic Versioning](https://semver.org/). Before 1.0.0, a
 minor version bump can contain breaking changes.
 
+## [0.2.8] - Unreleased
+
+### Fixed
+
+- Preserve the server-issued tracking ID when OAuth refresh omits `subn`.
+  The SDK saves it with the credentials, bound to the token's profile (`sub`),
+  so tracking continues after refresh and app restart. A different profile
+  cannot reuse the previous identity; a new `subn` takes precedence.
+
+## [0.2.7] - Unreleased
+
+### Fixed
+
+- Token refresh now uses the credentials loaded after startup and the latest
+  rotated refresh token. Previously, the refresh callback retained the initial
+  empty credentials and silently returned without making a request.
+
 ## [0.2.0] - Unreleased
 
 This release moves Fashion from Snowplow React Native tracker 2.x to 4.x, which

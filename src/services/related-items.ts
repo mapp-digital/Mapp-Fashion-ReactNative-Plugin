@@ -1,9 +1,9 @@
-import axios, { AxiosError, AxiosResponse } from 'axios';
+import type { AxiosError, AxiosResponse } from 'axios';
 import { AuthenticationError } from '../errors/AuthenticationError';
 import { RelatedItemsGarmentNotFoundError } from '../errors/RelatedItemsGarmentNotFoundError';
 import { AuthCredentials } from '../types/auth';
 import { RelatedItemsApiResponse } from '../types/related-items';
-import { Log } from '../utils/logger';
+import { httpGet } from '../utils/httpLogging';
 
 /**
  * Function to fetch related items from the Dressipi API.
@@ -33,11 +33,6 @@ export const getRelatedItems = async (
      */
     const queryString: string = new URLSearchParams(parameters).toString();
 
-    Log.info('Fetching Related Items from Dressipi API', 'related-items.ts', {
-      url: `https://${domain}/api/items/${encodeURIComponent(itemId)}/related?${queryString}`,
-      usingCredentials: !!credentials,
-    });
-
     /**
      * Build headers object, conditionally including Authorization
      */
@@ -47,24 +42,16 @@ export const getRelatedItems = async (
       headers.Authorization = `Bearer ${credentials.access_token}`;
     }
 
-    Log.info('Headers for the Related Items request', 'facetted-search.ts', {
-      headers,
-    });
-
     /**
      * Make the API call to the related items endpoint.
      */
     const response: AxiosResponse<RelatedItemsApiResponse> =
-      await axios.get<RelatedItemsApiResponse>(
+      await httpGet<RelatedItemsApiResponse>(
         `https://${domain}/api/items/${encodeURIComponent(itemId)}/related?${queryString}`,
         {
           headers,
         }
       );
-
-    Log.info('Received related items from Dressipi API', 'related-items.ts', {
-      response: response.data,
-    });
 
     /**
      * Return the response data from the API call.
