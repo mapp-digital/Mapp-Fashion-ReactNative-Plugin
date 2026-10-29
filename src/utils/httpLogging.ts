@@ -54,9 +54,9 @@ const decodedEvents = (body: unknown): unknown => {
       : undefined;
     const schema = (decodedEvent as { data?: { schema?: unknown } } | null)
       ?.data?.schema;
-    const isRecommendation =
+    const hasParentPageContext =
       typeof schema === 'string' &&
-      /^iglu:com\.dressipi\/(item_click_pdp|item_click_quickview|tab_click|carousel_navigate|carousel_paginate)\/jsonschema\//.test(
+      /^iglu:com\.dressipi\/(item_view|item_click_pdp|item_click_quickview|tab_click|carousel_navigate|carousel_paginate)\/jsonschema\//.test(
         schema
       );
     // Diagnostic aliases come only from the serialized context, never the event ID.
@@ -64,7 +64,7 @@ const decodedEvents = (body: unknown): unknown => {
     return {
       eventId: payload?.eid,
       ...(payload?.e === 'pv' ? { pageViewId: pageContextId } : {}),
-      ...(isRecommendation ? { parentPageViewId: pageContextId } : {}),
+      ...(hasParentPageContext ? { parentPageViewId: pageContextId } : {}),
       event: decodedEvent,
       contexts,
     };

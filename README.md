@@ -2,6 +2,27 @@
 
 A React Native SDK that provides easy integration with Dressipi's fashion AI services, including related items discovery, facetted search, and tracking capabilities.
 
+## Product views and page context
+
+From version 0.2.9, `productDisplayPage` accepts optional `parentPageViewId`.
+It emits `iglu:com.dressipi/item_view/jsonschema/1-0-0` with the ID in the Snowplow
+`web_page` context (`data.id`). The ID is excluded from `data.item`.
+
+```tsx
+const { productDisplayPage } = useDressipiTracking();
+productDisplayPage({
+  product_code: product.product_code,
+  sku: product.sku,
+  parentPageViewId: pageContextId,
+});
+```
+
+Call once per product-screen visit. Supply the containing page's context UUID,
+or generate a UUID per screen visit when the app owns that context. A separate
+`pageView()` or `itemClickPdp()` call is not required to send an `item_view`.
+Calls without the optional ID preserve the existing event shape. Queue and HTTP
+logs include `item_view` and `parentPageViewId`.
+
 ## Linking recommendations to their source page
 
 From version 0.2.1, `itemClickPdp`, `itemClickQuickView`, and `tabClick` accept
@@ -1610,7 +1631,7 @@ has no HTTP response yet.
 
 Collector requests also include `decodedEvents`, a readable copy of Snowplow's
 base64 event and context fields. From SDK 0.2.3, search for
-`decodedEvents[].parentPageViewId` on recommendation events, and `pageViewId` on
+`decodedEvents[].parentPageViewId` on product views (from 0.2.9) and recommendation events, and `pageViewId` on
 source page-view events. These diagnostic fields are read from the actual
 serialized `web_page` context's `data.id`; missing context is shown as `null`.
 The encoded request body is preserved in `body`, and the transmitted payload is

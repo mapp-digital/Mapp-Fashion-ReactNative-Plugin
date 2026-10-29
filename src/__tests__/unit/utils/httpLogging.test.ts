@@ -11,6 +11,8 @@ import {
   httpPost,
 } from '../../../utils/httpLogging';
 import { Log } from '../../../utils/logger';
+import { productDetailPageView } from '../../../tracking/trackerEvents';
+import { logTrackingEvent } from '../../../utils/trackingLogging';
 
 const entries = () =>
   vi
@@ -245,6 +247,60 @@ describe('Fashion collector request logs', () => {
       body: 'accepted',
     });
   });
+
+  it.each([true, false])(
+    'logs the item_view parent ID from the actual serialized context (base64: %s)',
+    async base64 => {
+      const pageId = '64ce6ae7-a4b2-4b38-90d7-b2031585f91c';
+      const built = await productDetailPageView({
+        product_code: 'product-1',
+        sku: 'sku-1',
+        parentPageViewId: pageId,
+      });
+      logTrackingEvent(built, 'QUEUED', 'tracker_not_ready');
+      expect(
+        vi
+          .mocked(console.info)
+          .mock.calls.some(([message]) =>
+            String(message).includes(
+              `item_view QUEUED parentPageViewId=${pageId}`
+            )
+          )
+      ).toBe(true);
+      const payloads: Record<string, unknown>[] = [];
+      const core = trackerCore({
+        base64,
+        callback: payload => payloads.push(payload.build()),
+      });
+      core.track(
+        buildSelfDescribingEvent({
+          event: built.data[0] as { schema: string; data: unknown },
+        }),
+        built.data[1]
+      );
+      const body = JSON.stringify({ data: payloads });
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('ok')));
+      await fetchWithLogging(new Request(url, { method: 'POST', body }));
+      await vi.waitFor(() => expect(entries()).toHaveLength(2));
+      expect(payloads[0].e).toBe('ue');
+      expect(entries()[0].decodedEvents[0]).toMatchObject({
+        parentPageViewId: pageId,
+        event: {
+          data: {
+            schema: 'iglu:com.dressipi/item_view/jsonschema/1-0-0',
+            data: { item: { product_code: 'product-1', sku: 'sku-1' } },
+          },
+        },
+      });
+      expect(entries()[0].decodedEvents[0].parentPageViewId).not.toBe(
+        payloads[0].eid
+      );
+      expect(
+        entries()[0].decodedEvents[0].event.data.data.item
+      ).not.toHaveProperty('parentPageViewId');
+      expect(entries()[0].body).toEqual(JSON.parse(body));
+    }
+  );
 
   it.each([true, false])(
     'shows the parent ID from the serialized context (base64: %s)',

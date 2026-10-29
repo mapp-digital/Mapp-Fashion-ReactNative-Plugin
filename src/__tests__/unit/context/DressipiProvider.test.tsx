@@ -67,51 +67,61 @@ beforeEach(() => {
 });
 
 describe('tracker lifecycle', () => {
-  it('logs the literal parentPageViewId while queued and when later dispatched', async () => {
-    identity(null);
-    const { result, rerender } = renderHook(useDressipiTracking, {
-      wrapper: loggingWrapper,
-    });
-    const parentPageViewId = '44ff586f-ac79-4810-bbac-146f49f02f9c';
-    await act(async () => {
-      result.current.itemClickPdp({
-        request_id: 'request',
-        related_items_set_id: 'set',
-        dressipi_item_id: 123,
-        parentPageViewId,
+  it.each(['item_view', 'item_click_pdp'])(
+    'preserves the %s parentPageViewId while queued and when later dispatched',
+    async eventName => {
+      identity(null);
+      const { result, rerender } = renderHook(useDressipiTracking, {
+        wrapper: loggingWrapper,
       });
-    });
-    const queued = vi
-      .mocked(console.info)
-      .mock.calls.find(([message]) =>
-        String(message).includes(
-          `item_click_pdp QUEUED parentPageViewId=${parentPageViewId}`
-        )
-      );
-    expect(queued).toBeDefined();
-    expect(JSON.parse(queued![1])).toMatchObject({
-      status: 'QUEUED',
-      parentPageViewId,
-      reason: 'tracker_not_ready',
-    });
-    expect(createTracker).not.toHaveBeenCalled();
-    expect(tracker.trackSelfDescribingEvent).not.toHaveBeenCalled();
+      const parentPageViewId = '44ff586f-ac79-4810-bbac-146f49f02f9c';
+      await act(async () => {
+        if (eventName === 'item_view')
+          result.current.productDisplayPage({
+            product_code: 'prod-1',
+            sku: 'sku-1',
+            parentPageViewId,
+          });
+        else
+          result.current.itemClickPdp({
+            request_id: 'request',
+            related_items_set_id: 'set',
+            dressipi_item_id: 123,
+            parentPageViewId,
+          });
+      });
+      const queued = vi
+        .mocked(console.info)
+        .mock.calls.find(([message]) =>
+          String(message).includes(
+            `${eventName} QUEUED parentPageViewId=${parentPageViewId}`
+          )
+        );
+      expect(queued).toBeDefined();
+      expect(JSON.parse(queued![1])).toMatchObject({
+        status: 'QUEUED',
+        parentPageViewId,
+        reason: 'tracker_not_ready',
+      });
+      expect(createTracker).not.toHaveBeenCalled();
+      expect(tracker.trackSelfDescribingEvent).not.toHaveBeenCalled();
 
-    identity('user-1');
-    rerender();
-    await waitFor(() =>
-      expect(tracker.trackSelfDescribingEvent).toHaveBeenCalledOnce()
-    );
-    expect(console.info).toHaveBeenCalledWith(
-      expect.stringContaining(
-        `item_click_pdp DISPATCHED parentPageViewId=${parentPageViewId}`
-      ),
-      expect.any(String)
-    );
-    expect(tracker.trackSelfDescribingEvent.mock.calls[0][1][0].data.id).toBe(
-      parentPageViewId
-    );
-  });
+      identity('user-1');
+      rerender();
+      await waitFor(() =>
+        expect(tracker.trackSelfDescribingEvent).toHaveBeenCalledOnce()
+      );
+      expect(console.info).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `${eventName} DISPATCHED parentPageViewId=${parentPageViewId}`
+        ),
+        expect.any(String)
+      );
+      expect(tracker.trackSelfDescribingEvent.mock.calls[0][1][0].data.id).toBe(
+        parentPageViewId
+      );
+    }
+  );
 
   it('logs null for a missing parent context on a direct tracker handoff', async () => {
     const { result } = renderHook(useDressipiTracking, {

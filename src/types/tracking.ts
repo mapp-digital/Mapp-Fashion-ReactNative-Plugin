@@ -148,7 +148,10 @@ export type ProductPayload = {
 /**
  * Represents the payload for a product detail page view event.
  */
-export type ProductDetailPageEventPayload = ProductPayload;
+export type ProductDetailPageEventPayload = ProductPayload & {
+  /** The containing page's Snowplow web_page context UUID. */
+  parentPageViewId?: string;
+};
 
 /**
  * Represents the payload for a product list page view event.

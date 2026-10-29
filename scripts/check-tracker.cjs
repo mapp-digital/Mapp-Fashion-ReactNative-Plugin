@@ -84,7 +84,10 @@ async function main() {
       ],
       [
         events.productDetailPageView,
-        product,
+        {
+          ...product,
+          parentPageViewId: '44ff586f-ac79-4810-bbac-146f49f02f9c',
+        },
         'iglu:com.dressipi/item_view/jsonschema/1-0-0',
       ],
       [
@@ -173,6 +176,25 @@ async function main() {
         payload =>
           JSON.parse(Buffer.from(payload.ue_px, 'base64').toString()).data
       );
+    const itemView = payloads.find(
+      payload =>
+        payload.ue_px &&
+        JSON.parse(Buffer.from(payload.ue_px, 'base64').toString()).data
+          .schema === 'iglu:com.dressipi/item_view/jsonschema/1-0-0'
+    );
+    assert.equal(itemView.e, 'ue');
+    assert.deepEqual(
+      JSON.parse(Buffer.from(itemView.ue_px, 'base64').toString()).data.data,
+      { item: product }
+    );
+    assert.equal(
+      JSON.parse(Buffer.from(itemView.cx, 'base64').toString()).data.find(
+        context =>
+          context.schema ===
+          'iglu:com.snowplowanalytics.snowplow/web_page/jsonschema/1-0-0'
+      ).data.id,
+      '44ff586f-ac79-4810-bbac-146f49f02f9c'
+    );
     for (const event of expected) {
       assert.deepEqual(
         custom.filter(actual => actual.schema === event.schema),

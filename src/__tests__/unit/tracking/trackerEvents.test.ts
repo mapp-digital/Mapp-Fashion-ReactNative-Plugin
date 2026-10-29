@@ -5,8 +5,56 @@ import {
   itemClickPdp,
   itemClickQuickView,
   pageView,
+  productDetailPageView,
   tabClick,
 } from '../../../tracking/trackerEvents';
+
+describe('product detail page tracking', () => {
+  it('attaches the parent ID as context without adding it to the product data', async () => {
+    const parentPageViewId = '44ff586f-ac79-4810-bbac-146f49f02f9c';
+    const payload = Object.freeze({
+      product_code: 'prod-1',
+      sku: 'sku-1',
+      parentPageViewId,
+    });
+    const event = await productDetailPageView(payload);
+    expect(event).toEqual({
+      event: 'trackSelfDescribingEvent',
+      data: [
+        {
+          schema: 'iglu:com.dressipi/item_view/jsonschema/1-0-0',
+          data: { item: { product_code: 'prod-1', sku: 'sku-1' } },
+        },
+        [
+          {
+            schema:
+              'iglu:com.snowplowanalytics.snowplow/web_page/jsonschema/1-0-0',
+            data: { id: parentPageViewId },
+          },
+        ],
+      ],
+    });
+    expect(
+      await productDetailPageView({ ...payload, parentPageViewId: '' })
+    ).toEqual({
+      event: 'trackSelfDescribingEvent',
+      data: [event.data[0]],
+    });
+  });
+
+  it('uses the item_view schema instead of page_view or item_click_pdp', async () => {
+    const item = { product_code: 'prod-1', sku: 'sku-1' };
+    await expect(productDetailPageView(item)).resolves.toEqual({
+      event: 'trackSelfDescribingEvent',
+      data: [
+        {
+          schema: 'iglu:com.dressipi/item_view/jsonschema/1-0-0',
+          data: { item },
+        },
+      ],
+    });
+  });
+});
 
 describe('recommendation page context', () => {
   const id = '44ff586f-ac79-4810-bbac-146f49f02f9c';

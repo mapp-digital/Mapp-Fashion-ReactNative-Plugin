@@ -22,7 +22,7 @@ export function logTrackingEvent(
       event.event === 'trackPageViewEvent'
         ? 'pageViewId'
         : schema &&
-            /^iglu:com\.dressipi\/(item_click_pdp|item_click_quickview|tab_click)\/jsonschema\//.test(
+            /^iglu:com\.dressipi\/(item_view|item_click_pdp|item_click_quickview|tab_click)\/jsonschema\//.test(
               schema
             )
           ? 'parentPageViewId'

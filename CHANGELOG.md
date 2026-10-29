@@ -5,6 +5,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 the project uses [Semantic Versioning](https://semver.org/). Before 1.0.0, a
 minor version bump can contain breaking changes.
 
+## [0.2.9] - Unreleased
+
+### Added
+
+- `productDisplayPage` accepts `parentPageViewId` and sends it as the Snowplow
+  `web_page` context on the `item_view` event. The product data remains unchanged.
+- Queue and HTTP logs expose `parentPageViewId` for `item_view`, including the
+  decoded context from the actual collector payload.
+
 ## [0.2.8] - Unreleased
 
 ### Fixed

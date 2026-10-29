@@ -142,9 +142,10 @@ export const productListPageView = async (
  * @returns {Promise<QueuedEvent<QueueableEvents>>} A promise that resolves to
  * a queued event object.
  */
-export const productDetailPageView = async (
-  item: ProductDetailPageEventPayload
-): Promise<QueuedEvent<QueueableEvents>> => {
+export const productDetailPageView = async ({
+  parentPageViewId,
+  ...item
+}: ProductDetailPageEventPayload): Promise<QueuedEvent<QueueableEvents>> => {
   return {
     event: 'trackSelfDescribingEvent',
     data: [
@@ -157,6 +158,7 @@ export const productDetailPageView = async (
           isNil
         ),
       },
+      ...pageContextArguments(parentPageViewId),
     ],
   };
 };
