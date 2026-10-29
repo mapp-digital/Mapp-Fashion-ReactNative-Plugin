@@ -1,3 +1,4 @@
+import { facettedResponse } from '../../test-utils/recommendation-v2-data';
 import { FacettedSearchApiResponse } from '../../../types/facetted-search';
 import { RelatedItemsApiResponse } from '../../../types/related-items';
 
@@ -87,54 +88,18 @@ export const mockRelatedItemsResponse: RelatedItemsApiResponse = {
     content_id: 'similar-content-456',
     items: [
       {
-        garment_id: 'DRESS-789',
-        raw_garment_id: 1003,
+        garment_id: 'SHOES-456',
+        raw_garment_id: 1002,
       },
     ],
   },
 };
 
-export const mockFacettedSearchResponse: FacettedSearchApiResponse = {
-  event_id: 'search-event-789012',
-  content_id: 'search-content-345',
-  recommendations: [
-    {
-      garment_id: 'SEARCH-ITEM-1',
-      raw_garment_id: 2001,
-      has_outfits: true,
-      retailer: 'Search Store',
-      feed_image_urls: ['https://example.com/search1.jpg'],
-      brand_name: 'Search Brand',
-      name: 'Search Result Dress',
-      price: '79.99',
-      old_price: '99.99',
-      url: 'https://example.com/products/search-1',
-      garment_status: 'in stock',
-    },
-    {
-      garment_id: 'SEARCH-ITEM-2',
-      raw_garment_id: 2002,
-      has_outfits: false,
-      retailer: 'Search Store',
-      feed_image_urls: ['https://example.com/search2.jpg'],
-      brand_name: 'Search Brand',
-      name: 'Search Result Top',
-      price: '49.99',
-      old_price: '59.99',
-      url: 'https://example.com/products/search-2',
-      garment_status: 'in stock',
-    },
-  ],
-  pagination: {
-    total_pages: 3,
-    total_entries: 50,
-    current_page: 1,
-  },
-};
+export const mockFacettedSearchResponse: FacettedSearchApiResponse =
+  facettedResponse;
 
 export const mockGarmentNotFoundResponse = {
-  error: 'Garment not found',
-  message: 'The requested garment could not be found',
+  error: { message: 'Garment not found' },
 };
 
 export const mockAuthErrorResponse = {

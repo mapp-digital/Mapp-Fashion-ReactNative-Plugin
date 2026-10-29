@@ -1,5 +1,5 @@
 const credentialKey =
-  /^(authorization|proxy-authorization|cookie|set-cookie|access_?token|refresh_?token|id_?token|client_secret|code_verifier|code|password)$/i;
+  /^(authorization|proxy-authorization|x-dressipi-jwt|x-api-key|cookie|set-cookie|access_?token|refresh_?token|id_?token|client_secret|code_verifier|code|password)$/i;
 const tokenKey = /^(access_?token|refresh_?token)$/i;
 const credentialQuery =
   /(^|[?&])((?:access_token|refresh_token|id_token|client_secret|code_verifier|code|password)=)[^&#\s]*/gi;

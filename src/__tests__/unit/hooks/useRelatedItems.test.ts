@@ -19,6 +19,9 @@ import {
 import * as httpUtils from '../../../utils/http';
 
 // Mock all dependencies
+vi.mock('../../../hooks/useCompliance', () => ({
+  useCompliance: () => ({ hasConsented: true }),
+}));
 vi.mock('lodash-es');
 vi.mock('use-deep-compare-effect');
 vi.mock('../../../services/related-items');
@@ -97,6 +100,7 @@ describe('useRelatedItems hook', () => {
     outfits: [],
     partner_outfits: [],
     similar_items: {
+      response_id: 'event_12345',
       content_id: 'similar_123',
       items: [],
     },
@@ -120,7 +124,6 @@ describe('useRelatedItems hook', () => {
     // Mock useDeepCompareEffect to behave like useEffect
     mockedUseDeepCompareEffect.mockImplementation(
       (callback: any, deps: any) => {
-        // eslint-disable-next-line react-hooks/exhaustive-deps
         React.useEffect(callback, deps);
       }
     );
@@ -473,7 +476,11 @@ describe('useRelatedItems hook', () => {
         response_id: 'event_12345',
         outfits: [],
         partner_outfits: [],
-        similar_items: { content_id: '', items: [] },
+        similar_items: {
+          response_id: 'event_12345',
+          content_id: '',
+          items: [],
+        },
       };
 
       mockedRelatedItemsService.getRelatedItems.mockResolvedValue(

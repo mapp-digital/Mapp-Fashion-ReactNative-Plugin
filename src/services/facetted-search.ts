@@ -1,4 +1,4 @@
-import type { AxiosError, AxiosResponse } from 'axios';
+import type { AxiosError } from 'axios';
 import { AuthenticationError } from '../errors/AuthenticationError';
 import { AuthCredentials } from '../types/auth';
 import {
@@ -7,20 +7,77 @@ import {
 } from '../types/facetted-search';
 import { httpPost } from '../utils/httpLogging';
 
-/**
- * Function to perform a facetted search against the Dressipi API.
- *
- * @param domain - The domain of the Dressipi API.
- * @param parameters - The query parameters to include in the request.
- * @param request - The facetted search request object containing facets
- * and other parameters.
- * @param credentials - The authentication credentials to use for the request.
- * Can be null when user hasn't consented to data sharing.
- * @returns {Promise<FacettedSearchApiResponse>} A promise that resolves to
- * the response from the facetted search API.
- * @throws {AuthenticationError} If the authentication fails (401 or 403).
- * @throws {Error} For other errors that occur during the API call.
- */
+/** Translate the existing facet API without widening unsupported range unions. */
+const createFilters = (facets: FacettedSearchApiRequest['facets'] = []) => {
+  const filters: Record<
+    string,
+    string[] | number | { from?: number; to?: number }
+  > = {};
+  const valueNames = [
+    'garment_category',
+    'brand',
+    'occasion',
+    'retailer_labels',
+    'store',
+    'feature_ids',
+    'not_feature_ids',
+  ];
+  for (const facet of facets) {
+    if (facet.name === 'must_have') {
+      throw new Error('The must_have filter is not supported by API v2');
+    }
+    const entries = 'filters' in facet ? facet.filters : [facet];
+    if (facet.name === 'price' || facet.name === 'reduced_by') {
+      if (entries.length !== 1 || 'value' in entries[0]) {
+        throw new Error(`API v2 requires one numeric range for ${facet.name}`);
+      }
+      const range = entries[0];
+      if (range.from === undefined && range.to === undefined) {
+        throw new Error(`API v2 requires a range endpoint for ${facet.name}`);
+      }
+      if (
+        filters[facet.name] !== undefined ||
+        (facet.name === 'price' &&
+          (filters.min_price !== undefined || filters.max_price !== undefined))
+      ) {
+        throw new Error(`API v2 requires one numeric range for ${facet.name}`);
+      }
+      if (facet.name === 'price') {
+        if (range.from !== undefined) filters.min_price = range.from;
+        if (range.to !== undefined) filters.max_price = range.to;
+      } else {
+        filters.reduced_by = { ...range };
+      }
+    } else if (valueNames.includes(facet.name)) {
+      const values: string[] = [];
+      for (const entry of entries) {
+        if (!('value' in entry)) {
+          throw new Error(`API v2 requires values for ${facet.name}`);
+        }
+        for (const value of entry.value) {
+          if (typeof value !== 'string' && typeof value !== 'number') {
+            throw new Error(
+              `API v2 requires string or numeric values for ${facet.name}`
+            );
+          }
+          values.push(String(value));
+        }
+      }
+      if (values.length) {
+        filters[facet.name] = [
+          ...new Set([
+            ...((filters[facet.name] as string[] | undefined) ?? []),
+            ...values,
+          ]),
+        ];
+      }
+    } else {
+      throw new Error(`Unsupported API v2 filter: ${facet.name}`);
+    }
+  }
+  return filters;
+};
+
 export const performFacettedSearch = async (
   domain: string,
   parameters: Record<string, string>,
@@ -28,63 +85,37 @@ export const performFacettedSearch = async (
   credentials: AuthCredentials | null
 ): Promise<FacettedSearchApiResponse> => {
   try {
-    /**
-     * Convert the parameters to a URLSearchParams object
-     * for the query string.
-     */
-    const queryString: string = new URLSearchParams(parameters).toString();
-
-    /**
-     * Build headers object, conditionally including Authorization
-     */
+    const query = new URLSearchParams({
+      ...parameters,
+      garment_format: 'detailed',
+      include_fashion_ids: 'true',
+    });
     const headers: Record<string, string> = {
       Accept: 'application/json',
       'Content-Type': 'application/json',
     };
-
-    if (credentials) {
-      headers.Authorization = `Bearer ${credentials.access_token}`;
-    }
-
-    /**
-     * Make the API call to the facetted search endpoint.
-     */
-    const response: AxiosResponse<FacettedSearchApiResponse> =
-      await httpPost<FacettedSearchApiResponse>(
-        `https://${domain}/api/recommendations/facetted?${queryString}`,
-        {
-          facets: request ? request.facets : [],
-        },
-        {
-          headers,
-        }
-      );
-
-    /**
-     * Return the response data from the API call.
-     */
-    return response.data;
+    if (credentials) headers['x-dressipi-jwt'] = credentials.access_token;
+    const { data } = await httpPost<FacettedSearchApiResponse>(
+      `https://${domain}/api/v2/facetted?${query}`,
+      {
+        filters: createFilters(request?.facets),
+        ...(request?.root_event_id !== undefined
+          ? { root_event_id: request.root_event_id }
+          : {}),
+      },
+      { headers }
+    );
+    return data;
   } catch (error) {
-    /**
-     * Convert the error to an AxiosError type.
-     */
-    const axiosError: AxiosError = error as AxiosError;
-
-    if (axiosError.status === 401 || axiosError.status === 403) {
-      /**
-       * If the error is a 401 or 403, throw an AuthenticationError.
-       */
+    const failure = error as AxiosError;
+    const status = failure.response?.status ?? failure.status;
+    if (status === 401 || status === 403) {
       throw new AuthenticationError(
         'Authentication failed. Please check your credentials.'
       );
-    } else {
-      /**
-       * For other errors, throw a generic error with the message
-       * from the AxiosError.
-       */
-      throw new Error(
-        `An error occurred while performing the facetted search: ${axiosError.message}`
-      );
     }
+    throw new Error(
+      `An error occurred while performing the facetted search: ${failure.message}`
+    );
   }
 };

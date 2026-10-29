@@ -1,3 +1,4 @@
+import { facettedResponse } from './recommendation-v2-data';
 import { AuthCredentials } from '../../types/auth';
 import { FacettedSearchApiResponse } from '../../types/facetted-search';
 import { RelatedItemsApiResponse } from '../../types/related-items';
@@ -100,30 +101,8 @@ export const mockRelatedItemsApiResponse: RelatedItemsApiResponse = {
 };
 
 // Mock facetted search API response
-export const mockFacettedSearchApiResponse: FacettedSearchApiResponse = {
-  event_id: 'mock-search-event-456',
-  content_id: 'mock-content-789',
-  recommendations: [
-    {
-      garment_id: 'search-item-1',
-      raw_garment_id: 101,
-      has_outfits: true,
-      retailer: 'SummerRetailer',
-      feed_image_urls: ['https://example.com/dress.jpg'],
-      brand_name: 'SummerBrand',
-      name: 'Red Summer Dress',
-      price: '79.99',
-      old_price: '99.99',
-      url: 'https://example.com/product/search-item-1',
-      garment_status: 'in stock',
-    },
-  ],
-  pagination: {
-    total_pages: 1,
-    total_entries: 1,
-    current_page: 1,
-  },
-};
+export const mockFacettedSearchApiResponse: FacettedSearchApiResponse =
+  facettedResponse;
 
 // Mock error responses
 export const mockAuthError = {

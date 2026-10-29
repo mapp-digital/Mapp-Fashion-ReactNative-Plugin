@@ -1,442 +1,206 @@
-import axios, { AxiosError } from 'axios';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import axios from 'axios';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { RelatedItemsMethod } from '../../../enums/RelatedItemsMethod';
+import { ResponseFormat } from '../../../enums/ResponseFormat';
 import { AuthenticationError } from '../../../errors/AuthenticationError';
 import { RelatedItemsGarmentNotFoundError } from '../../../errors/RelatedItemsGarmentNotFoundError';
 import { getRelatedItems } from '../../../services/related-items';
-import { AuthCredentials } from '../../../types/auth';
-import { RelatedItemsApiResponse } from '../../../types/related-items';
+import { mapRelatedItemsApiResponse } from '../../../mapping/mapRelatedItemsApiResponse';
+import {
+  garments,
+  outfit,
+  recommendation,
+  source,
+} from '../../test-utils/recommendation-v2-data';
+import { mockCredentials } from '../../test-utils/mock-data';
 
-// Mock axios
-vi.mock('axios', () => ({
-  default: {
-    get: vi.fn(),
-  },
-}));
-
-const mockedAxios = axios as any;
-
-describe('related-items service', () => {
-  const mockDomain = 'api.dressipi.com';
-  const mockItemId = 'DRESS_001';
-  const mockCredentials: AuthCredentials = {
-    access_token: 'test-access-token',
-    refresh_token: 'test-refresh-token',
-    token_type: 'Bearer',
-    expires_in: 3600,
-  };
-
-  const mockParameters = {
-    response_format: 'detailed',
-    per_page: '10',
-  };
-
-  const mockApiResponse: RelatedItemsApiResponse = {
-    event_id: 'event_12345',
-    source: {
-      garment_id: 'DRESS_001',
-      raw_garment_id: 1,
-    },
-    garment_data: [
-      {
-        id: 1,
-        product_code: 'DRESS_001',
-        name: 'Test Dress',
-        brand_name: 'Test Brand',
-        price: '99.99',
-        url: 'https://example.com/dress',
-        garment_category_id: 10,
-        garment_category_name: 'Dresses',
-        department: 'female',
-        image_url: 'https://example.com/image.jpg',
-        product_id: 'PROD_001',
-        partner: 'Partner A',
-        retailer: 'Retailer A',
-        rating: '4.5',
-        why: [],
-        has_outfits: true,
-        garment_status: 'in stock',
-        feed_image_urls: ['https://example.com/image.jpg'],
+const get = vi.mocked(axios.get);
+const domain = 'fashion.example';
+const fetch = (
+  parameters: Record<string, string> = {},
+  credentials = mockCredentials
+) => getRelatedItems(domain, parameters, 'ITEM-1', credentials);
+const urls = () => get.mock.calls.map(([url]) => new URL(url));
+const respond = () =>
+  get.mockImplementation(async url => {
+    const endpoint = new URL(url).pathname.split('/').pop();
+    return {
+      data: {
+        event_id: `${endpoint}-event`,
+        source,
+        garment_data: garments,
+        ...(endpoint === 'similar'
+          ? {
+              similar_items: {
+                content_id: 'similar-content',
+                items: [recommendation],
+              },
+            }
+          : { [endpoint!]: [outfit] }),
       },
-    ],
-    reparentable: true,
-    outfits: [],
-    partner_outfits: [],
-    similar_items: {
-      content_id: 'similar_123',
-      items: [],
-    },
-  };
-
-  beforeEach(() => {
-    vi.clearAllMocks();
+    };
   });
 
-  afterEach(() => {
-    vi.resetAllMocks();
+beforeEach(() => {
+  vi.resetAllMocks();
+  respond();
+});
+
+describe('v2 related-items service', () => {
+  it('calls all three endpoints by default and preserves event IDs through mapping', async () => {
+    const response = await fetch();
+    expect(urls().map(url => url.pathname)).toEqual([
+      '/api/v2/items/outfits',
+      '/api/v2/items/partner_outfits',
+      '/api/v2/items/similar',
+    ]);
+    const mapped = mapRelatedItemsApiResponse(
+      response,
+      ResponseFormat.Detailed
+    );
+    expect(mapped.outfits![0].response_id).toBe('outfits-event');
+    expect(mapped.partner_outfits![0].response_id).toBe(
+      'partner_outfits-event'
+    );
+    expect(mapped.similar_items!.response_id).toBe('similar-event');
+    expect(mapped.outfits![0].items.map(item => item.id)).toEqual([
+      'ITEM-1',
+      'ITEM-2',
+    ]);
+    expect(response.garment_data).toHaveLength(2);
   });
 
-  describe('successful requests', () => {
-    beforeEach(() => {
-      mockedAxios.get.mockResolvedValue({
-        data: mockApiResponse,
-      });
-    });
-
-    it('should fetch related items successfully', async () => {
-      const result = await getRelatedItems(
-        mockDomain,
-        mockParameters,
-        mockItemId,
-        mockCredentials
-      );
-
-      expect(result).toEqual(mockApiResponse);
-    });
-
-    it('should make correct API request', async () => {
-      await getRelatedItems(
-        mockDomain,
-        mockParameters,
-        mockItemId,
-        mockCredentials
-      );
-
-      expect(mockedAxios.get).toHaveBeenCalledWith(
-        `https://${mockDomain}/api/items/${encodeURIComponent(mockItemId)}/related?response_format=detailed&per_page=10`,
-        {
-          headers: {
-            Authorization: `Bearer ${mockCredentials.access_token}`,
-          },
-        }
-      );
-    });
-
-    it('should handle empty parameters', async () => {
-      await getRelatedItems(mockDomain, {}, mockItemId, mockCredentials);
-
-      expect(mockedAxios.get).toHaveBeenCalledWith(
-        `https://${mockDomain}/api/items/${encodeURIComponent(mockItemId)}/related?`,
-        expect.objectContaining({
-          headers: {
-            Authorization: `Bearer ${mockCredentials.access_token}`,
-          },
-        })
-      );
-    });
-
-    it('should handle special characters in itemId', async () => {
-      const specialItemId = 'DRESS/WITH-SPECIAL@CHARS';
-
-      await getRelatedItems(
-        mockDomain,
-        mockParameters,
-        specialItemId,
-        mockCredentials
-      );
-
-      expect(mockedAxios.get).toHaveBeenCalledWith(
-        expect.stringContaining(encodeURIComponent(specialItemId)),
-        expect.any(Object)
-      );
-    });
-
-    it('should handle special characters in parameters', async () => {
-      const specialParams = {
-        filter: 'category=dress&color=red+blue',
-        search: 'summer/casual',
-      };
-
-      await getRelatedItems(
-        mockDomain,
-        specialParams,
-        mockItemId,
-        mockCredentials
-      );
-
-      expect(mockedAxios.get).toHaveBeenCalledWith(
-        expect.stringContaining('filter=category%3Ddress%26color%3Dred%2Bblue'),
-        expect.any(Object)
-      );
-    });
+  it.each([
+    [RelatedItemsMethod.Outfits, 'outfits'],
+    [RelatedItemsMethod.PartnerOutfits, 'partner_outfits'],
+    [RelatedItemsMethod.SimilarItems, 'similar'],
+  ])('fetches only selected method %s', async (method, endpoint) => {
+    await fetch({ methods: method });
+    expect(get).toHaveBeenCalledTimes(1);
+    expect(urls()[0].pathname).toBe(`/api/v2/items/${endpoint}`);
   });
 
-  describe('authentication errors', () => {
-    it('should throw AuthenticationError for 401 status', async () => {
-      const authError: Partial<AxiosError> = {
-        status: 401,
-        message: 'Unauthorized',
-      };
-      mockedAxios.get.mockRejectedValue(authError);
+  it('deduplicates requested methods and handles encoded identifiers', async () => {
+    await getRelatedItems(
+      domain,
+      { methods: 'similar_items,similar_items' },
+      'A/B +&?',
+      null
+    );
+    expect(get).toHaveBeenCalledTimes(1);
+    expect(urls()[0].searchParams.get('id')).toBe('A/B +&?');
+    expect(urls()[0].pathname).toBe('/api/v2/items/similar');
+  });
 
-      await expect(
-        getRelatedItems(mockDomain, mockParameters, mockItemId, mockCredentials)
-      ).rejects.toThrow(AuthenticationError);
-
-      await expect(
-        getRelatedItems(mockDomain, mockParameters, mockItemId, mockCredentials)
-      ).rejects.toThrow(
-        'Authentication failed. Please check your credentials.'
+  it('sends only supported parameters to each operation', async () => {
+    await fetch({
+      methods: 'outfits,similar_items',
+      max_similar_items: '12',
+      outfits_per_occasion: '3',
+      max_reduced_by: '50',
+      try_all_methods: 'false',
+      identifier_type: 'ean',
+    });
+    const [outfits, similar] = urls();
+    for (const url of urls()) {
+      expect(url.searchParams.get('garment_format')).toBe('detailed');
+      expect(url.searchParams.get('include_fashion_ids')).toBe('true');
+      expect(url.searchParams.get('exclude_source_garment')).toBe(
+        url.pathname.endsWith('/similar') ? 'true' : 'false'
       );
-    });
-
-    it('should throw AuthenticationError for 403 status', async () => {
-      const authError: Partial<AxiosError> = {
-        status: 403,
-        message: 'Forbidden',
-      };
-      mockedAxios.get.mockRejectedValue(authError);
-
-      await expect(
-        getRelatedItems(mockDomain, mockParameters, mockItemId, mockCredentials)
-      ).rejects.toThrow(AuthenticationError);
-    });
+      expect(url.searchParams.get('identifier_type')).toBe('gtin');
+      expect(url.searchParams.get('max_reduced_by')).toBe('50');
+      expect(url.searchParams.has('methods')).toBe(false);
+      expect(url.searchParams.has('try_all_methods')).toBe(false);
+      expect(url.searchParams.has('max_similar_items')).toBe(false);
+    }
+    expect(outfits.searchParams.get('outfits_per_occasion')).toBe('3');
+    expect(outfits.searchParams.has('max_items')).toBe(false);
+    expect(similar.searchParams.get('max_items')).toBe('12');
+    expect(similar.searchParams.has('outfits_per_occasion')).toBe(false);
   });
 
-  describe('garment not found errors', () => {
-    it('should throw RelatedItemsGarmentNotFoundError for garment not found', async () => {
-      const notFoundError: Partial<AxiosError> = {
-        status: 404,
-        message: 'Not Found',
-        response: {
-          data: {
-            error: {
-              message: 'Garment not found',
-            },
-          },
-        } as any,
-      };
-      mockedAxios.get.mockRejectedValue(notFoundError);
-
-      await expect(
-        getRelatedItems(mockDomain, mockParameters, mockItemId, mockCredentials)
-      ).rejects.toThrow(RelatedItemsGarmentNotFoundError);
-
-      await expect(
-        getRelatedItems(mockDomain, mockParameters, mockItemId, mockCredentials)
-      ).rejects.toThrow('Garment not found');
-    });
-
-    it('should not throw RelatedItemsGarmentNotFoundError for other 404 errors', async () => {
-      const otherError: Partial<AxiosError> = {
-        status: 404,
-        message: 'Not Found',
-        response: {
-          data: {
-            error: {
-              message: 'Different error message',
-            },
-          },
-        } as any,
-      };
-      mockedAxios.get.mockRejectedValue(otherError);
-
-      await expect(
-        getRelatedItems(mockDomain, mockParameters, mockItemId, mockCredentials)
-      ).rejects.toThrow(Error);
-
-      await expect(
-        getRelatedItems(mockDomain, mockParameters, mockItemId, mockCredentials)
-      ).rejects.not.toThrow(RelatedItemsGarmentNotFoundError);
-    });
+  it.each([
+    ['dressipi-id', 'fashion-id'],
+    ['ean', 'gtin'],
+    ['sku', 'sku'],
+    ['product-code', 'product-code'],
+  ])('maps identifier %s to %s', async (identifier_type, expected) => {
+    await fetch({ methods: 'outfits', identifier_type });
+    expect(urls()[0].searchParams.get('identifier_type')).toBe(expected);
   });
 
-  describe('general error handling', () => {
-    it('should throw generic Error for network errors', async () => {
-      const networkError: Partial<AxiosError> = {
-        status: 500,
+  it('uses the JWT header for consented requests and no credentials for anonymous requests', async () => {
+    await fetch({ methods: 'outfits' });
+    expect(get.mock.calls[0][1]?.headers).toEqual({
+      'x-dressipi-jwt': mockCredentials.access_token,
+    });
+    await getRelatedItems(domain, { methods: 'outfits' }, 'ITEM-1', null);
+    expect(get.mock.calls[1][1]?.headers).toEqual({});
+  });
+
+  it('tries the remaining methods only when explicit fallback is enabled and selected groups are empty', async () => {
+    get.mockResolvedValueOnce({
+      data: { event_id: 'empty', source: null, garment_data: [], outfits: [] },
+    });
+    const result = await fetch({ methods: 'outfits', try_all_methods: 'true' });
+    expect(get).toHaveBeenCalledTimes(3);
+    expect(result.partner_outfits).toHaveLength(1);
+    expect(result.source).toEqual(source);
+  });
+
+  it('does not fall back for nonempty results or try_all_methods=false', async () => {
+    await fetch({ methods: 'outfits', try_all_methods: 'true' });
+    expect(get).toHaveBeenCalledTimes(1);
+    get.mockResolvedValueOnce({
+      data: { event_id: 'empty', source: null, garment_data: [], outfits: [] },
+    });
+    await fetch({ methods: 'outfits', try_all_methods: 'false' });
+    expect(get).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([401, 403])(
+    'preserves authentication refresh errors (%s)',
+    async status => {
+      get.mockRejectedValue({ response: { status } });
+      await expect(fetch()).rejects.toBeInstanceOf(AuthenticationError);
+    }
+  );
+
+  it('maps unresolved sources (422) to the existing not-found result', async () => {
+    get.mockRejectedValue({
+      response: {
+        status: 422,
+        data: { error: { message: 'Unresolved source' } },
+      },
+    });
+    await expect(fetch()).rejects.toBeInstanceOf(
+      RelatedItemsGarmentNotFoundError
+    );
+  });
+
+  it.each([undefined, {}, { error: 'Unexpected error' }, { error: null }])(
+    'handles unexpected error bodies without a parsing failure',
+    async data => {
+      get.mockRejectedValue({
         message: 'Network Error',
-      };
-      mockedAxios.get.mockRejectedValue(networkError);
-
-      await expect(
-        getRelatedItems(mockDomain, mockParameters, mockItemId, mockCredentials)
-      ).rejects.toThrow(
+        response: { status: 500, data },
+      });
+      await expect(fetch()).rejects.toThrow(
         'An error occurred while fetching the related items: Network Error'
       );
-    });
+    }
+  );
 
-    it('should throw generic Error for timeout errors', async () => {
-      const timeoutError: Partial<AxiosError> = {
-        message: 'timeout of 5000ms exceeded',
-      };
-      mockedAxios.get.mockRejectedValue(timeoutError);
-
-      await expect(
-        getRelatedItems(mockDomain, mockParameters, mockItemId, mockCredentials)
-      ).rejects.toThrow(
-        'An error occurred while fetching the related items: timeout of 5000ms exceeded'
-      );
-    });
-
-    it('should handle errors without response data', async () => {
-      const simpleError: Partial<AxiosError> = {
-        status: 500,
-        message: 'Internal Server Error',
-        response: undefined,
-      };
-      mockedAxios.get.mockRejectedValue(simpleError);
-
-      await expect(
-        getRelatedItems(mockDomain, mockParameters, mockItemId, mockCredentials)
-      ).rejects.toThrow(
-        'An error occurred while fetching the related items: Internal Server Error'
-      );
-    });
-
-    it('should handle malformed error response data', async () => {
-      const malformedError: Partial<AxiosError> = {
-        status: 400,
-        message: 'Bad Request',
-        response: {
-          data: 'Invalid JSON string',
-        } as any,
-      };
-      mockedAxios.get.mockRejectedValue(malformedError);
-
-      await expect(
-        getRelatedItems(mockDomain, mockParameters, mockItemId, mockCredentials)
-      ).rejects.toThrow('Cannot read properties of undefined');
-    });
+  it('fails the combined request if any selected operation fails', async () => {
+    get.mockRejectedValueOnce(new Error('Unavailable'));
+    await expect(fetch()).rejects.toThrow('Unavailable');
   });
 
-  describe('parameter handling', () => {
-    beforeEach(() => {
-      mockedAxios.get.mockResolvedValue({ data: mockApiResponse });
-    });
-
-    it('should handle multiple parameters correctly', async () => {
-      const multipleParams = {
-        response_format: 'detailed',
-        per_page: '20',
-        page: '2',
-        filter: 'category=dress',
-      };
-
-      await getRelatedItems(
-        mockDomain,
-        multipleParams,
-        mockItemId,
-        mockCredentials
-      );
-
-      expect(mockedAxios.get).toHaveBeenCalledWith(
-        expect.stringContaining('response_format=detailed'),
-        expect.any(Object)
-      );
-      expect(mockedAxios.get).toHaveBeenCalledWith(
-        expect.stringContaining('per_page=20'),
-        expect.any(Object)
-      );
-      expect(mockedAxios.get).toHaveBeenCalledWith(
-        expect.stringContaining('page=2'),
-        expect.any(Object)
-      );
-    });
-
-    it('should work with different domains', async () => {
-      const customDomain = 'custom-api.dressipi.example.com';
-
-      await getRelatedItems(
-        customDomain,
-        mockParameters,
-        mockItemId,
-        mockCredentials
-      );
-
-      expect(mockedAxios.get).toHaveBeenCalledWith(
-        expect.stringContaining(`https://${customDomain}/api/items`),
-        expect.any(Object)
-      );
-    });
-
-    it('should handle different credential formats', async () => {
-      const longCredentials: AuthCredentials = {
-        access_token:
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c',
-        refresh_token: 'refresh-token',
-        token_type: 'Bearer',
-        expires_in: 7200,
-      };
-
-      await getRelatedItems(
-        mockDomain,
-        mockParameters,
-        mockItemId,
-        longCredentials
-      );
-
-      expect(mockedAxios.get).toHaveBeenCalledWith(expect.any(String), {
-        headers: {
-          Authorization: `Bearer ${longCredentials.access_token}`,
-        },
-      });
-    });
-  });
-
-  describe('real-world scenarios', () => {
-    it('should handle complete API response with all fields', async () => {
-      const complexResponse: RelatedItemsApiResponse = {
-        ...mockApiResponse,
-        outfits: [
-          {
-            content_id: 'outfit_123',
-            garment_id: 'DRESS_001',
-            raw_garment_id: 1,
-            template_id: 'template_abc',
-            saved: false,
-            occasion: 'casual',
-            items: [
-              {
-                garment_id: 'SHOES_001',
-                raw_garment_id: 2,
-              },
-            ],
-          },
-        ],
-        similar_items: {
-          content_id: 'similar_456',
-          items: [
-            {
-              garment_id: 'DRESS_002',
-              raw_garment_id: 3,
-            },
-          ],
-        },
-      };
-
-      mockedAxios.get.mockResolvedValue({ data: complexResponse });
-
-      const result = await getRelatedItems(
-        mockDomain,
-        mockParameters,
-        mockItemId,
-        mockCredentials
-      );
-
-      expect(result).toEqual(complexResponse);
-      expect(result.outfits).toHaveLength(1);
-      expect(result.similar_items.items).toHaveLength(1);
-    });
-
-    it('should handle pagination parameters', async () => {
-      const paginationParams = {
-        page: '3',
-        per_page: '50',
-        response_format: 'detailed',
-      };
-
-      mockedAxios.get.mockResolvedValue({ data: mockApiResponse });
-
-      await getRelatedItems(
-        mockDomain,
-        paginationParams,
-        mockItemId,
-        mockCredentials
-      );
-
-      const callUrl = mockedAxios.get.mock.calls[0][0];
-      expect(callUrl).toContain('page=3');
-      expect(callUrl).toContain('per_page=50');
-    });
+  it('rejects unknown methods before making requests', async () => {
+    await expect(fetch({ methods: 'unknown' })).rejects.toThrow(
+      'Unknown related items method'
+    );
+    expect(get).not.toHaveBeenCalled();
   });
 });

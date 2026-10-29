@@ -85,3 +85,15 @@ export { KeyChainAdapter } from './keychain/KeyChainAdapter';
  * Exports the useCompliance hook for managing user data tracking consent.
  */
 export { useCompliance } from './hooks/useCompliance';
+
+export { useTopItems } from './hooks/useTopItems';
+export { useBasketItems } from './hooks/useBasketItems';
+export type {
+  TopItemsApiRequest,
+  TopItemsMappedResponse,
+  TopItemsState,
+  BasketItemsApiRequest,
+  BasketItemsMappedResponse,
+  BasketItemsState,
+  BasketUser,
+} from './types/curated-items';

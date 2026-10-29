@@ -2,66 +2,21 @@
 
 A React Native SDK that provides easy integration with Dressipi's fashion AI services, including related items discovery, facetted search, and tracking capabilities.
 
-## Product views and page context
-
-From version 0.2.9, `productDisplayPage` accepts optional `parentPageViewId`.
-It emits `iglu:com.dressipi/item_view/jsonschema/1-0-0` with the ID in the Snowplow
-`web_page` context (`data.id`). The ID is excluded from `data.item`.
-
-```tsx
-const { productDisplayPage } = useDressipiTracking();
-productDisplayPage({
-  product_code: product.product_code,
-  sku: product.sku,
-  parentPageViewId: pageContextId,
-});
-```
-
-Call once per product-screen visit. Supply the containing page's context UUID,
-or generate a UUID per screen visit when the app owns that context. A separate
-`pageView()` or `itemClickPdp()` call is not required to send an `item_view`.
-Calls without the optional ID preserve the existing event shape. Queue and HTTP
-logs include `item_view` and `parentPageViewId`.
-
-## Linking recommendations to their source page
-
-From version 0.2.1, `itemClickPdp`, `itemClickQuickView`, and `tabClick` accept
-optional `parentPageViewId`. Pass the source page's Snowplow `web_page` context
-UUID. It is serialized as a context with `data.id`, not inside the Dressipi event
-data. Existing calls without this field keep their existing payloads.
-
-Generate a UUID once per page/screen visit, pass it as `pageViewId` to `pageView`,
-and reuse it for interactions on that visit before navigating:
-
-```tsx
-const { pageView, itemClickPdp } = useDressipiTracking();
-const pageViewId = uuid.v4(); // Once per visit, not once per render or click.
-pageView({ pageUrl: '/pdp/603081121', pageViewId });
-
-itemClickPdp({
-  request_id: relatedItems.response_id, // API event_id
-  related_items_set_id: outfit.content_id,
-  dressipi_item_id: item.dressipi_item_id, // API raw_garment_id
-  parentPageViewId: pageViewId,
-});
-```
-
-The request ID, page context ID, and Snowplow event ID are separate identifiers.
-The SDK preserves the explicit page context when events are queued. This uses
-the Fashion SDK's Snowplow tracker and does not require Mapp Intelligence.
-See [Mapp's recommendation tracking reference](https://docs.mapp.com/docs/recommendation-tracking-fashion).
-
 ## Table of Contents
 
 - [Installation](#installation)
   - [Additional Dependencies](#additional-dependencies)
   - [Upgrading from 0.1.x](#upgrading-from-01x)
+- [Recommendation API v2](#recommendation-api-v2)
+- [Product views and page context](#product-views-and-page-context)
+- [Linking recommendations to their source page](#linking-recommendations-to-their-source-page)
 - [Quick Start](#quick-start)
 - [Storage Configuration](#storage-configuration)
 - [API Reference](#api-reference)
   - [DressipiProvider](#dressipiprovider)
   - [useRelatedItems](#userelateditems)
   - [useFacettedSearch](#usefacettedsearch)
+  - [useTopItems and useBasketItems](#usetopitems-and-usebasketitems)
   - [useCompliance](#usecompliance)
   - [Tracking](#tracking)
 - [Debug Logging](#debug-logging)
@@ -95,8 +50,9 @@ iOS). `react-native-keychain` also still needs native linking.
 
 ### Upgrading from 0.1.x
 
-Version 0.2.0 replaces Snowplow tracker 2.x with 4.x. The hooks and their arguments
-are unchanged, but the installation changes:
+Version 0.2.0 replaces Snowplow tracker 2.x with 4.x and migrates recommendations
+to Fashion API v2. The existing hooks remain available. Follow the installation
+steps below, then review the recommendation and tracking changes that follow:
 
 1. Remove `@snowplow/react-native-tracker` from your app's dependencies. Fashion
    now installs the Snowplow version it needs.
@@ -123,6 +79,134 @@ Some tracking data also changes, which matters if you have reports built on
 - background/foreground events can be sent more often.
 
 See [CHANGELOG.md](CHANGELOG.md) for all changes and known differences.
+
+## Recommendation API v2
+
+Recommendation requests now use [Fashion API v2](https://www.dressipi.loft.com/api/v2/swagger_doc.json).
+The existing `useRelatedItems` and `useFacettedSearch` hooks remain available.
+
+```http
+GET /api/v2/items/outfits?id={item_id}
+```
+
+Returns generated outfits for a source product through
+`useRelatedItems({ item_id, methods: RelatedItemsMethod.Outfits })`.
+Each outfit includes its own `response_id` for tracking.
+
+```http
+GET /api/v2/items/partner_outfits?id={item_id}
+```
+
+Returns retailer-curated outfits through
+`useRelatedItems({ item_id, methods: RelatedItemsMethod.PartnerOutfits })`.
+Each outfit includes the event ID from this endpoint as its `response_id`.
+
+```http
+GET /api/v2/items/similar?id={item_id}
+```
+
+Returns similar products through
+`useRelatedItems({ item_id, methods: RelatedItemsMethod.SimilarItems })`.
+The `similar_items` group includes its own `response_id` and `content_id`.
+
+```http
+POST /api/v2/facetted
+```
+
+Returns filtered, paginated recommendations through `useFacettedSearch`.
+Existing value facets are translated into v2 filters. `price` and `reduced_by`
+each accept one numeric range; multiple ranges, value-based price ranges, and
+`must_have` return an error. `garment_category` values must be numeric category
+IDs, not category names. Pass the first page's `response_id` as `root_event_id`
+when requesting later pages.
+
+```http
+GET /api/v2/items/top
+```
+
+Returns curated recommendations for a profile through `useTopItems`, without a
+source product. The result includes `response_id`, `content_id`, and product details.
+
+```http
+GET /api/v2/items/basket
+```
+
+Returns recommendations based on basket contents through `useBasketItems`.
+Pass product identifiers in `ids`; an omitted or empty array represents an empty
+basket. The result includes `response_id` and product details. Basket responses
+have no content ID in the documented response.
+
+### Combining related-item methods
+
+Omitted `methods` request all three related-item endpoints. Multiple selected
+methods run concurrently. If `try_all_methods` is `true` and all selected groups
+are empty, the remaining methods are tried. A failed selected request fails the
+combined result; partial results are not returned.
+
+Use each outfit or similar-items group's `response_id` as `request_id` when
+tracking interactions. The combined top-level `response_id` is retained as the
+first requested endpoint's event ID and is deprecated for tracking combined results.
+
+### Authentication and product details
+
+All endpoints use the configured Fashion domain. Hooks request detailed product
+metadata. Consent controls whether the existing OAuth access token is sent in
+`x-dressipi-jwt`; requests without consent are anonymous. OAuth token acquisition
+and refresh endpoints are unchanged.
+
+Product `status` and `has_outfits` are optional because some v2 operations,
+including Basket, omit them. Missing values are left undefined. Missing images
+map to an empty array and an empty `image_url`; nullable best-image fields map
+to undefined.
+
+## Product views and page context
+
+From version 0.2.0, `productDisplayPage` accepts optional `parentPageViewId`.
+It emits `iglu:com.dressipi/item_view/jsonschema/1-0-0` with the ID in the Snowplow
+`web_page` context (`data.id`). The ID is excluded from `data.item`.
+
+```tsx
+const { productDisplayPage } = useDressipiTracking();
+productDisplayPage({
+  product_code: product.product_code,
+  sku: product.sku,
+  parentPageViewId: pageContextId,
+});
+```
+
+Call once per product-screen visit. Supply the containing page's context UUID,
+or generate a UUID per screen visit when the app owns that context. A separate
+`pageView()` or `itemClickPdp()` call is not required to send an `item_view`.
+Calls without the optional ID preserve the existing event shape. Queue and HTTP
+logs include `item_view` and `parentPageViewId`.
+
+## Linking recommendations to their source page
+
+From version 0.2.0, `itemClickPdp`, `itemClickQuickView`, and `tabClick` accept
+optional `parentPageViewId`. Pass the source page's Snowplow `web_page` context
+UUID. It is serialized as a context with `data.id`, not inside the Dressipi event
+data. Existing calls without this field keep their existing payloads.
+
+Generate a UUID once per page/screen visit, pass it as `pageViewId` to `pageView`,
+and reuse it for interactions on that visit before navigating:
+
+```tsx
+const { pageView, itemClickPdp } = useDressipiTracking();
+const pageViewId = uuid.v4(); // Once per visit, not once per render or click.
+pageView({ pageUrl: '/pdp/603081121', pageViewId });
+
+itemClickPdp({
+  request_id: outfit.response_id, // event_id from this outfit's endpoint
+  related_items_set_id: outfit.content_id,
+  dressipi_item_id: item.dressipi_item_id, // API raw_garment_id
+  parentPageViewId: pageViewId,
+});
+```
+
+The request ID, page context ID, and Snowplow event ID are separate identifiers.
+The SDK preserves the explicit page context when events are queued. This uses
+the Fashion SDK's Snowplow tracker and does not require Mapp Intelligence.
+See [Mapp's recommendation tracking reference](https://docs.mapp.com/docs/recommendation-tracking-fashion).
 
 ## Quick Start
 
@@ -177,7 +261,7 @@ export function ProductRecommendations({ productId }: { productId: string }) {
     facets: [
       {
         name: 'garment_category',
-        value: ['dresses', 'tops'],
+        value: ['1', '2'],
       },
     ],
     per_page: 20,
@@ -286,18 +370,18 @@ The main provider component that initializes the SDK and provides authentication
 
 #### Props
 
-| Prop             | Type                   | Required | Description                                                                        |
-| ---------------- | ---------------------- | -------- | ---------------------------------------------------------------------------------- |
-| `namespaceId`    | `string`               | Yes      | Your Dressipi namespace identifier                                                 |
-| `domain`         | `string`               | Yes      | Your Dressipi domain                                                               |
-| `clientId`       | `string`               | Yes      | Your OAuth client ID for authentication                                            |
-| `enableLogging`  | `boolean`              | No       | Enable debug logging for development (defaults to `false`)                         |
+| Prop             | Type                   | Required | Description                                                                         |
+| ---------------- | ---------------------- | -------- | ----------------------------------------------------------------------------------- |
+| `namespaceId`    | `string`               | Yes      | Your Dressipi namespace identifier                                                  |
+| `domain`         | `string`               | Yes      | Your Dressipi domain                                                                |
+| `clientId`       | `string`               | Yes      | Your OAuth client ID for authentication                                             |
+| `enableLogging`  | `boolean`              | No       | Enable debug logging for development (defaults to `false`)                          |
 | `logTokens`      | `boolean`              | No       | Print access and refresh token fields when logging is enabled (defaults to `false`) |
-| `storage`        | `SecureStorageAdapter` | No       | Custom storage adapter for credentials (defaults to KeyChain)                      |
-| `defaultConsent` | `boolean`              | No       | Default consent value when user hasn't made a choice yet (defaults to `undefined`) |
-| `appVersion`     | `string`               | No       | Your app's version, sent in the tracking application context                       |
-| `appBuild`       | `string`               | No       | Your app's build number, sent in the tracking application context                  |
-| `children`       | `ReactNode`            | Yes      | Your app components                                                                |
+| `storage`        | `SecureStorageAdapter` | No       | Custom storage adapter for credentials (defaults to KeyChain)                       |
+| `defaultConsent` | `boolean`              | No       | Default consent value when user hasn't made a choice yet (defaults to `undefined`)  |
+| `appVersion`     | `string`               | No       | Your app's version, sent in the tracking application context                        |
+| `appBuild`       | `string`               | No       | Your app's build number, sent in the tracking application context                   |
+| `children`       | `ReactNode`            | Yes      | Your app components                                                                 |
 
 #### Features Provided
 
@@ -383,10 +467,10 @@ A hook for fetching related items, outfits, and similar products for a given ite
 
 The `relatedItems` object contains the following properties:
 
-- **`response_id`**: `string` - Unique identifier for this specific response (useful for tracking and analytics)
-- **`outfits`**: `Outfit[] | undefined` - Array of complete outfit recommendations organized by occasion, each containing coordinated items
+- **`response_id`**: `string` - First requested endpoint's event ID; use each group's ID for tracking
+- **`outfits`**: `Outfit[] | undefined` - Outfits with `response_id`, `content_id`, `occasion`, and coordinated `items`
 - **`partner_outfits`**: `Outfit[] | undefined` - Array of partner-specific outfit recommendations with specialized styling
-- **`similar_items`**: `{ content_id: string; items: DetailedItem[]; } | undefined` - Object containing items similar to the requested product
+- **`similar_items`**: `{ response_id: string; content_id: string; items: DetailedItem[]; } | undefined` - Object containing items similar to the requested product
 
 #### Example
 
@@ -440,6 +524,49 @@ function ProductPage({ productId }: { productId: string }) {
 
 ---
 
+### useTopItems and useBasketItems
+
+Both hooks return `{ items, loading, error }`, using the same consent and
+credential handling as the existing recommendation hooks. `items` is null until
+a request succeeds.
+
+```tsx
+import { useTopItems, useBasketItems } from 'mapp-fashion-react-native-sdk';
+
+const top = useTopItems({ department: 'female', max_items: 6 });
+const basket = useBasketItems({
+  ids: ['ABC-123', 'DEF-456'],
+  identifier_type: 'product-code',
+  excluded_ids: ['GHI-789'],
+  max_items: 6,
+  sort: 'price',
+  direction: 'asc',
+});
+
+// top.items: { response_id, content_id, items: DetailedItem[] } | null
+// basket.items: { response_id, items: DetailedItem[], user? } | null
+```
+
+| Option               | Hooks  | Description                                                                  |
+| -------------------- | ------ | ---------------------------------------------------------------------------- |
+| `max_items`          | Both   | Number of recommendations, 1–20 (server default 6)                           |
+| `max_reduced_by`     | Both   | Maximum discount percentage, 1–100                                           |
+| `excluded_ids`       | Both   | Array of identifiers to exclude, sent as one comma-separated query value     |
+| `locale`, `language` | Both   | Feed locale for price/stock and language for product text                    |
+| `department`         | Top    | `female`, `male`, `girls`, `boys`, or `unisex`                               |
+| `ids`                | Basket | Basket identifiers; omitted or empty arrays represent an empty basket        |
+| `identifier_type`    | Basket | `product-code`, `sku`, or `gtin`                                             |
+| `sort`, `direction`  | Basket | `price` with `asc` or `desc`                                                 |
+| `include_user_data`  | Basket | Request optional user information: first name (nullable) and quiz completion |
+
+Top calls `GET /api/v2/items/top`; Basket calls `GET /api/v2/items/basket`.
+Use each result's `response_id` for tracking. Top also returns `content_id` for
+recommendation-set attribution. Basket has no content ID in the documented response.
+If Basket references cannot be matched unambiguously to product metadata, the
+hook reports an error rather than assigning another variant's details or tracking ID.
+
+---
+
 ### useFacettedSearch
 
 A hook for performing facetted search queries with filters and pagination.
@@ -466,6 +593,7 @@ A hook for performing facetted search queries with filters and pagination.
 | `response_format` | `ResponseFormat` | No       | Response format (defaults to `Detailed`) - controls the level of detail in returned items |
 | `page`            | `number`         | No       | Page number for pagination (1-based indexing)                                             |
 | `per_page`        | `number`         | No       | Number of items to return per page (controls pagination size)                             |
+| `root_event_id`   | `string`         | No       | First page's `response_id`, sent when requesting subsequent pages                         |
 
 #### Facet Types
 
@@ -474,7 +602,7 @@ A hook for performing facetted search queries with filters and pagination.
 ```typescript
 {
   name: 'garment_category',
-  value: ['dresses', 'tops']
+  value: ['1', '2']
 }
 ```
 
@@ -484,18 +612,17 @@ A hook for performing facetted search queries with filters and pagination.
 {
   name: 'price',
   filters: [
-    { from: 50, to: 100 },
-    { value: ['sale'] }
+    { from: 50, to: 100 }
   ]
 }
 ```
 
 #### Available Facet Dimensions
 
-- `garment_category`: Product categories (e.g., 'dresses', 'tops')
+- `garment_category`: Numeric category IDs (e.g., `'1'`), returned by Fashion
 - `brand`: Brand names
 - `occasion`: Occasions (e.g., 'work', 'evening')
-- `must_have`: Must-have items
+- `must_have`: Legacy option; rejected by API v2
 - `retailer_labels`: Retailer-specific labels
 - `store`: Store identifiers
 - `feature_ids`: Include specific features
@@ -525,7 +652,7 @@ function SearchResults() {
     facets: [
       {
         name: 'garment_category',
-        value: ['dresses'],
+        value: ['1'],
       },
       {
         name: 'brand',
@@ -1589,7 +1716,7 @@ The test app already enables it in `app/_layout.tsx`.
 </DressipiProvider>
 ```
 
-From SDK 0.2.4, **search for `parentPageViewId` in the DevTools Console** to
+From SDK 0.2.0, **search for `parentPageViewId` in the DevTools Console** to
 see recommendation clicks before an HTTP request exists. These logs use the
 `[Fashion Tracking]` prefix, so clear any `Fashion HTTP` filter first:
 
@@ -1604,9 +1731,9 @@ built event's context, and a missing ID is logged as `parentPageViewId=null`.
 A token without the tracking `subn` claim or a saved tracking identity for the
 same profile produces a `Tracking is waiting` warning with
 `reason: missing_network_user_id`; this warning contains no credentials.
-From SDK 0.2.5, every affected queued event also includes this specific reason
+From SDK 0.2.0, every affected queued event also includes this specific reason
 in its log line and details instead of the generic `tracker_not_ready`.
-From SDK 0.2.8, OAuth refresh preserves a previously issued `subn` in local
+From SDK 0.2.0, OAuth refresh preserves a previously issued `subn` in local
 `trackingIdentity` metadata alongside the credentials. The SDK reuses it only
 when the refreshed token has the same profile (`sub`), including after a storage
 round trip or app restart. A new token's `subn` takes precedence. The SDK does
@@ -1617,7 +1744,7 @@ identity, refreshing cannot reconstruct it. Recover the identity with the
 Fashion backend, or explicitly create a new demo profile if losing that profile's
 personalization is acceptable. The SDK does not reset profiles automatically.
 
-From Fashion SDK 0.2.2, filter the JavaScript console for **`[Fashion HTTP]`**.
+From Fashion SDK 0.2.0, filter the JavaScript console for **`[Fashion HTTP]`**.
 Each network attempt has a matching `requestId` (for example, `fashion-12`):
 
 - `REQUEST`: HTTP method, full URL/query string, and request body (`null` for no body).
@@ -1630,8 +1757,8 @@ IDs. Logs describe actual transport attempts; an event waiting in the SDK queue
 has no HTTP response yet.
 
 Collector requests also include `decodedEvents`, a readable copy of Snowplow's
-base64 event and context fields. From SDK 0.2.3, search for
-`decodedEvents[].parentPageViewId` on product views (from 0.2.9) and recommendation events, and `pageViewId` on
+base64 event and context fields. From SDK 0.2.0, search for
+`decodedEvents[].parentPageViewId` on product views and recommendation events, and `pageViewId` on
 source page-view events. These diagnostic fields are read from the actual
 serialized `web_page` context's `data.id`; missing context is shown as `null`.
 The encoded request body is preserved in `body`, and the transmitted payload is
@@ -1649,7 +1776,7 @@ Example output (body fields abbreviated):
 
 Empty responses remain empty strings; JSON responses are displayed as objects.
 Authorization headers, OAuth codes/verifiers, tokens, and password fields are
-masked as `[REDACTED]` in diagnostic copies by default. From SDK 0.2.6, set
+masked as `[REDACTED]` in diagnostic copies by default. From SDK 0.2.0, set
 `logTokens={true}` alongside `enableLogging={true}` to print complete
 `access_token` and `refresh_token` fields in HTTP response bodies and cached
 credential logs. For development builds, use `logTokens={__DEV__}`. Search for
@@ -1680,8 +1807,8 @@ type DetailedItem = {
   image_url: string; // Primary image URL
   best_model_image?: string; // Best model image URL
   best_product_image?: string; // Best product image URL
-  has_outfits: boolean; // Whether item has outfit recommendations
-  status: 'in stock' | 'out of stock'; // Availability status
+  has_outfits?: boolean; // Whether item has outfit recommendations
+  status?: 'in stock' | 'out of stock'; // Availability status
   style_id?: string; // Style identifier
 };
 ```
@@ -1733,11 +1860,12 @@ Type for the processed related items response:
 
 ```typescript
 type RelatedItemsMappedResponse = {
-  response_id: string; // Unique response identifier
+  response_id: string; // First endpoint's event ID; deprecated for combined tracking
   outfits?: Outfit[]; // Outfit recommendations
   partner_outfits?: Outfit[]; // Partner outfit recommendations
   similar_items?: {
     // Similar items group
+    response_id: string; // This endpoint's event ID
     content_id: string; // Content identifier
     items: DetailedItem[]; // Array of similar items
   };
@@ -1754,6 +1882,7 @@ type FacettedSearchApiRequest = {
   response_format?: ResponseFormat; // Response detail level
   page?: number; // Page number
   per_page?: number; // Items per page
+  root_event_id?: string; // First page's response_id for subsequent pages
 };
 ```
 

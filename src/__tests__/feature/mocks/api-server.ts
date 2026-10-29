@@ -63,20 +63,22 @@ export const setupApiMocks = () => {
 
       // Related items endpoint
       if (
-        urlObj.pathname.startsWith('/v1/related_items/') &&
+        ['outfits', 'partner_outfits', 'similar'].some(
+          operation => urlObj.pathname === `/api/v2/items/${operation}`
+        ) &&
         method === 'GET'
       ) {
-        const itemId = urlObj.pathname.split('/').pop();
-        const authHeader = headers['Authorization'] || headers['authorization'];
+        const itemId = urlObj.searchParams.get('id');
+        const authHeader = headers['x-dressipi-jwt'];
 
         // Check authentication
-        if (!authHeader || !authHeader.includes('Bearer')) {
+        if (authHeader === 'invalid-token') {
           return createMockResponse({ error: 'Unauthorized' }, 401);
         }
 
         // Handle garment not found scenario
         if (itemId === 'NOT-FOUND-ITEM') {
-          return createMockResponse(mockGarmentNotFoundResponse, 404);
+          return createMockResponse(mockGarmentNotFoundResponse, 422);
         }
 
         // Handle error scenarios
@@ -90,25 +92,36 @@ export const setupApiMocks = () => {
 
         // Simulate network delay
         await new Promise(resolve => setTimeout(resolve, 50));
-        return createMockResponse(mockRelatedItemsResponse);
+        const operation = urlObj.pathname.split('/').pop();
+        const group = operation === 'similar' ? 'similar_items' : operation!;
+        return createMockResponse({
+          event_id: `${operation}-event`,
+          source: mockRelatedItemsResponse.source,
+          garment_data: mockRelatedItemsResponse.garment_data,
+          [group]:
+            mockRelatedItemsResponse[
+              group as 'outfits' | 'partner_outfits' | 'similar_items'
+            ],
+        });
       }
 
       // Facetted search endpoint
-      if (urlObj.pathname === '/v1/facetted_search' && method === 'POST') {
-        const authHeader = headers['Authorization'] || headers['authorization'];
+      if (urlObj.pathname === '/api/v2/facetted' && method === 'POST') {
+        const authHeader = headers['x-dressipi-jwt'];
 
         // Check authentication
-        if (!authHeader || !authHeader.includes('Bearer')) {
+        if (authHeader === 'invalid-token') {
           return createMockResponse({ error: 'Unauthorized' }, 401);
         }
 
         const requestBody = body ? JSON.parse(body) : {};
 
         // Handle empty search results
-        if (requestBody.facets && requestBody.facets.length === 0) {
+        if (requestBody.filters?.product_ids?.includes('NOT-FOUND-ITEM')) {
           return createMockResponse({
             ...mockFacettedSearchResponse,
-            recommendations: [],
+            garment_data: [],
+            recommendations: { content_id: 'empty-content', items: [] },
             pagination: {
               total_pages: 0,
               total_entries: 0,

@@ -5,38 +5,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 the project uses [Semantic Versioning](https://semver.org/). Before 1.0.0, a
 minor version bump can contain breaking changes.
 
-## [0.2.9] - Unreleased
-
-### Added
-
-- `productDisplayPage` accepts `parentPageViewId` and sends it as the Snowplow
-  `web_page` context on the `item_view` event. The product data remains unchanged.
-- Queue and HTTP logs expose `parentPageViewId` for `item_view`, including the
-  decoded context from the actual collector payload.
-
-## [0.2.8] - Unreleased
-
-### Fixed
-
-- Preserve the server-issued tracking ID when OAuth refresh omits `subn`.
-  The SDK saves it with the credentials, bound to the token's profile (`sub`),
-  so tracking continues after refresh and app restart. A different profile
-  cannot reuse the previous identity; a new `subn` takes precedence.
-
-## [0.2.7] - Unreleased
-
-### Fixed
-
-- Token refresh now uses the credentials loaded after startup and the latest
-  rotated refresh token. Previously, the refresh callback retained the initial
-  empty credentials and silently returned without making a request.
-
 ## [0.2.0] - Unreleased
 
-This release moves Fashion from Snowplow React Native tracker 2.x to 4.x, which
-replaces Snowplow's native Android/iOS tracker with a JavaScript tracker.
-Fashion's hooks and their arguments are unchanged, but installing it needs the
-steps under **Upgrading from 0.1.x**.
+This release moves Fashion from Snowplow React Native tracker 2.x to 4.x and
+migrates recommendations to Fashion API v2. The existing recommendation hooks
+remain available, with separate response IDs for each related-item group. Top
+and Basket recommendation hooks and optional page-context tracking fields are
+also included. Follow **Upgrading from 0.1.x** and review the changes below.
 
 ### Upgrading from 0.1.x
 
@@ -54,6 +29,14 @@ steps under **Upgrading from 0.1.x**.
 
 ### Changed
 
+- Recommendation calls now use Fashion API v2. Related-item methods use separate
+  endpoints and retain the existing combined hook. Use each outfit or similar
+  group's `response_id` for tracking; the top-level ID belongs to the first call.
+- Facetted search translates existing facets into v2 filters and maps separate
+  product metadata. Unsupported legacy filters and multiple numeric ranges return
+  an error. `root_event_id` links later pages to the first page.
+- Recommendation calls use `x-dressipi-jwt` when consent permits authentication.
+  Product stock status and outfit availability may be absent in v2 results.
 - **Breaking:** Snowplow tracker upgraded from `^2.1.1` to `4.10.2`, and
   `@snowplow/tracker-core` `4.10.2` added. Both are regular dependencies.
 - **Breaking:** peer dependency ranges narrowed to the versions that are
@@ -92,6 +75,22 @@ steps under **Upgrading from 0.1.x**.
 
 ### Added
 
+- `useTopItems` and `useBasketItems`, with exported request, response, and state
+  types, detailed product results, and consent-aware authenticated or anonymous calls.
+- `itemClickPdp`, `itemClickQuickView`, and `tabClick` accept optional
+  `parentPageViewId`; `pageView` accepts `pageViewId`. The SDK sends these IDs
+  in the Snowplow `web_page` context and retains them while events are queued.
+- HTTP diagnostics cover OAuth, recommendations, and collector requests with
+  paired request IDs, response status/body, and duration. Decoded collector
+  events expose page-context IDs from the serialized payload.
+- Tracking diagnostics distinguish queued and dispatched events and report
+  `missing_network_user_id` when a tracking identity is unavailable.
+- `logTokens` allows explicit access/refresh token logging when `enableLogging`
+  is enabled. Diagnostic copies redact credentials by default.
+- `productDisplayPage` accepts `parentPageViewId` and sends it as the Snowplow
+  `web_page` context on the `item_view` event. The product data remains unchanged.
+- Queue and HTTP logs expose `parentPageViewId` for `item_view`, including the
+  decoded context from the actual collector payload.
 - `tnuid` is sent alongside `nuid` with the same value, as in 0.1.x.
 - `lang`, `tz` and `res` (physical pixels) are sent again, and `mobile_context`
   gets `resolution` in physical pixels, `isPortrait` and `language`. They come
@@ -117,6 +116,13 @@ steps under **Upgrading from 0.1.x**.
 
 ### Fixed
 
+- Preserve the server-issued tracking ID when OAuth refresh omits `subn`.
+  The SDK saves it with the credentials, bound to the token's profile (`sub`),
+  so tracking continues after refresh and app restart. A different profile
+  cannot reuse the previous identity; a new `subn` takes precedence.
+- Token refresh now uses the credentials loaded after startup and the latest
+  rotated refresh token. Previously, the refresh callback retained the initial
+  empty credentials and silently returned without making a request.
 - The identify event's error message now says that both `email` and
   `customerId` are required. It previously said "either", although both were
   already required. Behaviour is unchanged.

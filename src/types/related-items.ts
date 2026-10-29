@@ -31,12 +31,14 @@ export type RelatedItemsApiRequest = {
  */
 export type RelatedItemsApiResponse = {
   event_id: string;
-  source: RelatedItemsAPIResponseItemIDsOnly;
+  source: RelatedItemsAPIResponseItemIDsOnly | null;
   garment_data: RelatedItemsAPIResponseItem[];
-  reparentable: boolean;
-  outfits: RelatedItemsApiResponseOutfit[];
-  partner_outfits: RelatedItemsApiResponseOutfit[];
-  similar_items: {
+  reparentable?: boolean;
+  /** Event IDs from the separate v2 calls, retained when combining results. */
+  event_ids?: Partial<Record<RelatedItemsMethod, string>>;
+  outfits?: RelatedItemsApiResponseOutfit[];
+  partner_outfits?: RelatedItemsApiResponseOutfit[];
+  similar_items?: {
     content_id: string;
     items: RelatedItemsAPIResponseItemIDsOnly[];
   };
@@ -47,7 +49,7 @@ export type RelatedItemsApiResponse = {
  */
 export type RelatedItemsAPIResponseItem = {
   id: number;
-  feed_image_urls: string[];
+  feed_image_urls?: string[];
   brand_name: string;
   name: string;
   price?: string;
@@ -59,15 +61,18 @@ export type RelatedItemsAPIResponseItem = {
   department: 'female' | 'male' | 'boys' | 'girls';
   image_url: string;
   thumbnail_image_url?: string;
-  best_model_image?: string;
-  best_product_image?: string;
+  best_model_image?: string | null;
+  best_product_image?: string | null;
   product_code: string;
   partner: string;
   retailer: string;
   why: [];
-  has_outfits: boolean;
-  garment_status: 'in stock' | 'out of stock';
-  product_id: string;
+  has_outfits?: boolean;
+  garment_status?: 'in stock' | 'out of stock';
+  product_id?: string;
+  ancillary_product_code?: string | null;
+  sku?: string;
+  eans?: string[];
 };
 
 /**
@@ -76,8 +81,10 @@ export type RelatedItemsAPIResponseItem = {
  */
 export type RelatedItemsAPIResponseItemIDsOnly = {
   garment_id: string;
-  raw_garment_id: number;
-  ancillary_product_code?: string;
+  raw_garment_id?: number;
+  ancillary_product_code?: string | null;
+  product_code?: string;
+  product_id?: string;
 };
 
 /**
@@ -87,9 +94,9 @@ export type RelatedItemsAPIResponseItemIDsOnly = {
 export type RelatedItemsApiResponseOutfit = {
   content_id: string;
   garment_id: string;
-  raw_garment_id: number;
+  raw_garment_id?: number;
   template_id: string;
-  saved: boolean;
+  saved?: boolean;
   occasion: string;
   items: RelatedItemsAPIResponseItemIDsOnly[];
 };
@@ -99,10 +106,12 @@ export type RelatedItemsApiResponseOutfit = {
  * Dressipi API related items response.
  */
 export type RelatedItemsMappedResponse = {
+  /** @deprecated For combined results use the group's response_id for tracking. */
   response_id: string;
   outfits?: Outfit[];
   partner_outfits?: Outfit[];
   similar_items?: {
+    response_id: string;
     content_id: string;
     items: DetailedItem[];
   };
@@ -112,6 +121,7 @@ export type RelatedItemsMappedResponse = {
  * Represents an outfit with a list of items for an occasion.
  */
 export type Outfit = {
+  response_id: string;
   content_id: string;
   occasion: string;
   items: DetailedItem[];
