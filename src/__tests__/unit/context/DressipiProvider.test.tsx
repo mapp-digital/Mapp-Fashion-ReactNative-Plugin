@@ -573,3 +573,26 @@ describe('tracker lifecycle', () => {
     );
   });
 });
+
+it('preserves the default storage adapter across provider rerenders', () => {
+  const defaultStorageWrapper = ({
+    children,
+  }: {
+    children: React.ReactNode;
+  }) => (
+    <DressipiProvider
+      namespaceId="shop"
+      clientId="client"
+      domain="collector.example"
+    >
+      {children}
+    </DressipiProvider>
+  );
+  const { rerender } = renderHook(useDressipiTracking, {
+    wrapper: defaultStorageWrapper,
+  });
+  const firstAdapter = vi.mocked(useAuth).mock.calls.at(-1)![2];
+  expect(firstAdapter).not.toBeNull();
+  rerender();
+  expect(vi.mocked(useAuth).mock.calls.at(-1)![2]).toBe(firstAdapter);
+});

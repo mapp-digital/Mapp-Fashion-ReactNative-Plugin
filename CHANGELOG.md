@@ -121,6 +121,12 @@ also included. Follow **Upgrading from 0.1.x** and review the changes below.
 
 ### Fixed
 
+- Update Axios to `^1.21.0`, Lodash ES to `^4.18.1`, and the locked dependency
+  tree to address the security findings in
+  [SDK-2166](https://mapp.atlassian.net/browse/SDK-2166).
+- Keep the default storage adapter and the refresh callback used before consent
+  stable across provider rerenders, avoiding unnecessary authentication reloads
+  and recommendation effects.
 - Preserve the server-issued tracking ID when OAuth refresh omits `subn`.
   The SDK saves it with the credentials, bound to the token's profile (`sub`),
   so tracking continues after refresh and app restart. A different profile

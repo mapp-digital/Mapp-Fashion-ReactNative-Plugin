@@ -22,6 +22,7 @@ A React Native SDK that provides easy integration with Dressipi's fashion AI ser
 - [Debug Logging](#debug-logging)
 - [Types](#types)
 - [Examples](#examples)
+- [Development](#development)
 
 ## Installation
 
@@ -1960,3 +1961,23 @@ function ProductWithErrorHandling({ productId }: { productId: string }) {
   );
 }
 ```
+
+## Development
+
+Use Node.js 22.13 or a newer supported 22.x release for development. The security
+updates use ESLint 10 and Vitest 4; validation was performed with Node.js 22.23.2.
+
+```bash
+npm ci
+npm run build
+npm test -- --run
+npm run lint:check
+npm run audit:check
+npm run test:tracker
+```
+
+The `minimatch` overrides apply only to ESLint, `@eslint/config-array`, and
+`@typescript-eslint/typescript-estree`. They select the patched 11.x named-export
+API used by these development tools. Overrides in this package do not control an
+application's dependency resolution; the updated Axios and Lodash minimums are declared directly so that
+application installs also receive those runtime fixes.
