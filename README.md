@@ -161,51 +161,65 @@ to undefined.
 
 ## Product views and page context
 
-From version 0.2.0, `productDisplayPage` accepts optional `parentPageViewId`.
-It emits `iglu:com.dressipi/item_view/jsonschema/1-0-0` with the ID in the Snowplow
-`web_page` context (`data.id`). The ID is excluded from `data.item`.
+The SDK manages page context inside each `DressipiProvider`. Call `pageView()`
+once per list/screen visit; it generates a new `pageViewId` unless you supply
+one. A subsequent `productDisplayPage()` automatically uses that same ID as
+`parentPageViewId`, including when called from a different screen or hook.
+No route parameters or app-side UUID generation are needed.
+
+`productDisplayPage` emits `iglu:com.dressipi/item_view/jsonschema/1-0-0` with
+the parent ID in the Snowplow `web_page` context (`data.id`). The ID is excluded
+from `data.item`.
 
 ```tsx
+// On the product list screen:
+const { pageView } = useDressipiTracking();
+pageView({ pageUrl: '/plp', pageTitle: 'Products' });
+
+// On the product detail screen, under the same DressipiProvider:
 const { productDisplayPage } = useDressipiTracking();
 productDisplayPage({
   product_code: product.product_code,
   sku: product.sku,
-  parentPageViewId: pageContextId,
 });
 ```
 
-Call once per product-screen visit. Supply the containing page's context UUID,
-or generate a UUID per screen visit when the app owns that context. A separate
-`pageView()` or `itemClickPdp()` call is not required to send an `item_view`.
-Calls without the optional ID preserve the existing event shape. Queue and HTTP
-logs include `item_view` and `parentPageViewId`.
+Call once per product-screen visit. An `item_view` does not create another page
+view or replace the saved parent ID. Returning to the list and calling
+`pageView()` starts a new page context. Track a page view for each source screen
+whose visits should establish a new context; the SDK does not observe navigation.
+The automatic parent is the most recently tracked page, regardless of its route.
+
+You can override the automatic parent by supplying `parentPageViewId` on a
+product view. An empty string explicitly omits it. If no page view has been
+tracked in this provider, the optional parent context is omitted. Page history
+lasts for this provider's lifetime and resets when its namespace, domain, or
+client ID changes. Tracker initialization and credential refresh preserve it.
+IDs are captured at the tracking call, so queued events retain their original
+parent even if another page is visited before delivery. Existing consent and
+queue behavior is unchanged. Queue and HTTP logs expose `pageViewId` for page
+views and `parentPageViewId` for `item_view`.
 
 ## Linking recommendations to their source page
 
-From version 0.2.0, `itemClickPdp`, `itemClickQuickView`, and `tabClick` accept
-optional `parentPageViewId`. Pass the source page's Snowplow `web_page` context
-UUID. It is serialized as a context with `data.id`, not inside the Dressipi event
-data. Existing calls without this field keep their existing payloads.
-
-Generate a UUID once per page/screen visit, pass it as `pageViewId` to `pageView`,
-and reuse it for interactions on that visit before navigating:
+`itemClickPdp`, `itemClickQuickView`, and `tabClick` also default to the most
+recent page-view context in the same provider. Explicit `parentPageViewId`
+values override it, and an empty string omits the context for that event.
+Track the interaction before navigating:
 
 ```tsx
-const { pageView, itemClickPdp } = useDressipiTracking();
-const pageViewId = uuid.v4(); // Once per visit, not once per render or click.
-pageView({ pageUrl: '/pdp/603081121', pageViewId });
-
+const { itemClickPdp } = useDressipiTracking();
 itemClickPdp({
   request_id: outfit.response_id, // event_id from this outfit's endpoint
   related_items_set_id: outfit.content_id,
   dressipi_item_id: item.dressipi_item_id, // API raw_garment_id
-  parentPageViewId: pageViewId,
 });
 ```
 
 The request ID, page context ID, and Snowplow event ID are separate identifiers.
-The SDK preserves the explicit page context when events are queued. This uses
-the Fashion SDK's Snowplow tracker and does not require Mapp Intelligence.
+The SDK serializes the page context as a Snowplow `web_page` context with
+`data.id`, not inside the Dressipi event data. This uses the Fashion SDK's
+Snowplow tracker and does not require Mapp Intelligence.
 See [Mapp's recommendation tracking reference](https://docs.mapp.com/docs/recommendation-tracking-fashion).
 
 ## Quick Start

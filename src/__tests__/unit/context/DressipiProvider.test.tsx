@@ -1,4 +1,5 @@
 import React from 'react';
+import uuid from 'react-native-uuid';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DressipiProvider } from '../../../context/DressipiProvider';
@@ -22,6 +23,12 @@ const storage = {
   getItem: vi.fn().mockResolvedValue(null),
   removeCredentials: vi.fn(),
 } as any;
+const webPageContext = (id: unknown = expect.any(String)) => [
+  {
+    schema: 'iglu:com.snowplowanalytics.snowplow/web_page/jsonschema/1-0-0',
+    data: { id },
+  },
+];
 const tracker = {
   trackSelfDescribingEvent: vi.fn(),
   trackPageViewEvent: vi.fn(),
@@ -61,9 +68,187 @@ const identity = (networkUserId: string | null) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  let visit = 0;
+  vi.mocked(uuid.v4).mockImplementation(() => ('page-' + ++visit) as any);
   consent(true);
   identity('user-1');
   vi.mocked(createTracker).mockResolvedValue(tracker);
+});
+
+describe('automatic page context', () => {
+  it('shares the generated page ID across separate screen tracking hooks', async () => {
+    const { result } = renderHook(
+      () => ({ list: useDressipiTracking(), product: useDressipiTracking() }),
+      { wrapper: loggingWrapper }
+    );
+    await act(async () => {});
+    await act(async () => {
+      result.current.list.pageView({ pageUrl: '/plp' });
+      result.current.product.productDisplayPage({
+        product_code: 'prod-1',
+        sku: 'sku-1',
+      });
+    });
+    const sourceContext = tracker.trackPageViewEvent.mock.calls[0][1];
+    expect(sourceContext).toEqual(webPageContext('page-1'));
+    expect(tracker.trackSelfDescribingEvent).toHaveBeenCalledExactlyOnceWith(
+      {
+        schema: 'iglu:com.dressipi/item_view/jsonschema/1-0-0',
+        data: { item: { product_code: 'prod-1', sku: 'sku-1' } },
+      },
+      sourceContext
+    );
+    expect(uuid.v4).toHaveBeenCalledOnce();
+    expect(tracker.trackPageViewEvent).toHaveBeenCalledOnce();
+    expect(console.info).toHaveBeenCalledWith(
+      expect.stringContaining('item_view DISPATCHED parentPageViewId=page-1'),
+      expect.any(String)
+    );
+  });
+
+  it('captures each parent before queueing, even when another page is tracked immediately', async () => {
+    identity(null);
+    const { result, rerender } = renderHook(useDressipiTracking, { wrapper });
+    await act(async () => {
+      result.current.pageView({ pageUrl: '/plp/first' });
+      result.current.productDisplayPage({ sku: 'sku-1' });
+      result.current.pageView({ pageUrl: '/plp/second' });
+      result.current.productDisplayPage({ sku: 'sku-2' });
+    });
+    expect(tracker.trackSelfDescribingEvent).not.toHaveBeenCalled();
+    identity('user-1');
+    rerender();
+    await waitFor(() =>
+      expect(tracker.trackSelfDescribingEvent).toHaveBeenCalledTimes(2)
+    );
+    expect(
+      tracker.trackSelfDescribingEvent.mock.calls.map(call => call[1])
+    ).toEqual([webPageContext('page-1'), webPageContext('page-2')]);
+    expect(tracker.trackPageViewEvent.mock.calls.map(call => call[1])).toEqual([
+      webPageContext('page-1'),
+      webPageContext('page-2'),
+    ]);
+    await act(async () => {
+      result.current.productDisplayPage({ sku: 'sku-3' });
+    });
+    expect(tracker.trackSelfDescribingEvent.mock.lastCall?.[1]).toEqual(
+      webPageContext('page-2')
+    );
+  });
+
+  it('retains supplied page IDs and lets individual events override or omit the parent', async () => {
+    const { result } = renderHook(useDressipiTracking, { wrapper });
+    await act(async () => {});
+    await act(async () => {
+      result.current.pageView({ pageUrl: '/plp', pageViewId: 'provided-page' });
+      result.current.productDisplayPage({
+        sku: 'override',
+        parentPageViewId: 'explicit-parent',
+      });
+      result.current.productDisplayPage({
+        sku: 'without-parent',
+        parentPageViewId: '',
+      });
+      result.current.productDisplayPage({ sku: 'automatic' });
+    });
+    expect(tracker.trackPageViewEvent.mock.lastCall?.[1]).toEqual(
+      webPageContext('provided-page')
+    );
+    expect(tracker.trackSelfDescribingEvent.mock.calls[0][1]).toEqual(
+      webPageContext('explicit-parent')
+    );
+    expect(tracker.trackSelfDescribingEvent.mock.calls[1]).toHaveLength(1);
+    expect(tracker.trackSelfDescribingEvent.mock.calls[2][1]).toEqual(
+      webPageContext('provided-page')
+    );
+    expect(uuid.v4).not.toHaveBeenCalled();
+  });
+
+  it('uses the same source for recommendation interactions without creating another page view', async () => {
+    const { result } = renderHook(useDressipiTracking, { wrapper });
+    await act(async () => {});
+    await act(async () => {
+      result.current.pageView({ pageUrl: '/plp' });
+      result.current.productDisplayPage({ sku: 'product' });
+      result.current.itemClickPdp({
+        request_id: 'request',
+        dressipi_item_id: 1,
+      });
+      result.current.itemClickQuickView({
+        request_id: 'request',
+        dressipi_item_id: 2,
+      });
+      result.current.tabClick({ request_id: 'request', tab_name: 'similar' });
+      result.current.productDisplayPage({ sku: 'recommended-product' });
+    });
+    expect(tracker.trackSelfDescribingEvent).toHaveBeenCalledTimes(5);
+    for (const call of tracker.trackSelfDescribingEvent.mock.calls) {
+      expect(call[1]).toEqual(webPageContext('page-1'));
+    }
+    expect(tracker.trackPageViewEvent).toHaveBeenCalledOnce();
+    expect(uuid.v4).toHaveBeenCalledOnce();
+  });
+
+  it('omits the context for a direct product visit with no preceding page view', async () => {
+    const { result } = renderHook(useDressipiTracking, { wrapper });
+    await act(async () => {});
+    await act(async () => {
+      result.current.productDisplayPage({ sku: 'direct' });
+    });
+    expect(tracker.trackSelfDescribingEvent).toHaveBeenCalledExactlyOnceWith({
+      schema: 'iglu:com.dressipi/item_view/jsonschema/1-0-0',
+      data: { item: { sku: 'direct' } },
+    });
+    expect(uuid.v4).not.toHaveBeenCalled();
+  });
+
+  it('isolates page history between providers and clears it on provider remount', async () => {
+    const first = renderHook(useDressipiTracking, { wrapper });
+    const second = renderHook(useDressipiTracking, { wrapper });
+    await act(async () => {});
+    await act(async () => {
+      first.result.current.pageView({ pageUrl: '/plp' });
+      second.result.current.productDisplayPage({ sku: 'other-provider' });
+      first.result.current.productDisplayPage({ sku: 'first-provider' });
+    });
+    expect(tracker.trackSelfDescribingEvent.mock.calls[0]).toHaveLength(1);
+    expect(tracker.trackSelfDescribingEvent.mock.calls[1][1]).toEqual(
+      webPageContext('page-1')
+    );
+    first.unmount();
+    const replacement = renderHook(useDressipiTracking, { wrapper });
+    await act(async () => {});
+    await act(async () => {
+      replacement.result.current.productDisplayPage({ sku: 'new-provider' });
+    });
+    expect(tracker.trackSelfDescribingEvent.mock.lastCall).toHaveLength(1);
+  });
+
+  it('starts a separate page history when the provider configuration changes', async () => {
+    let namespaceId = 'first-shop';
+    const { result, rerender } = renderHook(useDressipiTracking, {
+      wrapper: ({ children }) => (
+        <DressipiProvider
+          namespaceId={namespaceId}
+          clientId="client"
+          domain="collector.example"
+          storage={storage}
+        >
+          {children}
+        </DressipiProvider>
+      ),
+    });
+    await act(async () => {});
+    await act(async () => {
+      result.current.pageView({ pageUrl: '/plp' });
+    });
+    namespaceId = 'second-shop';
+    rerender();
+    await act(async () => {
+      result.current.productDisplayPage({ sku: 'different-shop' });
+    });
+    expect(tracker.trackSelfDescribingEvent.mock.lastCall).toHaveLength(1);
+  });
 });
 
 describe('tracker lifecycle', () => {
@@ -218,9 +403,12 @@ describe('tracker lifecycle', () => {
       consent(true);
       rerender();
       await waitFor(() =>
-        expect(tracker.trackPageViewEvent).toHaveBeenCalledWith({
-          pageUrl: '/before-consent',
-        })
+        expect(tracker.trackPageViewEvent).toHaveBeenCalledWith(
+          {
+            pageUrl: '/before-consent',
+          },
+          webPageContext()
+        )
       );
       expect(createTracker).toHaveBeenCalledOnce();
     }
@@ -248,8 +436,8 @@ describe('tracker lifecycle', () => {
       finish(tracker);
     });
     expect(tracker.trackPageViewEvent.mock.calls).toEqual([
-      [{ pageUrl: '/pending-auth' }],
-      [{ pageUrl: '/pending-tracker' }],
+      [{ pageUrl: '/pending-auth' }, webPageContext('page-1')],
+      [{ pageUrl: '/pending-tracker' }, webPageContext('page-2')],
     ]);
   });
 
@@ -331,9 +519,12 @@ describe('tracker lifecycle', () => {
     consent(true);
     rerender();
     await waitFor(() =>
-      expect(tracker.trackPageViewEvent).toHaveBeenCalledWith({
-        pageUrl: '/while-withdrawn',
-      })
+      expect(tracker.trackPageViewEvent).toHaveBeenCalledWith(
+        {
+          pageUrl: '/while-withdrawn',
+        },
+        webPageContext()
+      )
     );
     const replacementSignal = vi.mocked(createTracker).mock.calls[1][3];
     unmount();
@@ -354,9 +545,12 @@ describe('tracker lifecycle', () => {
     consent(true);
     rerender();
     await waitFor(() =>
-      expect(tracker.trackPageViewEvent).toHaveBeenCalledWith({
-        pageUrl: '/in-flight',
-      })
+      expect(tracker.trackPageViewEvent).toHaveBeenCalledWith(
+        {
+          pageUrl: '/in-flight',
+        },
+        webPageContext()
+      )
     );
   });
 

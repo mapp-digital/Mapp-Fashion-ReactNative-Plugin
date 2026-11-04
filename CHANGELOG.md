@@ -29,6 +29,11 @@ also included. Follow **Upgrading from 0.1.x** and review the changes below.
 
 ### Changed
 
+- `pageView()` generates a context UUID when omitted and retains it per
+  `DressipiProvider`. Product views and recommendation interactions automatically
+  reuse the latest page-view ID as `parentPageViewId`. Explicit parent IDs override
+  this default; an empty string omits the context. IDs are captured before queueing.
+
 - Recommendation calls now use Fashion API v2. Related-item methods use separate
   endpoints and retain the existing combined hook. Use each outfit or similar
   group's `response_id` for tracking; the top-level ID belongs to the first call.

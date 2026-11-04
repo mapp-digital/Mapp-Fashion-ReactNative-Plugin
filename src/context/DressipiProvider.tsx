@@ -41,6 +41,13 @@ const DressipiContextProvider = ({
     Queue<QueueableEvents>
   >([]);
 
+  // Keep the page context across screen/hook mounts and tracker initialization.
+  // A different provider configuration starts a separate page history.
+  const pageViewContext = useMemo(
+    () => ({ current: undefined as string | undefined }),
+    [namespaceId, domain, clientId]
+  );
+
   /**
    * Access the compliance context to check if user has consented
    */
@@ -198,6 +205,7 @@ const DressipiContextProvider = ({
         // As in 0.1.x, events are queued before consent and while rejected,
         // and sent once the user consents.
         queue,
+        pageViewContext,
         credentials,
         refreshAuthentication: refresh,
       }}

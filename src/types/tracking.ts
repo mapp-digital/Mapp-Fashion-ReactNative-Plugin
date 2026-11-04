@@ -149,7 +149,10 @@ export type ProductPayload = {
  * Represents the payload for a product detail page view event.
  */
 export type ProductDetailPageEventPayload = ProductPayload & {
-  /** The containing page's Snowplow web_page context UUID. */
+  /**
+   * Overrides the most recent pageView's Snowplow web_page context UUID.
+   * Omit to link automatically; an empty string disables the parent context.
+   */
   parentPageViewId?: string;
 };
 
@@ -283,7 +286,10 @@ export type IdentifyEventPayload = {
 
 /** Optional source page context for recommendation interactions. */
 export type RecommendationPageContext = {
-  /** The source page's Snowplow web_page context UUID. */
+  /**
+   * Overrides the most recent pageView's Snowplow web_page context UUID.
+   * Omit to link automatically; an empty string disables the parent context.
+   */
   parentPageViewId?: string;
 };
 
@@ -349,6 +355,6 @@ export type PageViewEventPayload = {
   pageUrl: string;
   pageTitle?: string;
   referrer?: string;
-  /** Reuse this UUID as parentPageViewId on recommendation interactions. */
+  /** Optional context UUID. The SDK generates one per pageView call if omitted. */
   pageViewId?: string;
 };
