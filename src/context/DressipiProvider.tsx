@@ -12,6 +12,8 @@ import { logTrackingEvent } from '../utils/trackingLogging';
 import { ComplianceProvider } from './ComplianceProvider';
 import { DressipiContext } from './DressipiContext';
 
+const skipAuthenticationRefresh = () => Promise.resolve();
+
 /**
  * Inner component that provides the DressipiContext and handles conditional authentication
  * based on user consent. This component has access to the ComplianceContext.
@@ -103,7 +105,7 @@ const DressipiContextProvider = ({
     : {
         networkUserId: null,
         credentials: null,
-        refresh: () => Promise.resolve(),
+        refresh: skipAuthenticationRefresh,
       };
 
   /**
@@ -233,7 +235,7 @@ export const DressipiProvider = ({
   clientId,
   enableLogging = false,
   logTokens = false,
-  storage = new KeyChainAdapter(),
+  storage,
   defaultConsent,
   appVersion,
   appBuild,
@@ -242,7 +244,10 @@ export const DressipiProvider = ({
    * Use the provided storage adapter instance.
    * This adapter will be used for securely storing and retrieving credentials.
    */
-  const storageAdapter = useMemo(() => storage, [storage]);
+  const storageAdapter = useMemo(
+    () => storage ?? new KeyChainAdapter(),
+    [storage]
+  );
 
   /**
    * Initialize the logging system.
