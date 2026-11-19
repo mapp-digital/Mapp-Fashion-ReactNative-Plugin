@@ -51,7 +51,7 @@ iOS). `react-native-keychain` also still needs native linking.
 
 ### Upgrading from 0.1.x
 
-Version 0.2.0 replaces Snowplow tracker 2.x with 4.x and migrates recommendations
+Version 1.0.0 replaces Snowplow tracker 2.x with 4.x and migrates recommendations
 to Fashion API v2. The existing hooks remain available. Follow the installation
 steps below, then review the recommendation and tracking changes that follow:
 
@@ -1731,7 +1731,7 @@ The test app already enables it in `app/_layout.tsx`.
 </DressipiProvider>
 ```
 
-From SDK 0.2.0, **search for `parentPageViewId` in the DevTools Console** to
+From SDK 1.0.0, **search for `parentPageViewId` in the DevTools Console** to
 see recommendation clicks before an HTTP request exists. These logs use the
 `[Fashion Tracking]` prefix, so clear any `Fashion HTTP` filter first:
 
@@ -1746,9 +1746,9 @@ built event's context, and a missing ID is logged as `parentPageViewId=null`.
 A token without the tracking `subn` claim or a saved tracking identity for the
 same profile produces a `Tracking is waiting` warning with
 `reason: missing_network_user_id`; this warning contains no credentials.
-From SDK 0.2.0, every affected queued event also includes this specific reason
+From SDK 1.0.0, every affected queued event also includes this specific reason
 in its log line and details instead of the generic `tracker_not_ready`.
-From SDK 0.2.0, OAuth refresh preserves a previously issued `subn` in local
+From SDK 1.0.0, OAuth refresh preserves a previously issued `subn` in local
 `trackingIdentity` metadata alongside the credentials. The SDK reuses it only
 when the refreshed token has the same profile (`sub`), including after a storage
 round trip or app restart. A new token's `subn` takes precedence. The SDK does
@@ -1759,7 +1759,7 @@ identity, refreshing cannot reconstruct it. Recover the identity with the
 Fashion backend, or explicitly create a new demo profile if losing that profile's
 personalization is acceptable. The SDK does not reset profiles automatically.
 
-From Fashion SDK 0.2.0, filter the JavaScript console for **`[Fashion HTTP]`**.
+From Fashion SDK 1.0.0, filter the JavaScript console for **`[Fashion HTTP]`**.
 Each network attempt has a matching `requestId` (for example, `fashion-12`):
 
 - `REQUEST`: HTTP method, full URL/query string, and request body (`null` for no body).
@@ -1772,7 +1772,7 @@ IDs. Logs describe actual transport attempts; an event waiting in the SDK queue
 has no HTTP response yet.
 
 Collector requests also include `decodedEvents`, a readable copy of Snowplow's
-base64 event and context fields. From SDK 0.2.0, search for
+base64 event and context fields. From SDK 1.0.0, search for
 `decodedEvents[].parentPageViewId` on product views and recommendation events, and `pageViewId` on
 source page-view events. These diagnostic fields are read from the actual
 serialized `web_page` context's `data.id`; missing context is shown as `null`.
@@ -1791,7 +1791,7 @@ Example output (body fields abbreviated):
 
 Empty responses remain empty strings; JSON responses are displayed as objects.
 Authorization headers, OAuth codes/verifiers, tokens, and password fields are
-masked as `[REDACTED]` in diagnostic copies by default. From SDK 0.2.0, set
+masked as `[REDACTED]` in diagnostic copies by default. From SDK 1.0.0, set
 `logTokens={true}` alongside `enableLogging={true}` to print complete
 `access_token` and `refresh_token` fields in HTTP response bodies and cached
 credential logs. For development builds, use `logTokens={__DEV__}`. Search for

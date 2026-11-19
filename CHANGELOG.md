@@ -5,7 +5,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 the project uses [Semantic Versioning](https://semver.org/). Before 1.0.0, a
 minor version bump can contain breaking changes.
 
-## [0.2.0] - Unreleased
+## [1.0.0] - Unreleased
 
 This release moves Fashion from Snowplow React Native tracker 2.x to 4.x and
 migrates recommendations to Fashion API v2. The existing recommendation hooks
@@ -145,7 +145,7 @@ also included. Follow **Upgrading from 0.1.x** and review the changes below.
   `sessionIndex` starts at 1 again with no link to the last 0.1.x session, and
   an `application_install` event may be sent. The network user ID
   (`nuid`/`tnuid`) is not affected: it comes from Fashion's stored login,
-  which the upgrade keeps. Rolling back to 0.1.x does not read the 0.2.0
+  which the upgrade keeps. Rolling back to 0.1.x does not read the 1.0.0
   storage.
 - Snowplow 4 starts a new session on every app launch. It keeps the device
   user ID and links the previous session (`previousSessionId`), but session
