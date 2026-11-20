@@ -12,6 +12,8 @@ import { logTrackingEvent } from '../utils/trackingLogging';
 import { ComplianceProvider } from './ComplianceProvider';
 import { DressipiContext } from './DressipiContext';
 
+const skipAuthenticationRefresh = () => Promise.resolve();
+
 /**
  * Inner component that provides the DressipiContext and handles conditional authentication
  * based on user consent. This component has access to the ComplianceContext.
@@ -40,6 +42,13 @@ const DressipiContextProvider = ({
   const queue: RefObject<Queue<QueueableEvents>> = useRef<
     Queue<QueueableEvents>
   >([]);
+
+  // Keep the page context across screen/hook mounts and tracker initialization.
+  // A different provider configuration starts a separate page history.
+  const pageViewContext = useMemo(
+    () => ({ current: undefined as string | undefined }),
+    [namespaceId, domain, clientId]
+  );
 
   /**
    * Access the compliance context to check if user has consented
@@ -96,7 +105,7 @@ const DressipiContextProvider = ({
     : {
         networkUserId: null,
         credentials: null,
-        refresh: () => Promise.resolve(),
+        refresh: skipAuthenticationRefresh,
       };
 
   /**
@@ -198,6 +207,7 @@ const DressipiContextProvider = ({
         // As in 0.1.x, events are queued before consent and while rejected,
         // and sent once the user consents.
         queue,
+        pageViewContext,
         credentials,
         refreshAuthentication: refresh,
       }}
@@ -225,7 +235,7 @@ export const DressipiProvider = ({
   clientId,
   enableLogging = false,
   logTokens = false,
-  storage = new KeyChainAdapter(),
+  storage,
   defaultConsent,
   appVersion,
   appBuild,
@@ -234,7 +244,10 @@ export const DressipiProvider = ({
    * Use the provided storage adapter instance.
    * This adapter will be used for securely storing and retrieving credentials.
    */
-  const storageAdapter = useMemo(() => storage, [storage]);
+  const storageAdapter = useMemo(
+    () => storage ?? new KeyChainAdapter(),
+    [storage]
+  );
 
   /**
    * Initialize the logging system.

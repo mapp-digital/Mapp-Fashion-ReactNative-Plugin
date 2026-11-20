@@ -41,12 +41,10 @@ export default defineConfig({
         'src/**/enums/**',
       ],
       thresholds: {
-        global: {
-          branches: 80,
-          functions: 80,
-          lines: 80,
-          statements: 80,
-        },
+        branches: 80,
+        functions: 80,
+        lines: 80,
+        statements: 80,
       },
     },
 
@@ -55,16 +53,6 @@ export default defineConfig({
 
     // Hook timeout
     hookTimeout: 10000,
-
-    // Mock configurations
-    deps: {
-      // Mock axios and other external dependencies
-      external: [
-        'axios',
-        'react-native-keychain',
-        '@snowplow/react-native-tracker',
-      ],
-    },
   },
 
   // Path resolution to match your tsconfig

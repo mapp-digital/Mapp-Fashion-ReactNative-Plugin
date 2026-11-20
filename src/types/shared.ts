@@ -15,8 +15,8 @@ export type DetailedItem = {
   image_url: string;
   best_model_image?: string;
   best_product_image?: string | '';
-  has_outfits: boolean;
-  status: DetailedItemStatus;
+  has_outfits?: boolean;
+  status?: DetailedItemStatus;
   style_id?: string;
 };
 

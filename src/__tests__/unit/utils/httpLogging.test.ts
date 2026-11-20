@@ -448,11 +448,15 @@ describe('Fashion collector request logs', () => {
 it('redacts credential fields in existing SDK logs too, without hiding page IDs', () => {
   Log.info('Credentials', 'useAuth.ts', {
     access_token: 'secret',
-    headers: { Authorization: 'Bearer secret' },
+    headers: {
+      Authorization: 'Bearer secret',
+      'x-dressipi-jwt': 'private-jwt',
+    },
     parentPageViewId: 'page-id',
   });
   const logged = String(vi.mocked(console.info).mock.calls[0][1]);
   expect(logged).not.toContain('secret');
+  expect(logged).not.toContain('private-jwt');
   expect(logged).toContain('page-id');
   expect(logged).toContain('[REDACTED]');
 });

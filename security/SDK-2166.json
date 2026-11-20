@@ -1,0 +1,382 @@
+{
+  "issue": "https://mapp.atlassian.net/browse/SDK-2166",
+  "assessed_on": "2026-11-04",
+  "baseline_commit": "8313f52c362b4273b24c64048165371bae8d75df",
+  "package_version": "0.2.10",
+  "existing_user_version_edit_preserved": true,
+  "lockfile_sha256": "c3deae601a9c26d28f7639f62b659c7ca6c5ac3fec8717512b414aedd12dcde5",
+  "audit": {
+    "registry": "https://registry.npmjs.org/",
+    "command": "npm audit --json --package-lock-only",
+    "before": {
+      "info": 0,
+      "low": 0,
+      "moderate": 3,
+      "high": 14,
+      "critical": 4,
+      "total": 21
+    },
+    "after": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "scope": "Complete lockfile, including development and peer dependency paths. No omissions or allowlist filters."
+  },
+  "verification": {
+    "node": "22.23.2",
+    "npm_clean_install": "10.9.8",
+    "lock_resolver": "npm 11 in a clean temporary directory; npm 10 update crashed in Arborist peer resolution. No legacy-peer-deps or force used.",
+    "checks": [
+      {
+        "command": "npm ci --no-fund",
+        "result": "passed; standard lifecycle scripts enabled"
+      },
+      {
+        "command": "npm run build",
+        "result": "passed"
+      },
+      {
+        "command": "npm test -- --run",
+        "result": "passed: 429 tests in 27 files"
+      },
+      {
+        "command": "npm run test:tracker",
+        "result": "passed: 14 real Snowplow payloads, simulated platform and collector"
+      },
+      {
+        "command": "npm run lint:check",
+        "result": "passed"
+      },
+      {
+        "command": "npm pack --dry-run --json --ignore-scripts",
+        "result": "passed: SDK 0.2.10 package contents checked"
+      },
+      {
+        "command": "npm run audit:check",
+        "result": "passed: zero vulnerabilities"
+      },
+      {
+        "command": "npm ls --all --json",
+        "result": "passed: no invalid, missing, or conflicting installed dependencies"
+      },
+      {
+        "command": "npm ci --prefer-offline --no-fund",
+        "result": "passed after final parent overrides; no resolved package versions changed from the fully tested tree"
+      }
+    ],
+    "limits": [
+      "No Android or iOS native build was run for SDK-2132. Runtime behavior was checked through the existing automated tests and Snowplow serializer/emitter check.",
+      "This audit is a point-in-time registry result; it does not itself grant a PROTECT exception or close triage of unreviewed advisories."
+    ]
+  },
+  "toolchain_changes": {
+    "eslint": "10.14.0, flat configuration, unused lint plugins removed",
+    "typescript_eslint": "8.72.1",
+    "vitest_and_coverage": "4.1.12 (matching versions)",
+    "vite": "6.4.5",
+    "minimatch_override": {
+      "replacement": "^11.0.4",
+      "reason": "Addresses GHSA-g3hv-75wg-m249. Scoped to three modern named-export consumers; lint and TypeScript parser/build pass. Does not substitute the old callable 3.x API.",
+      "consumer_install_scope": "Development-only override at the repository root; runtime fixes are minimum direct dependency versions, not override-only changes.",
+      "parents": [
+        "eslint",
+        "@eslint/config-array",
+        "@typescript-eslint/typescript-estree"
+      ]
+    }
+  },
+  "ticket_components": [
+    {
+      "component": "form-data",
+      "before": ["4.0.3"],
+      "after": ["4.0.6"],
+      "classification": "SDK runtime dependency; form-data and follow-redirects belong to the Axios Node adapter; uuid is used by Snowplow.",
+      "advisories": ["GHSA-hmw2-7cc7-3qxx"],
+      "decision": "Updated or replaced through compatible parent updates; no remaining finding in the final npm audit."
+    },
+    {
+      "component": "axios",
+      "before": ["1.9.0"],
+      "after": ["1.21.0"],
+      "classification": "SDK runtime dependency; form-data and follow-redirects belong to the Axios Node adapter; uuid is used by Snowplow.",
+      "advisories": ["GHSA-x97p-jq2g-jp4f"],
+      "decision": "Updated or replaced through compatible parent updates; no remaining finding in the final npm audit."
+    },
+    {
+      "component": "lodash-es",
+      "before": ["4.17.21"],
+      "after": ["4.18.1"],
+      "classification": "SDK runtime dependency; form-data and follow-redirects belong to the Axios Node adapter; uuid is used by Snowplow.",
+      "advisories": ["GHSA-r5fr-rjxr-66jc"],
+      "decision": "Updated or replaced through compatible parent updates; no remaining finding in the final npm audit."
+    },
+    {
+      "component": "shell-quote",
+      "before": ["1.12.0"],
+      "after": ["1.12.0"],
+      "classification": "React Native development/bundling toolchain, sometimes also shared with lint/test tooling; not imported by the Fashion source.",
+      "advisories": ["GHSA-pqg4-j6r4-53mv"],
+      "decision": "Already at or above the ticket target; retained with no finding in the final npm audit."
+    },
+    {
+      "component": "brace-expansion",
+      "before": ["1.1.11", "2.0.1"],
+      "after": ["5.0.12"],
+      "classification": "Development lint/test tooling; not declared as a published SDK runtime dependency.",
+      "advisories": ["GHSA-qhr7-859c-m2p7", "GHSA-q2hr-2g5m-vwhr"],
+      "decision": "Updated or replaced through compatible parent updates; no remaining finding in the final npm audit."
+    },
+    {
+      "component": "js-yaml",
+      "before": ["4.1.0"],
+      "after": [],
+      "classification": "Development lint/test tooling; not declared as a published SDK runtime dependency.",
+      "advisories": ["GHSA-2883-xcg3-v3hh"],
+      "decision": "No remaining occurrence; removed with old tooling or already absent before this work."
+    },
+    {
+      "component": "minimatch",
+      "before": ["3.1.2", "9.0.5"],
+      "after": ["11.0.4"],
+      "classification": "Development lint/test tooling; not declared as a published SDK runtime dependency.",
+      "advisories": ["GHSA-23c5-xmqv-rm74", "GHSA-g3hv-75wg-m249"],
+      "decision": "Updated or replaced through compatible parent updates; no remaining finding in the final npm audit."
+    },
+    {
+      "component": "browserslist",
+      "before": ["4.29.3"],
+      "after": ["4.29.5"],
+      "classification": "React Native development/bundling toolchain, sometimes also shared with lint/test tooling; not imported by the Fashion source.",
+      "advisories": ["GHSA-c83g-rgw3-j3cx", "GHSA-73wf-gq98-2v4g"],
+      "decision": "Updated or replaced through compatible parent updates; no remaining finding in the final npm audit."
+    },
+    {
+      "component": "image-size",
+      "before": [],
+      "after": [],
+      "classification": "Absent from the committed dependency tree.",
+      "advisories": ["GHSA-w3rx-r6r6-pgpr"],
+      "decision": "No remaining occurrence; removed with old tooling or already absent before this work."
+    },
+    {
+      "component": "picomatch",
+      "before": ["2.3.1", "4.0.2", "4.0.7"],
+      "after": ["2.3.2", "4.0.7"],
+      "classification": "React Native development/bundling toolchain, sometimes also shared with lint/test tooling; not imported by the Fashion source.",
+      "advisories": ["GHSA-c2c7-rcm5-vvqj"],
+      "decision": "Updated or replaced through compatible parent updates; no remaining finding in the final npm audit."
+    },
+    {
+      "component": "braces",
+      "before": ["3.0.3"],
+      "after": ["3.0.3"],
+      "classification": "React Native development/bundling toolchain, sometimes also shared with lint/test tooling; not imported by the Fashion source.",
+      "advisories": ["GHSA-vfj7-8cjw-p6xm"],
+      "decision": "Retained 3.0.3. The ticket-cited advisory was withdrawn on 2026-10-23 as not practically exploitable; the final npm audit reports no finding.",
+      "reference": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm"
+    },
+    {
+      "component": "uuid",
+      "before": ["11.1.1"],
+      "after": ["11.1.1"],
+      "classification": "SDK runtime dependency; form-data and follow-redirects belong to the Axios Node adapter; uuid is used by Snowplow.",
+      "advisories": ["GHSA-w5hq-g745-h8pq"],
+      "decision": "Already at or above the ticket target; retained with no finding in the final npm audit."
+    },
+    {
+      "component": "ws",
+      "before": ["7.5.13", "8.18.2"],
+      "after": ["7.5.13", "8.22.1"],
+      "classification": "7.x: React Native/Metro/devtools dependency; 8.x: jsdom test dependency. Not imported by Fashion source.",
+      "advisories": ["GHSA-96hv-2xvq-fx4p", "GHSA-73jw-fp74-p77x"],
+      "decision": "Upgrade jsdom to resolved ws 8.22.1. Retain compatible ws 7.5.13 for React Native/Metro; do not force a major-version override.",
+      "evidence": {
+        "npm_audit_finding_for_7_5_13": false,
+        "bounded_fragment_check": [
+          {
+            "version": "7.5.13",
+            "classification": "React Native compatible 7.x",
+            "defaultServerMaxFragments": 16384,
+            "incompleteMessageRejectedAtLimit": true,
+            "errorCode": "WS_ERR_TOO_MANY_BUFFERED_PARTS"
+          },
+          {
+            "version": "8.22.1",
+            "classification": "jsdom-compatible 8.x",
+            "defaultServerMaxFragments": 16384,
+            "incompleteMessageRejectedAtLimit": true,
+            "errorCode": "WS_ERR_TOO_MANY_BUFFERED_PARTS"
+          }
+        ],
+        "source_paths": [
+          "node_modules/react-native/node_modules/ws/lib/receiver.js",
+          "node_modules/react-native/node_modules/ws/lib/websocket.js",
+          "node_modules/react-native/node_modules/ws/lib/websocket-server.js"
+        ],
+        "check_setup": "Construct a receiver with maxFragments=2. Feed one initial text frame and two continuation frames, all FIN=0. Both versions reject the still-incomplete message with WS_ERR_TOO_MANY_BUFFERED_PARTS. Server default maxFragments is 16384; 7.5.13 client defaults also set maxFragments=16384.",
+        "triage_limit": "GHSA-73jw-fp74-p77x is unreviewed and has no mapped package/version range. This bounded check supports assessment of the described incomplete-message condition; it does not establish universal non-applicability. PROTECT retains final triage authority; no exception has been approved by this implementation."
+      }
+    }
+  ],
+  "additional_audit_findings_resolved": [
+    {
+      "component": "@vitest/coverage-v8",
+      "severity_before": "critical",
+      "before": ["3.2.3"],
+      "after": ["4.1.12"],
+      "classification": "Development lint/test tooling; not declared as a published SDK runtime dependency.",
+      "advisories": [],
+      "finding_after": false
+    },
+    {
+      "component": "@vitest/mocker",
+      "severity_before": "moderate",
+      "before": ["3.2.3"],
+      "after": ["4.1.12"],
+      "classification": "Development lint/test tooling; not declared as a published SDK runtime dependency.",
+      "advisories": [
+        "https://github.com/advisories/GHSA-82fw-gwwq-j7x9",
+        "https://github.com/advisories/GHSA-qxg6-89mg-rqv8"
+      ],
+      "finding_after": false
+    },
+    {
+      "component": "ajv",
+      "severity_before": "moderate",
+      "before": ["6.12.6"],
+      "after": ["6.15.0"],
+      "classification": "Development lint/test tooling; not declared as a published SDK runtime dependency.",
+      "advisories": ["https://github.com/advisories/GHSA-2g4f-4pwh-qvx6"],
+      "finding_after": false
+    },
+    {
+      "component": "flatted",
+      "severity_before": "high",
+      "before": ["3.3.3"],
+      "after": ["3.4.4"],
+      "classification": "Development lint/test tooling; not declared as a published SDK runtime dependency.",
+      "advisories": [
+        "https://github.com/advisories/GHSA-25h7-pfq9-p65f",
+        "https://github.com/advisories/GHSA-rf6f-7fwh-wjgh"
+      ],
+      "finding_after": false
+    },
+    {
+      "component": "follow-redirects",
+      "severity_before": "moderate",
+      "before": ["1.15.9"],
+      "after": ["1.16.2"],
+      "classification": "SDK runtime dependency; form-data and follow-redirects belong to the Axios Node adapter; uuid is used by Snowplow.",
+      "advisories": ["https://github.com/advisories/GHSA-r4q5-vmmm-2653"],
+      "finding_after": false
+    },
+    {
+      "component": "glob",
+      "severity_before": "high",
+      "before": ["10.4.5", "7.2.3"],
+      "after": [],
+      "classification": "Development lint/test tooling; not declared as a published SDK runtime dependency.",
+      "advisories": [
+        "https://github.com/advisories/GHSA-5j98-mcp5-4vw2",
+        "https://github.com/advisories/GHSA-3g3m-2fjr-6pw4"
+      ],
+      "finding_after": false
+    },
+    {
+      "component": "nanoid",
+      "severity_before": "high",
+      "before": ["3.3.11"],
+      "after": ["3.3.20"],
+      "classification": "Development lint/test tooling; not declared as a published SDK runtime dependency.",
+      "advisories": [
+        "https://github.com/advisories/GHSA-28wg-ghj8-5hjv",
+        "https://github.com/advisories/GHSA-2v37-7h3g-55p8",
+        "https://github.com/advisories/GHSA-xwg4-73v4-xw9w"
+      ],
+      "finding_after": false
+    },
+    {
+      "component": "postcss",
+      "severity_before": "high",
+      "before": ["8.5.5"],
+      "after": ["8.5.32"],
+      "classification": "Development lint/test tooling; not declared as a published SDK runtime dependency.",
+      "advisories": [
+        "https://github.com/advisories/GHSA-qx2v-qp2m-jg93",
+        "https://github.com/advisories/GHSA-6g55-p6wh-862q",
+        "https://github.com/advisories/GHSA-fxqj-rqcc-2cmp",
+        "https://github.com/advisories/GHSA-r28c-9q8g-f849"
+      ],
+      "finding_after": false
+    },
+    {
+      "component": "rollup",
+      "severity_before": "high",
+      "before": ["4.43.0"],
+      "after": ["4.67.5"],
+      "classification": "Development lint/test tooling; not declared as a published SDK runtime dependency.",
+      "advisories": ["https://github.com/advisories/GHSA-mw96-cpmx-2vgc"],
+      "finding_after": false
+    },
+    {
+      "component": "source-map-js",
+      "severity_before": "high",
+      "before": ["1.2.1"],
+      "after": ["1.2.2"],
+      "classification": "Development lint/test tooling; not declared as a published SDK runtime dependency.",
+      "advisories": ["https://github.com/advisories/GHSA-68fv-2mgg-jv7q"],
+      "finding_after": false
+    },
+    {
+      "component": "tinypool",
+      "severity_before": "critical",
+      "before": ["1.1.0"],
+      "after": [],
+      "classification": "Development lint/test tooling; not declared as a published SDK runtime dependency.",
+      "advisories": [
+        "https://github.com/advisories/GHSA-5gmw-xhrv-c9v3",
+        "https://github.com/advisories/GHSA-85c8-ppgw-ccpr"
+      ],
+      "finding_after": false
+    },
+    {
+      "component": "vite",
+      "severity_before": "high",
+      "before": ["6.3.5"],
+      "after": ["6.4.5"],
+      "classification": "Development lint/test tooling; not declared as a published SDK runtime dependency.",
+      "advisories": [
+        "https://github.com/advisories/GHSA-g4jq-h2w9-997c",
+        "https://github.com/advisories/GHSA-jqfw-vq24-v9c3",
+        "https://github.com/advisories/GHSA-93m4-6634-74q7",
+        "https://github.com/advisories/GHSA-4w7w-66w2-5vf9",
+        "https://github.com/advisories/GHSA-p9ff-h696-f583",
+        "https://github.com/advisories/GHSA-v6wh-96g9-6wx3",
+        "https://github.com/advisories/GHSA-698v-4r3x-3vcv",
+        "https://github.com/advisories/GHSA-r825-w8mm-5pxw",
+        "https://github.com/advisories/GHSA-587h-7wmj-h5pm",
+        "https://github.com/advisories/GHSA-9jrq-w75r-8gcw",
+        "https://github.com/advisories/GHSA-rq7h-c2jc-7f22",
+        "https://github.com/advisories/GHSA-fx2h-pf6j-xcff"
+      ],
+      "finding_after": false
+    },
+    {
+      "component": "vitest",
+      "severity_before": "critical",
+      "before": ["3.2.3"],
+      "after": ["4.1.12"],
+      "classification": "Development lint/test tooling; not declared as a published SDK runtime dependency.",
+      "advisories": [
+        "https://github.com/advisories/GHSA-5xrq-8626-4rwp",
+        "https://github.com/advisories/GHSA-82fw-gwwq-j7x9"
+      ],
+      "finding_after": false
+    }
+  ],
+  "protect_exception_approvals": []
+}

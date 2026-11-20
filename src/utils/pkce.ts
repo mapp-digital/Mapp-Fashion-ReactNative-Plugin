@@ -14,7 +14,7 @@ export interface PKCEChallenge {
  * This is OAuth2 PKCE compliant as code verifiers don't require cryptographic randomness
  *
  * @param length - The length of the random string to generate
- * @returns {string} A random string suitable for PKCE code verifier
+ * @returns {string} A random string suitable for PKCE code verifier
  */
 function generateRandomCodeVerifier(length: number = 43): string {
   /**

@@ -35,6 +35,7 @@ vi.mock('@snowplow/react-native-tracker', () => ({
 }));
 
 vi.mock('react-native-uuid', () => ({
+  default: { v4: vi.fn(() => 'mock-uuid-1234') },
   v4: vi.fn(() => 'mock-uuid-1234'),
 }));
 

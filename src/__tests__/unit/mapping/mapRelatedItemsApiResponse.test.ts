@@ -1,3 +1,8 @@
+import {
+  garments,
+  outfit,
+  recommendation,
+} from '../../test-utils/recommendation-v2-data';
 import { describe, expect, it } from 'vitest';
 import { ResponseFormat } from '../../../enums/ResponseFormat';
 import { mapRelatedItemsApiResponse } from '../../../mapping/mapRelatedItemsApiResponse';
@@ -148,6 +153,7 @@ describe('mapRelatedItemsApiResponse', () => {
 
       expect(result.outfits).toHaveLength(1);
       expect(result.outfits![0]).toEqual({
+        response_id: 'event_12345',
         content_id: 'outfit_123',
         occasion: 'casual',
         items: [
@@ -267,6 +273,7 @@ describe('mapRelatedItemsApiResponse', () => {
       );
 
       expect(result.similar_items).toEqual({
+        response_id: 'event_12345',
         content_id: 'similar_123',
         items: [
           {
@@ -525,4 +532,41 @@ describe('mapRelatedItemsApiResponse', () => {
       expect(result.similar_items!.content_id).toBe('similar_123');
     });
   });
+});
+
+it('retains endpoint event IDs and avoids duplicating the source in v2 outfits', () => {
+  const response = {
+    event_id: 'outfits-event',
+    event_ids: {
+      outfits: 'outfits-event',
+      partner_outfits: 'partner-event',
+      similar_items: 'similar-event',
+    },
+    source: { garment_id: 'ITEM-1', raw_garment_id: 1 },
+    garment_data: garments,
+    outfits: [outfit],
+    partner_outfits: [outfit],
+    similar_items: { content_id: 'similar', items: [recommendation] },
+  };
+  const mapped = mapRelatedItemsApiResponse(response, ResponseFormat.Detailed);
+  expect(mapped.outfits![0].response_id).toBe('outfits-event');
+  expect(mapped.partner_outfits![0].response_id).toBe('partner-event');
+  expect(mapped.similar_items!.response_id).toBe('similar-event');
+  expect(mapped.outfits![0].items.map(item => item.id)).toEqual([
+    'ITEM-1',
+    'ITEM-2',
+  ]);
+});
+
+it('maps empty v2 results with a null source', () => {
+  const mapped = mapRelatedItemsApiResponse(
+    {
+      event_id: 'empty',
+      source: null,
+      garment_data: [],
+      outfits: [],
+    },
+    ResponseFormat.Detailed
+  );
+  expect(mapped).toEqual({ response_id: 'empty', outfits: [] });
 });

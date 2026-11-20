@@ -14,6 +14,8 @@ export type ContextConfiguration = {
   clientId: string;
   tracker: FashionTracker | null;
   queue: RefObject<Queue<QueueableEvents> | null> | null;
+  /** Most recent page-view context, shared by tracking hooks in this provider. */
+  pageViewContext: RefObject<string | undefined> | null;
   credentials: AuthCredentials | null;
   refreshAuthentication: () => void;
 };
