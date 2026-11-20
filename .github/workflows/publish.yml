@@ -1,0 +1,102 @@
+name: Publish to npm
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_mode:
+        description: Validate or publish to npm
+        required: true
+        default: dry-run
+        type: choice
+        options:
+          - dry-run
+          - publish
+      npm_dist_tag:
+        description: npm distribution tag
+        required: true
+        default: latest
+        type: choice
+        options:
+          - latest
+          - next
+          - legacy
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Resolve release version
+        id: release
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Test
+        run: npm test -- --run
+
+      - name: Build
+        run: npm run build
+
+      - name: Validate tracker integration
+        run: npm run test:tracker
+
+      - name: Validate package contents
+        run: npm pack --dry-run
+
+      - name: Validate publishing (dry-run)
+        if: inputs.deployment_mode == 'dry-run'
+        run: npm publish --access public --tag "$NPM_DIST_TAG" --dry-run
+        env:
+          NPM_DIST_TAG: ${{ inputs.npm_dist_tag }}
+
+      - name: Check npm token and release tag
+        if: inputs.deployment_mode == 'publish'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo '::error::Add the NPM_TOKEN repository Actions secret before publishing.'
+            exit 1
+          fi
+          npm whoami
+          if [ -n "$(git ls-remote --tags origin "refs/tags/$RELEASE_TAG")" ]; then
+            echo "::error::Release tag $RELEASE_TAG already exists. Bump package.json and package-lock.json first."
+            exit 1
+          fi
+
+      - name: Publish to npm
+        if: inputs.deployment_mode == 'publish'
+        run: npm publish --access public --tag "$NPM_DIST_TAG"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_DIST_TAG: ${{ inputs.npm_dist_tag }}
+
+      - name: Create GitHub release
+        if: inputs.deployment_mode == 'publish'
+        run: |
+          gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" \
+            --title "Mapp Fashion RN - $VERSION" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
