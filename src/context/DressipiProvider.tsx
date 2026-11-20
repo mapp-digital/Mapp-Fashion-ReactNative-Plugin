@@ -1,14 +1,18 @@
-import type { ReactNativeTracker } from '@snowplow/react-native-tracker';
-import { RefObject, useEffect, useMemo, useRef } from 'react';
+import type { FashionTracker } from '../tracking/tracker';
+import type { ReactNode } from 'react';
+import { RefObject, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useCompliance } from '../hooks/useCompliance';
 import { KeyChainAdapter } from '../keychain/KeyChainAdapter';
-import { createTracker } from '../tracking/tracker';
+import { abortForConsentWithdrawal, createTracker } from '../tracking/tracker';
 import { ProviderProps } from '../types/context';
 import { Queue, QueueableEvents, QueuedEvent } from '../types/tracking';
 import { Log } from '../utils/logger';
+import { logTrackingEvent } from '../utils/trackingLogging';
 import { ComplianceProvider } from './ComplianceProvider';
 import { DressipiContext } from './DressipiContext';
+
+const skipAuthenticationRefresh = () => Promise.resolve();
 
 /**
  * Inner component that provides the DressipiContext and handles conditional authentication
@@ -20,12 +24,16 @@ const DressipiContextProvider = ({
   domain,
   clientId,
   storageAdapter,
+  appVersion,
+  appBuild,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   namespaceId: string;
   domain: string;
   clientId: string;
   storageAdapter: any;
+  appVersion?: string;
+  appBuild?: string;
 }) => {
   /**
    * Create a reference object to the queue of events
@@ -34,6 +42,13 @@ const DressipiContextProvider = ({
   const queue: RefObject<Queue<QueueableEvents>> = useRef<
     Queue<QueueableEvents>
   >([]);
+
+  // Keep the page context across screen/hook mounts and tracker initialization.
+  // A different provider configuration starts a separate page history.
+  const pageViewContext = useMemo(
+    () => ({ current: undefined as string | undefined }),
+    [namespaceId, domain, clientId]
+  );
 
   /**
    * Access the compliance context to check if user has consented
@@ -90,35 +105,68 @@ const DressipiContextProvider = ({
     : {
         networkUserId: null,
         credentials: null,
-        refresh: () => Promise.resolve(),
+        refresh: skipAuthenticationRefresh,
       };
 
-  const tracker: ReactNativeTracker | null = useMemo(() => {
-    /**
-     * Create a tracker instance only if user has consented and networkUserId is available
-     */
+  /**
+   * Latest consent value, read when the tracker effect is cleaned up to tell
+   * consent withdrawal apart from identity/configuration changes and unmount.
+   */
+  const consentRef = useRef(hasConsented);
+  consentRef.current = hasConsented;
+
+  const [tracker, setTracker] = useState<FashionTracker | null>(null);
+
+  const hasCredentials = Boolean(credentials);
+  useEffect(() => {
+    if (shouldAuthenticate && hasCredentials && !networkUserId) {
+      Log.warn(
+        'Tracking is waiting: no network user ID is available from the token subn claim or the saved identity for this profile. Events remain queued.',
+        'Fashion Tracking',
+        { status: 'BLOCKED', reason: 'missing_network_user_id' }
+      );
+      // Also make already queued events visible after a development refresh.
+      queue.current.forEach(event =>
+        logTrackingEvent(event, 'QUEUED', 'missing_network_user_id')
+      );
+    }
+  }, [shouldAuthenticate, hasCredentials, networkUserId]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setTracker(null);
     if (shouldAuthenticate && networkUserId) {
-      return createTracker(namespaceId, domain, networkUserId);
+      void createTracker(
+        namespaceId,
+        domain,
+        networkUserId,
+        controller.signal,
+        {
+          appVersion,
+          appBuild,
+        }
+      )
+        .then(value => {
+          if (!controller.signal.aborted) setTracker(value);
+        })
+        .catch(() => {
+          Log.warn('Tracker initialization failed', 'DressipiProvider.tsx');
+        });
     }
-
-    /**
-     * Log why tracker is not being created
-     */
-    if (!shouldAuthenticate) {
-      Log.info(
-        'Tracker not created - user has not consented to data usage',
-        'DressipiProvider.tsx',
-        { hasConsented }
-      );
-    } else if (!networkUserId) {
-      Log.info(
-        'Tracker not created - networkUserId not available (authentication pending)',
-        'DressipiProvider.tsx'
-      );
-    }
-
-    return null;
-  }, [namespaceId, domain, networkUserId, shouldAuthenticate, hasConsented]);
+    return () => {
+      // As in 0.1.x, withdrawal keeps the event queue and lets Snowplow
+      // deliver what it already holds.
+      if (consentRef.current === true) controller.abort();
+      else abortForConsentWithdrawal(controller);
+    };
+  }, [
+    namespaceId,
+    domain,
+    networkUserId,
+    shouldAuthenticate,
+    appVersion,
+    appBuild,
+  ]);
 
   useEffect(() => {
     /**
@@ -144,11 +192,8 @@ const DressipiContextProvider = ({
      * Each queued event contains the event name and the data to be sent.
      */
     eventsToProcess.forEach((queuedEvent: QueuedEvent<QueueableEvents>) => {
-      Log.info('Processing queued event', 'DressipiProvider.tsx', {
-        event: queuedEvent.event,
-      });
-
       (tracker[queuedEvent.event] as Function).apply(tracker, queuedEvent.data);
+      logTrackingEvent(queuedEvent, 'DISPATCHED');
     });
   }, [tracker]);
 
@@ -158,8 +203,11 @@ const DressipiContextProvider = ({
         namespaceId,
         domain,
         clientId,
-        tracker,
+        tracker: shouldAuthenticate ? tracker : null,
+        // As in 0.1.x, events are queued before consent and while rejected,
+        // and sent once the user consents.
         queue,
+        pageViewContext,
         credentials,
         refreshAuthentication: refresh,
       }}
@@ -186,14 +234,20 @@ export const DressipiProvider = ({
   domain,
   clientId,
   enableLogging = false,
-  storage = new KeyChainAdapter(),
+  logTokens = false,
+  storage,
   defaultConsent,
+  appVersion,
+  appBuild,
 }: ProviderProps) => {
   /**
    * Use the provided storage adapter instance.
    * This adapter will be used for securely storing and retrieving credentials.
    */
-  const storageAdapter = useMemo(() => storage, [storage]);
+  const storageAdapter = useMemo(
+    () => storage ?? new KeyChainAdapter(),
+    [storage]
+  );
 
   /**
    * Initialize the logging system.
@@ -201,7 +255,7 @@ export const DressipiProvider = ({
    * If enableLogging is true, the Log class will log messages to the console.
    * Otherwise, logging will be disabled.
    */
-  Log.init(enableLogging);
+  Log.init(enableLogging, logTokens);
 
   /**
    * The DressipiProvider component provides the DressipiContext
@@ -218,6 +272,8 @@ export const DressipiProvider = ({
         domain={domain}
         clientId={clientId}
         storageAdapter={storageAdapter}
+        appVersion={appVersion}
+        appBuild={appBuild}
       >
         {children}
       </DressipiContextProvider>

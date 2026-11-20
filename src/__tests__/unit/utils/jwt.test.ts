@@ -122,6 +122,56 @@ describe('JWT Utils', () => {
   });
 
   describe('getNetworkUserId', () => {
+    it.each([
+      ['matching profile', 'profile-1', 'network-1'],
+      ['different profile', 'profile-2', null],
+      ['missing profile', undefined, null],
+      ['empty profile', '', null],
+    ])(
+      'checks the profile before reading a saved identity: %s',
+      (_, sub, expected) => {
+        const credentials: AuthCredentials = {
+          access_token: `header.${btoa(JSON.stringify({ sub }))}.signature`,
+          refresh_token: 'refresh-token',
+          token_type: 'Bearer',
+          expires_in: 3600,
+          trackingIdentity: {
+            profileId: 'profile-1',
+            networkUserId: 'network-1',
+          },
+        };
+        expect(getNetworkUserId(credentials)).toBe(expected);
+      }
+    );
+
+    it('prefers the current token subn over an older saved identity', () => {
+      const credentials: AuthCredentials = {
+        access_token: `header.${btoa(JSON.stringify({ sub: 'profile-1', subn: 'network-2' }))}.signature`,
+        refresh_token: 'refresh-token',
+        token_type: 'Bearer',
+        expires_in: 3600,
+        trackingIdentity: {
+          profileId: 'profile-1',
+          networkUserId: 'network-1',
+        },
+      };
+      expect(getNetworkUserId(credentials)).toBe('network-2');
+    });
+
+    it('rejects saved identity when the token cannot be decoded', () => {
+      const credentials: AuthCredentials = {
+        access_token: 'invalid-token',
+        refresh_token: 'refresh-token',
+        token_type: 'Bearer',
+        expires_in: 3600,
+        trackingIdentity: {
+          profileId: 'profile-1',
+          networkUserId: 'network-1',
+        },
+      };
+      expect(getNetworkUserId(credentials)).toBeNull();
+    });
+
     it('should return null when credentials are null', () => {
       const result = getNetworkUserId(null as any);
       expect(result).toBeNull();

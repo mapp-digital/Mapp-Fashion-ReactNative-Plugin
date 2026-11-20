@@ -238,6 +238,62 @@ describe('useAuth hook', () => {
   });
 
   describe('refresh function', () => {
+    it('refreshes credentials loaded after the initial render and uses rotated refresh tokens', async () => {
+      mockStorageAdapter.getCredentials = vi
+        .fn()
+        .mockResolvedValue(mockCredentials);
+      const firstRefresh = {
+        ...mockCredentials,
+        access_token: 'refreshed-access-token',
+        refresh_token: 'rotated-refresh-token',
+      };
+      const secondRefresh = {
+        ...firstRefresh,
+        access_token: 'second-access-token',
+        refresh_token: 'second-refresh-token',
+      };
+      mockedAuthService.refreshToken
+        .mockResolvedValueOnce(firstRefresh)
+        .mockResolvedValueOnce(secondRefresh);
+      const { result } = renderHook(() =>
+        useAuth(mockClientId, mockDomain, mockStorageAdapter)
+      );
+      await waitFor(() => expect(result.current.isAuthenticated).toBe(true));
+
+      await act(async () => {
+        await result.current.refresh();
+      });
+      expect(mockedAuthService.refreshToken).toHaveBeenNthCalledWith(
+        1,
+        mockCredentials,
+        mockClientId,
+        mockDomain
+      );
+      expect(result.current.credentials).toEqual(firstRefresh);
+      expect(mockStorageAdapter.setCredentials).toHaveBeenCalledWith(
+        mockClientId,
+        mockDomain,
+        JSON.stringify(firstRefresh)
+      );
+
+      await act(async () => {
+        await result.current.refresh();
+      });
+      expect(mockedAuthService.refreshToken).toHaveBeenNthCalledWith(
+        2,
+        firstRefresh,
+        mockClientId,
+        mockDomain
+      );
+      expect(result.current.credentials).toEqual(secondRefresh);
+      expect(mockStorageAdapter.setCredentials).toHaveBeenLastCalledWith(
+        mockClientId,
+        mockDomain,
+        JSON.stringify(secondRefresh)
+      );
+      expect(mockedAuthService.authenticate).not.toHaveBeenCalled();
+    });
+
     it('should not refresh when already authenticating', async () => {
       mockStorageAdapter.getCredentials = vi
         .fn()

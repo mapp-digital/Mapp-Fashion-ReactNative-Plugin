@@ -1,111 +1,265 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { newTracker, removeTracker } from '@snowplow/react-native-tracker';
 import type { ReactNativeTracker } from '@snowplow/react-native-tracker';
-import { createTracker as createSnowplowTracker } from '@snowplow/react-native-tracker';
+import {
+  buildEcommerceTransaction,
+  buildEcommerceTransactionItem,
+} from '@snowplow/tracker-core';
+import type { TrackerCore } from '@snowplow/tracker-core';
+import { Dimensions, PixelRatio } from 'react-native';
+import type {
+  OrderEventPayload,
+  PageViewEventPayload,
+} from '../types/tracking';
 import { Log } from '../utils/logger';
+import { fetchWithLogging } from '../utils/httpLogging';
 
-/**
- * The namespace for the Snowplow tracker.
- */
-const snowplowNamespace: string =
+const snowplowNamespace =
   process.env.EXPO_PUBLIC_SNOWPLOW_TRACKER_NAMESPACE || 'dressipi';
 
+// React Native's AbortController polyfill drops abort reasons, so withdrawal
+// is recorded separately from the abort itself.
+const withdrawals = new WeakSet<AbortSignal>();
+
 /**
- * Base configuration for the Snowplow React Native Tracker.
+ * Stops a tracker because consent was withdrawn. As in 0.1.x, events Snowplow
+ * already holds are still delivered and its stored queue and session are kept;
+ * a plain `controller.abort()` discards them.
  */
-const baseTrackerConfiguration = {
-  applicationContext: true,
-  platformContext: true,
-  sessionContext: true,
-  deepLinkContext: true,
-  screenContext: true,
-  screenViewAutotracking: true,
-  installAutotracking: true,
-  exceptionAutotracking: false,
+export const abortForConsentWithdrawal = (controller: AbortController) => {
+  withdrawals.add(controller.signal);
+  controller.abort();
+};
+
+export type FashionTracker = {
+  trackSelfDescribingEvent: ReactNativeTracker['trackSelfDescribingEvent'];
+  trackPageViewEvent: (
+    event: PageViewEventPayload,
+    contexts?: Parameters<ReactNativeTracker['trackPageViewEvent']>[1]
+  ) => void;
+  trackEcommerceTransactionEvent: (event: OrderEventPayload) => void;
+};
+
+export type TrackerOptions = {
+  appVersion?: string;
+  appBuild?: string;
 };
 
 /**
- * Creates a tracker instance from the Snowplow React Native Tracker.
- * This function should only be called when the user has consented to data tracking.
- *
- * @param appId - The application ID for the tracker. This will be the
- * namespace ID from the Provider.
- * @param domain - The domain for the tracker.
- * @param networkUserId - The user ID for the tracker.
- * @return {ReactNativeTracker} A Snowplow React Native Tracker instance or
- * null if the networkUserId is not provided.
+ * Device details Snowplow 2 read natively and Snowplow 4 does not:
+ * physical resolution, locale and time zone.
  */
+const deviceDetails = () => {
+  try {
+    const { width, height } = Dimensions.get('screen');
+    const scale = PixelRatio.get();
+    const [shortSide, longSide] = [width, height]
+      .map(side => Math.round(side * scale))
+      .sort((a, b) => a - b);
+    const { locale, timeZone } = Intl.DateTimeFormat().resolvedOptions();
+    return {
+      resolution: [shortSide, longSide] as [number, number],
+      portrait: height >= width,
+      locale,
+      timeZone,
+    };
+  } catch {
+    return undefined;
+  }
+};
+
+// Serialize initialization so a cancelled effect cannot remove its replacement.
+let initialization: Promise<unknown> = Promise.resolve();
+let cleanup: Promise<void> = Promise.resolve();
+
 export const createTracker = (
   appId: string,
   domain: string,
-  networkUserId: string | null
-): ReactNativeTracker | null => {
-  /**
-   * If the networkUserId is not provided, we cannot create a tracker.
-   */
-  if (!networkUserId) {
-    Log.warn('Cannot create tracker - networkUserId is null', 'tracker.ts', {
-      appId,
-      domain,
-    });
-    return null;
-  }
+  networkUserId: string | null,
+  signal: AbortSignal,
+  application: TrackerOptions = {}
+): Promise<FashionTracker | null> => {
+  const initialize = async (): Promise<FashionTracker | null> => {
+    await cleanup;
+    if (!networkUserId || signal.aborted) return null;
 
-  Log.info(
-    'Creating Snowplow tracker - user has consented to tracking',
-    'tracker.ts',
-    {
-      appId,
-      domain,
-      snowplowNamespace,
-      networkUserId,
-    }
-  );
-
-  try {
-    /**
-     * Create a Snowplow tracker instance with the provided
-     * application ID, domain, and network user ID.
-     * The tracker will be configured with the base tracker configuration.
-     */
-    const tracker = createSnowplowTracker(
-      snowplowNamespace,
-      {
-        endpoint: `https://${domain}`,
-        customPostPath: '/t/t',
-      },
-      {
-        trackerConfig: {
-          appId,
-          ...baseTrackerConfiguration,
-        },
-        /**
-         * This might not work, but we'll keep it anyway, it doesn't break
-         * anything.
-         */
-        ...(networkUserId
-          ? { subjectConfig: { networkUserId: networkUserId } }
-          : {}),
+    let failed = false;
+    const withdrawn = () => withdrawals.has(signal);
+    // After withdrawal, storage and delivery keep working for pending events.
+    const stopped = () => (signal.aborted && !withdrawn()) || failed;
+    let tracker: ReactNativeTracker | undefined;
+    let core: TrackerCore | undefined;
+    const storageKeys = new Set<string>();
+    let storageWork = Promise.resolve();
+    const device = deviceDetails();
+    const storageKey = (key: string) => {
+      const scoped = `fashion:${snowplowNamespace}:${key}`;
+      storageKeys.add(scoped);
+      return scoped;
+    };
+    const clearStorage = () => {
+      storageWork = storageWork
+        .catch(() => {})
+        .then(async () => {
+          await AsyncStorage.multiRemove([...storageKeys]);
+        });
+      return storageWork;
+    };
+    const detach = async () => {
+      try {
+        await tracker?.flush();
+      } catch {
+        Log.warn('Could not deliver pending events', 'tracker.ts');
       }
-    );
+      if (tracker) removeTracker(snowplowNamespace);
+    };
+    const stop = () => {
+      if (withdrawn()) {
+        cleanup = detach();
+        return;
+      }
+      if (tracker) removeTracker(snowplowNamespace);
+      cleanup = clearStorage();
+      void cleanup.catch(() => {
+        Log.warn('Could not clear tracker storage', 'tracker.ts');
+      });
+    };
+    signal.addEventListener('abort', stop, { once: true });
 
-    /**
-     * This one really works.
-     */
-    if (networkUserId) {
-      tracker.setNetworkUserId(networkUserId);
+    try {
+      tracker = await newTracker({
+        namespace: snowplowNamespace,
+        appId,
+        endpoint: `https://${domain}`,
+        eventMethod: 'post',
+        postPath: '/t/t',
+        encodeBase64: true,
+        networkUserId,
+        platformContext: true,
+        sessionContext: true,
+        deepLinkContext: true,
+        screenContext: true,
+        installAutotracking: true,
+        lifecycleAutotracking: true,
+        ...(device
+          ? {
+              language: device.locale,
+              timezone: device.timeZone,
+              screenResolution: device.resolution,
+              platformContextRetriever: {
+                getResolution: async () => device.resolution.join('x'),
+                isPortrait: async () => device.portrait,
+                getLanguage: async () => device.locale,
+              },
+            }
+          : {}),
+        ...application,
+        asyncStorage: {
+          getItem: async key => {
+            const scoped = storageKey(key);
+            await storageWork;
+            return stopped() ? null : AsyncStorage.getItem(scoped);
+          },
+          setItem: (key, value) => {
+            const scoped = storageKey(key);
+            storageWork = storageWork.then(async () => {
+              if (!stopped()) await AsyncStorage.setItem(scoped, value);
+            });
+            return storageWork;
+          },
+        },
+        customFetch: async (request, options) => {
+          if (stopped()) throw new Error('Fashion tracking stopped');
+          // Preserve the emitter timeout; cancel on any abort except withdrawal.
+          const controller = new AbortController();
+          const abort = () => controller.abort();
+          const cancel = () => {
+            if (!withdrawn()) abort();
+          };
+          signal.addEventListener('abort', cancel, { once: true });
+          request.signal?.addEventListener('abort', abort, { once: true });
+          if (request.signal?.aborted) controller.abort();
+          try {
+            return await fetchWithLogging(request, {
+              ...options,
+              signal: controller.signal,
+            });
+          } finally {
+            signal.removeEventListener('abort', cancel);
+            request.signal?.removeEventListener('abort', abort);
+          }
+        },
+        plugins: [
+          {
+            activateCorePlugin: value => {
+              core = value;
+            },
+            // Snowplow 2 sent the network user ID as tnuid; 4.x sends nuid.
+            beforeTrack: payload => {
+              payload.add('tnuid', networkUserId);
+            },
+          },
+        ],
+      });
+
+      if (signal.aborted) {
+        removeTracker(snowplowNamespace);
+        if (!withdrawn()) {
+          cleanup = clearStorage();
+          await cleanup;
+        }
+        return null;
+      }
+
+      return {
+        trackSelfDescribingEvent: (event, contexts) => {
+          if (!signal.aborted)
+            tracker!.trackSelfDescribingEvent(event, contexts);
+        },
+        trackPageViewEvent: ({ pageUrl, pageTitle, referrer }, contexts) => {
+          if (!signal.aborted) {
+            tracker!.trackPageViewEvent(
+              { pageUrl, pageTitle, referrer },
+              contexts
+            );
+          }
+        },
+        trackEcommerceTransactionEvent: order => {
+          if (signal.aborted || !core) return;
+          // Preserve v2 JS legacy ti/tr events rather than changing order schemas.
+          for (const item of order.items) {
+            core.track(
+              buildEcommerceTransactionItem({ ...item, orderId: order.orderId })
+            );
+          }
+          core.track(
+            buildEcommerceTransaction({
+              orderId: order.orderId,
+              total: order.totalValue,
+              affiliation: order.affiliation,
+              tax: order.taxValue,
+              shipping: order.shipping,
+              city: order.city,
+              state: order.state,
+              country: order.country,
+              currency: order.currency,
+            })
+          );
+        },
+      };
+    } catch (error) {
+      failed = true;
+      signal.removeEventListener('abort', stop);
+      core?.deactivate();
+      cleanup = clearStorage();
+      await cleanup.catch(() => {});
+      Log.error('Failed to create Snowplow tracker', 'tracker.ts', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
     }
-
-    Log.info('Successfully created Snowplow tracker', 'tracker.ts', {
-      appId,
-      domain,
-    });
-
-    return tracker;
-  } catch (error) {
-    Log.error('Failed to create Snowplow tracker', 'tracker.ts', {
-      appId,
-      domain,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return null;
-  }
+  };
+  const result = initialization.then(initialize);
+  initialization = result.catch(() => {});
+  return result;
 };

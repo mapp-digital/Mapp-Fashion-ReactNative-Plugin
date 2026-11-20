@@ -108,8 +108,14 @@ export const useAuth = (
        */
       setState(previous => ({ ...previous, isAuthenticating: false }));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientId, domain, storageAdapter, shouldAuthenticate]);
+  }, [
+    clientId,
+    domain,
+    storageAdapter,
+    shouldAuthenticate,
+    state.credentials,
+    state.isAuthenticating,
+  ]);
 
   /**
    * Effect hook to handle the authentication process
@@ -163,6 +169,7 @@ export const useAuth = (
             'useAuth.ts',
             {
               access_token: existingAuthCredentials.access_token,
+              refresh_token: existingAuthCredentials.refresh_token,
             }
           );
 

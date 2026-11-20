@@ -3,6 +3,7 @@ import uuid from 'react-native-uuid';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { authenticate, refreshToken } from '../../../services/auth';
 import { AuthCredentials, AuthorizationResponse } from '../../../types/auth';
+import { getNetworkUserId } from '../../../utils/jwt';
 import { pkceChallenge } from '../../../utils/pkce';
 
 // Mock dependencies
@@ -47,6 +48,15 @@ describe('auth service', () => {
     token_type: 'Bearer',
     expires_in: 3600,
   };
+
+  const credentialsFor = (
+    claims: { sub?: string; subn?: string },
+    refresh = 'refresh-token'
+  ): AuthCredentials => ({
+    ...mockAuthCredentials,
+    access_token: `header.${btoa(JSON.stringify({ exp: 9999999999, ...claims }))}.signature`,
+    refresh_token: refresh,
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -246,6 +256,94 @@ describe('auth service', () => {
   });
 
   describe('integration scenarios', () => {
+    it('keeps the issued tracking ID through refreshes and secure-storage round trips when subn is omitted', async () => {
+      const issued = credentialsFor({ sub: 'profile-1', subn: 'network-1' });
+      const firstResponse = credentialsFor({ sub: 'profile-1' }, 'rotated-1');
+      const secondResponse = credentialsFor({ sub: 'profile-1' }, 'rotated-2');
+      mockedAxios.get.mockResolvedValueOnce({
+        data: mockAuthorizationResponse,
+      });
+      mockedAxios.post
+        .mockResolvedValueOnce({ data: issued })
+        .mockResolvedValueOnce({ data: firstResponse })
+        .mockResolvedValueOnce({ data: secondResponse });
+
+      const authenticated = await authenticate(mockClientId, mockDomain);
+      expect(authenticated.trackingIdentity).toEqual({
+        profileId: 'profile-1',
+        networkUserId: 'network-1',
+      });
+      const refreshed = await refreshToken(
+        authenticated,
+        mockClientId,
+        mockDomain
+      );
+      const reloaded = JSON.parse(JSON.stringify(refreshed));
+      expect(reloaded.access_token).toBe(firstResponse.access_token);
+      expect(getNetworkUserId(reloaded)).toBe('network-1');
+      const refreshedAgain = await refreshToken(
+        reloaded,
+        mockClientId,
+        mockDomain
+      );
+      expect(getNetworkUserId(JSON.parse(JSON.stringify(refreshedAgain)))).toBe(
+        'network-1'
+      );
+      expect(refreshedAgain.refresh_token).toBe('rotated-2');
+      expect(mockedAxios.post).toHaveBeenLastCalledWith(
+        expect.stringContaining('refresh_token=rotated-1')
+      );
+      expect(mockedAxios.get).toHaveBeenCalledOnce();
+      expect(firstResponse).not.toHaveProperty('trackingIdentity');
+    });
+
+    it('retains subn from credentials stored by an earlier SDK version', async () => {
+      const original = credentialsFor({ sub: 'profile-1', subn: 'network-1' });
+      mockedAxios.post.mockResolvedValueOnce({
+        data: credentialsFor({ sub: 'profile-1' }),
+      });
+      const result = await refreshToken(original, mockClientId, mockDomain);
+      expect(getNetworkUserId(result)).toBe('network-1');
+      expect(original).not.toHaveProperty('trackingIdentity');
+    });
+
+    it('uses a newly issued subn when the refresh supplies one', async () => {
+      mockedAxios.post.mockResolvedValueOnce({
+        data: credentialsFor({ sub: 'profile-1', subn: 'network-2' }),
+      });
+      const result = await refreshToken(
+        credentialsFor({ sub: 'profile-1', subn: 'network-1' }),
+        mockClientId,
+        mockDomain
+      );
+      expect(getNetworkUserId(result)).toBe('network-2');
+      expect(result.trackingIdentity?.networkUserId).toBe('network-2');
+    });
+
+    it.each([
+      ['different profile', { sub: 'profile-2' }],
+      ['missing profile', {}],
+      ['empty profile', { sub: '' }],
+    ])('does not carry the tracking ID into a %s', async (_, claims) => {
+      mockedAxios.post.mockResolvedValueOnce({ data: credentialsFor(claims) });
+      const result = await refreshToken(
+        credentialsFor({ sub: 'profile-1', subn: 'network-1' }),
+        mockClientId,
+        mockDomain
+      );
+      expect(getNetworkUserId(result)).toBeNull();
+      expect(result).not.toHaveProperty('trackingIdentity');
+    });
+
+    it('leaves tracking unavailable when the profile has never supplied subn', async () => {
+      const credentials = credentialsFor({ sub: 'profile-1' });
+      mockedAxios.post.mockResolvedValueOnce({ data: credentials });
+      const result = await refreshToken(credentials, mockClientId, mockDomain);
+      expect(getNetworkUserId(result)).toBeNull();
+      expect(result).not.toHaveProperty('trackingIdentity');
+      expect(mockedAxios.get).not.toHaveBeenCalled();
+    });
+
     it('should handle complete authentication and refresh cycle', async () => {
       // Setup authentication mocks
       mockedAxios.get.mockResolvedValueOnce({

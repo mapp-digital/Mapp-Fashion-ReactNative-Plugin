@@ -1,4 +1,5 @@
-import { useCallback, useContext, useMemo } from 'react';
+import { useCallback, useContext, useMemo, useRef } from 'react';
+import uuid from 'react-native-uuid';
 import { DressipiContext } from '../context/DressipiContext';
 import {
   addToBasket as addToBasketEventFunction,
@@ -16,9 +17,11 @@ import {
   QueueableEvents,
   QueueableFunction,
   QueuedEvent,
+  RecommendationPageContext,
   TrackingState,
 } from '../types/tracking';
-import { Log } from '../utils/logger';
+import { logTrackingEvent } from '../utils/trackingLogging';
+import { getNetworkUserId } from '../utils/jwt';
 
 /**
  * Custom hook to access and manage Dressipi tracking events.
@@ -30,7 +33,15 @@ import { Log } from '../utils/logger';
  * different events.
  */
 export const useDressipiTracking = (): TrackingState => {
-  const { namespaceId, queue, tracker } = useContext(DressipiContext);
+  const { namespaceId, queue, tracker, credentials, pageViewContext } =
+    useContext(DressipiContext);
+  const queueReason =
+    credentials && !getNetworkUserId(credentials)
+      ? 'missing_network_user_id'
+      : 'tracker_not_ready';
+
+  const currentTracking = useRef({ queue, tracker, queueReason });
+  currentTracking.current = { queue, tracker, queueReason };
 
   const trackEvent = useCallback(
     async (eventFunction: QueueableFunction, ...args: any[]) => {
@@ -41,22 +52,15 @@ export const useDressipiTracking = (): TrackingState => {
           ...args
         );
 
+        // Event builders are async; route to the tracker/queue active now.
+        const { tracker, queue, queueReason } = currentTracking.current;
+
         if (tracker?.[event.event]) {
-          Log.info('Sending event to Snowplow:', 'useDressipiTracking.ts', {
-            event: event.event,
-            name: eventFunction.name,
-            data: event.data,
-          });
-
           (tracker[event.event] as Function).apply(tracker, event.data);
+          logTrackingEvent(event, 'DISPATCHED');
         } else if (queue?.current) {
-          Log.info('Pushing event to queue:', 'useDressipiTracking.ts', {
-            event: event.event,
-            name: eventFunction.name,
-            data: event.data,
-          });
-
           queue.current.push(event);
+          logTrackingEvent(event, 'QUEUED', queueReason);
         }
       } catch (error) {
         console.error('Error tracking event:', error);
@@ -65,24 +69,41 @@ export const useDressipiTracking = (): TrackingState => {
     [queue, tracker]
   );
 
-  return useMemo(
-    () => ({
+  return useMemo<TrackingState>(() => {
+    // Resolve the parent before building/queueing the event. A later pageView
+    // must not change the source ID of an event that is already pending.
+    const withParentPageView = <T extends RecommendationPageContext>(
+      payload: T
+    ): T =>
+      payload.parentPageViewId !== undefined || !pageViewContext?.current
+        ? payload
+        : { ...payload, parentPageViewId: pageViewContext.current };
+
+    return {
       order: (...args) => trackEvent(orderEventFunction, ...args),
       addToBasket: (...args) => trackEvent(addToBasketEventFunction, ...args),
       removeFromBasket: (...args) =>
         trackEvent(removeFromBasketEventFunction, ...args),
       identify: (...args) =>
         trackEvent(identifyEventFunction(namespaceId), ...args),
-      productDisplayPage: (...args) =>
-        trackEvent(productDisplayPageViewEventFunction, ...args),
+      productDisplayPage: item =>
+        trackEvent(
+          productDisplayPageViewEventFunction,
+          withParentPageView(item)
+        ),
       productListPage: (...args) =>
         trackEvent(productListPageViewEventFunction, ...args),
-      tabClick: (...args) => trackEvent(tabClickEventFunction, ...args),
-      itemClickQuickView: (...args) =>
-        trackEvent(itemClickQuickViewEventFunction, ...args),
-      itemClickPdp: (...args) => trackEvent(itemClickPdpEventFunction, ...args),
-      pageView: (...args) => trackEvent(pageViewEventFunction, ...args),
-    }),
-    [namespaceId, trackEvent]
-  );
+      tabClick: event =>
+        trackEvent(tabClickEventFunction, withParentPageView(event)),
+      itemClickQuickView: event =>
+        trackEvent(itemClickQuickViewEventFunction, withParentPageView(event)),
+      itemClickPdp: event =>
+        trackEvent(itemClickPdpEventFunction, withParentPageView(event)),
+      pageView: page => {
+        const pageViewId = page.pageViewId || uuid.v4();
+        if (pageViewContext) pageViewContext.current = pageViewId;
+        return trackEvent(pageViewEventFunction, { ...page, pageViewId });
+      },
+    };
+  }, [namespaceId, trackEvent, pageViewContext]);
 };

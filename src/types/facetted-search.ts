@@ -1,5 +1,9 @@
 import { ResponseFormat } from '../enums/ResponseFormat';
 import { DetailedItem } from './shared';
+import {
+  RelatedItemsAPIResponseItem,
+  RelatedItemsAPIResponseItemIDsOnly,
+} from './related-items';
 
 /**
  * Type for the state of the facetted search feature.
@@ -18,6 +22,8 @@ export type FacettedSearchApiRequest = {
   response_format?: ResponseFormat;
   page?: number;
   per_page?: number;
+  /** First page's response_id, forwarded in the body for later pages. */
+  root_event_id?: string;
 };
 
 /**
@@ -55,30 +61,16 @@ type RangeFacetFilter = {
  */
 export type FacettedSearchApiResponse = {
   event_id: string;
-  content_id: string;
-  recommendations: FacettedSearchApiResponseItem[];
+  garment_data: RelatedItemsAPIResponseItem[];
+  recommendations: {
+    content_id: string;
+    items: RelatedItemsAPIResponseItemIDsOnly[];
+  };
   pagination: {
     total_pages: number;
     total_entries: number;
     current_page: number;
   };
-};
-
-/**
- * Type for a single item in the facetted search API response.
- */
-export type FacettedSearchApiResponseItem = {
-  garment_id: string;
-  raw_garment_id: number;
-  has_outfits: boolean;
-  retailer: string;
-  feed_image_urls?: string[];
-  brand_name: string;
-  name: string;
-  price: string;
-  old_price: string;
-  url: string;
-  garment_status: FacettedSearchApiResponseItemGarmentStatus;
 };
 
 /**
@@ -110,10 +102,3 @@ export type FacettedSearchParameterDimension =
   | 'not_feature_ids'
   | 'price'
   | 'reduced_by';
-
-/**
- * Options for the garment status of the facetted search parameters.
- */
-export type FacettedSearchApiResponseItemGarmentStatus =
-  | 'in stock'
-  | 'out of stock';

@@ -1,0 +1,341 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { newTracker, removeTracker } from '@snowplow/react-native-tracker';
+import { trackerCore } from '@snowplow/tracker-core';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Log } from '../../../utils/logger';
+import {
+  abortForConsentWithdrawal,
+  createTracker,
+} from '../../../tracking/tracker';
+
+const native = {
+  trackSelfDescribingEvent: vi.fn(),
+  trackPageViewEvent: vi.fn(),
+  flush: vi.fn().mockResolvedValue(undefined),
+};
+let controller: AbortController;
+let payloads: Record<string, unknown>[];
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  controller = new AbortController();
+  payloads = [];
+  vi.mocked(newTracker).mockImplementation(async config => {
+    const core = trackerCore({
+      callback: payload => payloads.push(payload.build()),
+    });
+    config.plugins?.forEach(plugin => core.addPlugin({ plugin }));
+    return native as any;
+  });
+});
+afterEach(() => {
+  controller.abort();
+  Log.init(false);
+  vi.unstubAllGlobals();
+});
+
+const create = () =>
+  createTracker(
+    'shop',
+    'collector.example',
+    'synthetic-user',
+    controller.signal
+  );
+
+describe('Snowplow 4 adapter', () => {
+  it('logs requests sent through the collector transport', async () => {
+    Log.init(true);
+    await create();
+    const transport = vi.mocked(newTracker).mock.calls[0][0].customFetch!;
+    const response = new Response('accepted');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+    expect(
+      await transport(
+        new Request('https://collector.example/t/t', {
+          method: 'POST',
+          body: JSON.stringify({ data: [{ eid: 'click-1' }] }),
+        })
+      )
+    ).toBe(response);
+    await vi.waitFor(() =>
+      expect(
+        vi
+          .mocked(console.info)
+          .mock.calls.filter(([message]) =>
+            String(message).includes('[Fashion HTTP]')
+          )
+      ).toHaveLength(2)
+    );
+    const logs = vi
+      .mocked(console.info)
+      .mock.calls.filter(([message]) =>
+        String(message).includes('[Fashion HTTP]')
+      )
+      .map(([, data]) => JSON.parse(String(data)));
+    expect(logs[0]).toMatchObject({
+      method: 'POST',
+      url: 'https://collector.example/t/t',
+      body: { data: [{ eid: 'click-1' }] },
+    });
+    expect(logs[1]).toMatchObject({
+      requestId: logs[0].requestId,
+      status: 200,
+      body: 'accepted',
+    });
+  });
+
+  it('preserves routing, identity and base64 encoding', async () => {
+    await create();
+    expect(newTracker).toHaveBeenCalledWith(
+      expect.objectContaining({
+        namespace: 'dressipi',
+        appId: 'shop',
+        endpoint: 'https://collector.example',
+        eventMethod: 'post',
+        postPath: '/t/t',
+        encodeBase64: true,
+        networkUserId: 'synthetic-user',
+        lifecycleAutotracking: true,
+        platformContext: true,
+        sessionContext: true,
+        screenContext: true,
+        deepLinkContext: true,
+        installAutotracking: true,
+      })
+    );
+  });
+
+  it('does not initialize without an identity or after cancellation', async () => {
+    expect(
+      await createTracker('shop', 'collector.example', null, controller.signal)
+    ).toBeNull();
+    controller.abort();
+    expect(await create()).toBeNull();
+    expect(newTracker).not.toHaveBeenCalled();
+  });
+
+  it('preserves custom event and page-view arguments', async () => {
+    const tracker = await create();
+    const event = {
+      schema: 'iglu:com.dressipi/item_view/jsonschema/1-0-0',
+      data: { item: { sku: 'sku-1' } },
+    };
+    tracker!.trackSelfDescribingEvent(event);
+    tracker!.trackPageViewEvent({
+      pageUrl: '/products',
+      pageTitle: 'Products',
+      referrer: '/home',
+    });
+    expect(native.trackSelfDescribingEvent).toHaveBeenCalledWith(
+      event,
+      undefined
+    );
+    expect(native.trackPageViewEvent).toHaveBeenCalledWith(
+      { pageUrl: '/products', pageTitle: 'Products', referrer: '/home' },
+      undefined
+    );
+  });
+
+  it('forwards the page context on page views and recommendation clicks', async () => {
+    const tracker = await create();
+    const contexts = [
+      {
+        schema: 'iglu:com.snowplowanalytics.snowplow/web_page/jsonschema/1-0-0',
+        data: { id: '44ff586f-ac79-4810-bbac-146f49f02f9c' },
+      },
+    ];
+    const event = {
+      schema: 'iglu:com.dressipi/item_click_pdp/jsonschema/1-0-0',
+      data: { request_id: 'request', dressipi_item_id: 123 },
+    };
+    tracker!.trackPageViewEvent({ pageUrl: '/products' }, contexts);
+    tracker!.trackSelfDescribingEvent(event, contexts);
+    expect(native.trackPageViewEvent).toHaveBeenCalledWith(
+      { pageUrl: '/products' },
+      contexts
+    );
+    expect(native.trackSelfDescribingEvent).toHaveBeenCalledWith(
+      event,
+      contexts
+    );
+  });
+
+  it('restores tnuid and device details Snowplow 2 sent', async () => {
+    const tracker = await create();
+    expect(newTracker).toHaveBeenCalledWith(
+      expect.objectContaining({
+        screenResolution: [800, 1600],
+        language: expect.any(String),
+        timezone: expect.any(String),
+        sessionContext: true,
+      })
+    );
+    const config = vi.mocked(newTracker).mock.calls[0][0];
+    expect(config.platformContextProperties).toBeUndefined();
+    expect(await config.platformContextRetriever?.getResolution?.()).toBe(
+      '800x1600'
+    );
+    expect(await config.platformContextRetriever?.isPortrait?.()).toBe(true);
+    tracker!.trackEcommerceTransactionEvent({
+      orderId: 'order-1',
+      totalValue: 1,
+      items: [],
+    });
+    expect(payloads[0]).toMatchObject({ tnuid: 'synthetic-user' });
+  });
+
+  it('emits legacy transaction fields without changing totalValue/taxValue API', async () => {
+    const tracker = await create();
+    tracker!.trackEcommerceTransactionEvent({
+      orderId: 'order-1',
+      totalValue: 25,
+      taxValue: 3,
+      shipping: 2,
+      affiliation: 'shop',
+      city: 'London',
+      state: 'London',
+      country: 'GB',
+      currency: 'GBP',
+      items: [
+        {
+          sku: 'sku-1',
+          price: 10,
+          quantity: 2,
+          name: 'Shirt',
+          category: 'Tops',
+          currency: 'GBP',
+        },
+      ],
+    });
+    expect(payloads).toHaveLength(2);
+    expect(payloads[0]).toMatchObject({
+      e: 'ti',
+      ti_id: 'order-1',
+      ti_sk: 'sku-1',
+      ti_pr: 10,
+      ti_qu: 2,
+      ti_nm: 'Shirt',
+      ti_ca: 'Tops',
+      ti_cu: 'GBP',
+    });
+    expect(payloads[1]).toMatchObject({
+      e: 'tr',
+      tr_id: 'order-1',
+      tr_tt: 25,
+      tr_tx: 3,
+      tr_sh: 2,
+      tr_af: 'shop',
+      tr_ci: 'London',
+      tr_st: 'London',
+      tr_co: 'GB',
+      tr_cu: 'GBP',
+    });
+  });
+
+  it('on consent withdrawal, delivers pending events and keeps storage', async () => {
+    const tracker = await create();
+    const config = vi.mocked(newTracker).mock.calls[0][0];
+    await config.asyncStorage!.setItem('queue', '[1]');
+    const fetch = vi.fn().mockResolvedValue(new Response(''));
+    vi.stubGlobal('fetch', fetch);
+    let deliver!: () => void;
+    native.flush.mockImplementationOnce(
+      () => new Promise<void>(resolve => (deliver = resolve))
+    );
+    const sending = config.customFetch!({} as Request);
+    abortForConsentWithdrawal(controller);
+    tracker!.trackPageViewEvent({ pageUrl: '/late' });
+    expect(native.trackPageViewEvent).not.toHaveBeenCalled();
+    expect(native.flush).toHaveBeenCalled();
+    expect(removeTracker).not.toHaveBeenCalled();
+    await expect(sending).resolves.toBeInstanceOf(Response);
+    expect(fetch.mock.calls[0][1].signal.aborted).toBe(false);
+    deliver();
+    await vi.waitFor(() =>
+      expect(removeTracker).toHaveBeenCalledWith('dressipi')
+    );
+    expect(AsyncStorage.multiRemove).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it('disables retained callbacks and transport after a non-consent stop', async () => {
+    const tracker = await create();
+    const config = vi.mocked(newTracker).mock.calls[0][0];
+    controller.abort();
+    tracker!.trackPageViewEvent({ pageUrl: '/late' });
+    tracker!.trackEcommerceTransactionEvent({
+      orderId: 'late',
+      totalValue: 1,
+      items: [],
+    });
+    expect(native.trackPageViewEvent).not.toHaveBeenCalled();
+    expect(payloads).toHaveLength(0);
+    expect(removeTracker).toHaveBeenCalledWith('dressipi');
+    await expect(config.customFetch!({} as Request)).rejects.toThrow(
+      'Fashion tracking stopped'
+    );
+  });
+
+  it('clears only Fashion storage after pending writes and blocks late writes', async () => {
+    await create();
+    const storage = vi.mocked(newTracker).mock.calls[0][0].asyncStorage!;
+    await storage.setItem('queue', 'synthetic-event');
+    controller.abort();
+    await storage.setItem('queue', 'late-event');
+    expect(AsyncStorage.setItem).toHaveBeenCalledTimes(1);
+    expect(AsyncStorage.multiRemove).toHaveBeenCalledWith([
+      'fashion:dressipi:queue',
+    ]);
+  });
+
+  it('removes an initialization that finishes after cancellation', async () => {
+    let finish!: (value: any) => void;
+    vi.mocked(newTracker).mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    const pending = create();
+    await vi.waitFor(() => expect(newTracker).toHaveBeenCalledOnce());
+    controller.abort();
+    finish(native);
+    expect(await pending).toBeNull();
+    expect(removeTracker).toHaveBeenCalledWith('dressipi');
+  });
+
+  it('finishes cancelled initialization before starting a replacement', async () => {
+    let finish!: (value: any) => void;
+    vi.mocked(newTracker).mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    const first = create();
+    await vi.waitFor(() => expect(newTracker).toHaveBeenCalledOnce());
+    controller.abort();
+    const replacement = new AbortController();
+    try {
+      const second = createTracker(
+        'shop',
+        'collector.example',
+        'user-2',
+        replacement.signal
+      );
+      expect(newTracker).toHaveBeenCalledOnce();
+      finish(native);
+      expect(await first).toBeNull();
+      expect(await second).not.toBeNull();
+      expect(newTracker).toHaveBeenCalledTimes(2);
+      expect(removeTracker).toHaveBeenCalledTimes(1);
+    } finally {
+      replacement.abort();
+    }
+  });
+
+  it('handles initialization failure', async () => {
+    vi.mocked(newTracker).mockRejectedValueOnce(new Error('unavailable'));
+    expect(await create()).toBeNull();
+  });
+});

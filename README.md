@@ -5,17 +5,24 @@ A React Native SDK that provides easy integration with Dressipi's fashion AI ser
 ## Table of Contents
 
 - [Installation](#installation)
+  - [Additional Dependencies](#additional-dependencies)
+  - [Upgrading from 0.1.x](#upgrading-from-01x)
+- [Recommendation API v2](#recommendation-api-v2)
+- [Product views and page context](#product-views-and-page-context)
+- [Linking recommendations to their source page](#linking-recommendations-to-their-source-page)
 - [Quick Start](#quick-start)
 - [Storage Configuration](#storage-configuration)
 - [API Reference](#api-reference)
   - [DressipiProvider](#dressipiprovider)
   - [useRelatedItems](#userelateditems)
   - [useFacettedSearch](#usefacettedsearch)
+  - [useTopItems and useBasketItems](#usetopitems-and-usebasketitems)
   - [useCompliance](#usecompliance)
   - [Tracking](#tracking)
 - [Debug Logging](#debug-logging)
 - [Types](#types)
 - [Examples](#examples)
+- [Development](#development)
 
 ## Installation
 
@@ -25,11 +32,196 @@ npm install mapp-fashion-react-native-sdk
 
 ### Additional Dependencies
 
-This SDK requires the following peer dependencies:
+This SDK requires React Native 0.85 or newer and React 19.2.3 or newer, plus the
+following peer dependencies:
 
 ```bash
-npm install @snowplow/react-native-tracker lodash-es use-deep-compare-effect
+npm install @react-native-async-storage/async-storage@^2.0.0 react-native-get-random-values@^2.0.0
 ```
+
+In Expo projects, let Expo choose the versions that match your SDK:
+
+```bash
+npx expo install @react-native-async-storage/async-storage react-native-get-random-values
+```
+
+The SDK includes the Snowplow tracker, so you don't need to install it yourself.
+After adding these packages, rebuild your native app (including `pod install` on
+iOS). `react-native-keychain` also still needs native linking.
+
+### Upgrading from 0.1.x
+
+Version 1.0.0 replaces Snowplow tracker 2.x with 4.x and migrates recommendations
+to Fashion API v2. The existing hooks remain available. Follow the installation
+steps below, then review the recommendation and tracking changes that follow:
+
+1. Remove `@snowplow/react-native-tracker` from your app's dependencies. Fashion
+   now installs the Snowplow version it needs.
+2. Remove any `patch-package` patches for `@snowplow/react-native-tracker` 2.x
+   (for example the Kotlin nullability patch).
+3. Install the new peer dependencies (see [Additional Dependencies](#additional-dependencies)).
+4. Pass your app's real version and build number to `DressipiProvider` with the
+   `appVersion` and `appBuild` props. Snowplow 4 no longer reads them automatically.
+5. Rebuild the native app.
+
+Snowplow 2's stored device user ID, session history and unsent events are not
+migrated: after upgrading, tracking starts with a new device user ID and its
+session count starts again. The network user ID used to link a user's data is
+kept, because it comes from Fashion's stored login.
+
+Some tracking data also changes, which matters if you have reports built on
+0.1.x data:
+
+- automatic screen view events and the `screen` context are no longer sent;
+- the device context has fewer fields (no carrier, network type, battery,
+  storage or memory);
+- the language is sent as a locale tag (`en-US` instead of `English`/`eng`);
+- the network user ID is sent as `nuid` as well as `tnuid`;
+- background/foreground events can be sent more often.
+
+See [CHANGELOG.md](CHANGELOG.md) for all changes and known differences.
+
+## Recommendation API v2
+
+Recommendation requests now use [Fashion API v2](https://www.dressipi.loft.com/api/v2/swagger_doc.json).
+The existing `useRelatedItems` and `useFacettedSearch` hooks remain available.
+
+```http
+GET /api/v2/items/outfits?id={item_id}
+```
+
+Returns generated outfits for a source product through
+`useRelatedItems({ item_id, methods: RelatedItemsMethod.Outfits })`.
+Each outfit includes its own `response_id` for tracking.
+
+```http
+GET /api/v2/items/partner_outfits?id={item_id}
+```
+
+Returns retailer-curated outfits through
+`useRelatedItems({ item_id, methods: RelatedItemsMethod.PartnerOutfits })`.
+Each outfit includes the event ID from this endpoint as its `response_id`.
+
+```http
+GET /api/v2/items/similar?id={item_id}
+```
+
+Returns similar products through
+`useRelatedItems({ item_id, methods: RelatedItemsMethod.SimilarItems })`.
+The `similar_items` group includes its own `response_id` and `content_id`.
+
+```http
+POST /api/v2/facetted
+```
+
+Returns filtered, paginated recommendations through `useFacettedSearch`.
+Existing value facets are translated into v2 filters. `price` and `reduced_by`
+each accept one numeric range; multiple ranges, value-based price ranges, and
+`must_have` return an error. `garment_category` values must be numeric category
+IDs, not category names. Pass the first page's `response_id` as `root_event_id`
+when requesting later pages.
+
+```http
+GET /api/v2/items/top
+```
+
+Returns curated recommendations for a profile through `useTopItems`, without a
+source product. The result includes `response_id`, `content_id`, and product details.
+
+```http
+GET /api/v2/items/basket
+```
+
+Returns recommendations based on basket contents through `useBasketItems`.
+Pass product identifiers in `ids`; an omitted or empty array represents an empty
+basket. The result includes `response_id` and product details. Basket responses
+have no content ID in the documented response.
+
+### Combining related-item methods
+
+Omitted `methods` request all three related-item endpoints. Multiple selected
+methods run concurrently. If `try_all_methods` is `true` and all selected groups
+are empty, the remaining methods are tried. A failed selected request fails the
+combined result; partial results are not returned.
+
+Use each outfit or similar-items group's `response_id` as `request_id` when
+tracking interactions. The combined top-level `response_id` is retained as the
+first requested endpoint's event ID and is deprecated for tracking combined results.
+
+### Authentication and product details
+
+All endpoints use the configured Fashion domain. Hooks request detailed product
+metadata. Consent controls whether the existing OAuth access token is sent in
+`x-dressipi-jwt`; requests without consent are anonymous. OAuth token acquisition
+and refresh endpoints are unchanged.
+
+Product `status` and `has_outfits` are optional because some v2 operations,
+including Basket, omit them. Missing values are left undefined. Missing images
+map to an empty array and an empty `image_url`; nullable best-image fields map
+to undefined.
+
+## Product views and page context
+
+The SDK manages page context inside each `DressipiProvider`. Call `pageView()`
+once per list/screen visit; it generates a new `pageViewId` unless you supply
+one. A subsequent `productDisplayPage()` automatically uses that same ID as
+`parentPageViewId`, including when called from a different screen or hook.
+No route parameters or app-side UUID generation are needed.
+
+`productDisplayPage` emits `iglu:com.dressipi/item_view/jsonschema/1-0-0` with
+the parent ID in the Snowplow `web_page` context (`data.id`). The ID is excluded
+from `data.item`.
+
+```tsx
+// On the product list screen:
+const { pageView } = useDressipiTracking();
+pageView({ pageUrl: '/plp', pageTitle: 'Products' });
+
+// On the product detail screen, under the same DressipiProvider:
+const { productDisplayPage } = useDressipiTracking();
+productDisplayPage({
+  product_code: product.product_code,
+  sku: product.sku,
+});
+```
+
+Call once per product-screen visit. An `item_view` does not create another page
+view or replace the saved parent ID. Returning to the list and calling
+`pageView()` starts a new page context. Track a page view for each source screen
+whose visits should establish a new context; the SDK does not observe navigation.
+The automatic parent is the most recently tracked page, regardless of its route.
+
+You can override the automatic parent by supplying `parentPageViewId` on a
+product view. An empty string explicitly omits it. If no page view has been
+tracked in this provider, the optional parent context is omitted. Page history
+lasts for this provider's lifetime and resets when its namespace, domain, or
+client ID changes. Tracker initialization and credential refresh preserve it.
+IDs are captured at the tracking call, so queued events retain their original
+parent even if another page is visited before delivery. Existing consent and
+queue behavior is unchanged. Queue and HTTP logs expose `pageViewId` for page
+views and `parentPageViewId` for `item_view`.
+
+## Linking recommendations to their source page
+
+`itemClickPdp`, `itemClickQuickView`, and `tabClick` also default to the most
+recent page-view context in the same provider. Explicit `parentPageViewId`
+values override it, and an empty string omits the context for that event.
+Track the interaction before navigating:
+
+```tsx
+const { itemClickPdp } = useDressipiTracking();
+itemClickPdp({
+  request_id: outfit.response_id, // event_id from this outfit's endpoint
+  related_items_set_id: outfit.content_id,
+  dressipi_item_id: item.dressipi_item_id, // API raw_garment_id
+});
+```
+
+The request ID, page context ID, and Snowplow event ID are separate identifiers.
+The SDK serializes the page context as a Snowplow `web_page` context with
+`data.id`, not inside the Dressipi event data. This uses the Fashion SDK's
+Snowplow tracker and does not require Mapp Intelligence.
+See [Mapp's recommendation tracking reference](https://docs.mapp.com/docs/recommendation-tracking-fashion).
 
 ## Quick Start
 
@@ -48,6 +240,8 @@ export default function App() {
       namespaceId="your-namespace-id"
       domain="your-domain.com"
       clientId="your-client-id"
+      appVersion="1.0.0" // your app's real version
+      appBuild="1" // your app's real build number
     >
       <YourAppComponent />
     </DressipiProvider>
@@ -82,7 +276,7 @@ export function ProductRecommendations({ productId }: { productId: string }) {
     facets: [
       {
         name: 'garment_category',
-        value: ['dresses', 'tops'],
+        value: ['1', '2'],
       },
     ],
     per_page: 20,
@@ -174,6 +368,11 @@ Both storage adapters provide identical functionality:
 - **Cross-Session Persistence**: Credentials persist across app restarts and device reboots
 - **Platform Security**: Leverages iOS Keychain and Android Keystore for maximum security
 
+Tracking data is stored separately: the Snowplow tracker keeps its session and
+event queue in AsyncStorage under keys starting with `fashion:dressipi:`
+(`dressipi` is the tracker namespace; it can be changed with the
+`EXPO_PUBLIC_SNOWPLOW_TRACKER_NAMESPACE` environment variable).
+
 ### Migration Between Storage Types
 
 If you need to switch storage types (e.g., migrating from React Native to Expo), users will need to re-authenticate as credentials from different storage adapters are not automatically migrated.
@@ -186,21 +385,24 @@ The main provider component that initializes the SDK and provides authentication
 
 #### Props
 
-| Prop             | Type                   | Required | Description                                                                        |
-| ---------------- | ---------------------- | -------- | ---------------------------------------------------------------------------------- |
-| `namespaceId`    | `string`               | Yes      | Your Dressipi namespace identifier                                                 |
-| `domain`         | `string`               | Yes      | Your Dressipi domain                                                               |
-| `clientId`       | `string`               | Yes      | Your OAuth client ID for authentication                                            |
-| `enableLogging`  | `boolean`              | No       | Enable debug logging for development (defaults to `false`)                         |
-| `storage`        | `SecureStorageAdapter` | No       | Custom storage adapter for credentials (defaults to KeyChain)                      |
-| `defaultConsent` | `boolean`              | No       | Default consent value when user hasn't made a choice yet (defaults to `undefined`) |
-| `children`       | `ReactNode`            | Yes      | Your app components                                                                |
+| Prop             | Type                   | Required | Description                                                                         |
+| ---------------- | ---------------------- | -------- | ----------------------------------------------------------------------------------- |
+| `namespaceId`    | `string`               | Yes      | Your Dressipi namespace identifier                                                  |
+| `domain`         | `string`               | Yes      | Your Dressipi domain                                                                |
+| `clientId`       | `string`               | Yes      | Your OAuth client ID for authentication                                             |
+| `enableLogging`  | `boolean`              | No       | Enable debug logging for development (defaults to `false`)                          |
+| `logTokens`      | `boolean`              | No       | Print access and refresh token fields when logging is enabled (defaults to `false`) |
+| `storage`        | `SecureStorageAdapter` | No       | Custom storage adapter for credentials (defaults to KeyChain)                       |
+| `defaultConsent` | `boolean`              | No       | Default consent value when user hasn't made a choice yet (defaults to `undefined`)  |
+| `appVersion`     | `string`               | No       | Your app's version, sent in the tracking application context                        |
+| `appBuild`       | `string`               | No       | Your app's build number, sent in the tracking application context                   |
+| `children`       | `ReactNode`            | Yes      | Your app components                                                                 |
 
 #### Features Provided
 
 - **Authentication Management**: Automatically handles OAuth token lifecycle and refresh
 - **Tracking Infrastructure**: Sets up Snowplow tracking for analytics
-- **Request Queue**: Manages API request queuing when offline
+- **Event Queue**: Keeps tracking events in memory until the user has consented and the tracker is ready, then sends them
 - **Global Configuration**: Provides configuration context to all child components
 
 #### Example
@@ -280,10 +482,10 @@ A hook for fetching related items, outfits, and similar products for a given ite
 
 The `relatedItems` object contains the following properties:
 
-- **`response_id`**: `string` - Unique identifier for this specific response (useful for tracking and analytics)
-- **`outfits`**: `Outfit[] | undefined` - Array of complete outfit recommendations organized by occasion, each containing coordinated items
+- **`response_id`**: `string` - First requested endpoint's event ID; use each group's ID for tracking
+- **`outfits`**: `Outfit[] | undefined` - Outfits with `response_id`, `content_id`, `occasion`, and coordinated `items`
 - **`partner_outfits`**: `Outfit[] | undefined` - Array of partner-specific outfit recommendations with specialized styling
-- **`similar_items`**: `{ content_id: string; items: DetailedItem[]; } | undefined` - Object containing items similar to the requested product
+- **`similar_items`**: `{ response_id: string; content_id: string; items: DetailedItem[]; } | undefined` - Object containing items similar to the requested product
 
 #### Example
 
@@ -337,6 +539,49 @@ function ProductPage({ productId }: { productId: string }) {
 
 ---
 
+### useTopItems and useBasketItems
+
+Both hooks return `{ items, loading, error }`, using the same consent and
+credential handling as the existing recommendation hooks. `items` is null until
+a request succeeds.
+
+```tsx
+import { useTopItems, useBasketItems } from 'mapp-fashion-react-native-sdk';
+
+const top = useTopItems({ department: 'female', max_items: 6 });
+const basket = useBasketItems({
+  ids: ['ABC-123', 'DEF-456'],
+  identifier_type: 'product-code',
+  excluded_ids: ['GHI-789'],
+  max_items: 6,
+  sort: 'price',
+  direction: 'asc',
+});
+
+// top.items: { response_id, content_id, items: DetailedItem[] } | null
+// basket.items: { response_id, items: DetailedItem[], user? } | null
+```
+
+| Option               | Hooks  | Description                                                                  |
+| -------------------- | ------ | ---------------------------------------------------------------------------- |
+| `max_items`          | Both   | Number of recommendations, 1–20 (server default 6)                           |
+| `max_reduced_by`     | Both   | Maximum discount percentage, 1–100                                           |
+| `excluded_ids`       | Both   | Array of identifiers to exclude, sent as one comma-separated query value     |
+| `locale`, `language` | Both   | Feed locale for price/stock and language for product text                    |
+| `department`         | Top    | `female`, `male`, `girls`, `boys`, or `unisex`                               |
+| `ids`                | Basket | Basket identifiers; omitted or empty arrays represent an empty basket        |
+| `identifier_type`    | Basket | `product-code`, `sku`, or `gtin`                                             |
+| `sort`, `direction`  | Basket | `price` with `asc` or `desc`                                                 |
+| `include_user_data`  | Basket | Request optional user information: first name (nullable) and quiz completion |
+
+Top calls `GET /api/v2/items/top`; Basket calls `GET /api/v2/items/basket`.
+Use each result's `response_id` for tracking. Top also returns `content_id` for
+recommendation-set attribution. Basket has no content ID in the documented response.
+If Basket references cannot be matched unambiguously to product metadata, the
+hook reports an error rather than assigning another variant's details or tracking ID.
+
+---
+
 ### useFacettedSearch
 
 A hook for performing facetted search queries with filters and pagination.
@@ -363,6 +608,7 @@ A hook for performing facetted search queries with filters and pagination.
 | `response_format` | `ResponseFormat` | No       | Response format (defaults to `Detailed`) - controls the level of detail in returned items |
 | `page`            | `number`         | No       | Page number for pagination (1-based indexing)                                             |
 | `per_page`        | `number`         | No       | Number of items to return per page (controls pagination size)                             |
+| `root_event_id`   | `string`         | No       | First page's `response_id`, sent when requesting subsequent pages                         |
 
 #### Facet Types
 
@@ -371,7 +617,7 @@ A hook for performing facetted search queries with filters and pagination.
 ```typescript
 {
   name: 'garment_category',
-  value: ['dresses', 'tops']
+  value: ['1', '2']
 }
 ```
 
@@ -381,18 +627,17 @@ A hook for performing facetted search queries with filters and pagination.
 {
   name: 'price',
   filters: [
-    { from: 50, to: 100 },
-    { value: ['sale'] }
+    { from: 50, to: 100 }
   ]
 }
 ```
 
 #### Available Facet Dimensions
 
-- `garment_category`: Product categories (e.g., 'dresses', 'tops')
+- `garment_category`: Numeric category IDs (e.g., `'1'`), returned by Fashion
 - `brand`: Brand names
 - `occasion`: Occasions (e.g., 'work', 'evening')
-- `must_have`: Must-have items
+- `must_have`: Legacy option; rejected by API v2
 - `retailer_labels`: Retailer-specific labels
 - `store`: Store identifiers
 - `feature_ids`: Include specific features
@@ -422,7 +667,7 @@ function SearchResults() {
     facets: [
       {
         name: 'garment_category',
-        value: ['dresses'],
+        value: ['1'],
       },
       {
         name: 'brand',
@@ -475,7 +720,7 @@ The SDK provides comprehensive tracking capabilities through specialized hooks t
 
 Tracks when a user adds an item to their shopping basket.
 
-**Event Tracked:** `add_to_basket` - Records product additions to the shopping cart for conversion tracking and recommendation optimization.
+**Event Tracked:** Snowplow `add_to_cart` (`iglu:com.snowplowanalytics.snowplow/add_to_cart/jsonschema/1-0-0`) - Records product additions to the shopping cart for conversion tracking and recommendation optimization.
 
 **Parameters:**
 
@@ -545,7 +790,7 @@ type AddToBasketEventPayload = {
 
 Tracks when a user removes an item from their shopping basket.
 
-**Event Tracked:** `remove_from_basket` - Records product removals from the shopping cart for understanding user behavior and cart abandonment patterns.
+**Event Tracked:** Snowplow `remove_from_cart` (`iglu:com.snowplowanalytics.snowplow/remove_from_cart/jsonschema/1-0-0`) - Records product removals from the shopping cart for understanding user behavior and cart abandonment patterns.
 
 **Parameters:**
 
@@ -615,7 +860,7 @@ type RemoveFromBasketEventPayload = {
 
 Tracks when a user completes an order or makes a purchase.
 
-**Event Tracked:** `order` - Records completed transactions for revenue tracking, conversion analysis, and personalization improvements.
+**Event Tracked:** Snowplow legacy e-commerce transaction events: one `tr` (transaction) event for the order and one `ti` (transaction item) event per item - Records completed transactions for revenue tracking, conversion analysis, and personalization improvements.
 
 **Parameters:**
 
@@ -654,10 +899,26 @@ function OrderConfirmation({ orderData }) {
 **OrderEventPayload Type:**
 
 ```typescript
-type OrderEventPayload = EcommerceTransactionProps;
+type OrderEventPayload = {
+  orderId: string;
+  totalValue: number;
+  items: {
+    sku: string;
+    price: number;
+    quantity: number;
+    name?: string;
+    category?: string;
+    currency?: string;
+  }[];
+  affiliation?: string;
+  taxValue?: number;
+  shipping?: number;
+  city?: string;
+  state?: string;
+  country?: string;
+  currency?: string;
+};
 ```
-
-Note: `OrderEventPayload` is an alias for `EcommerceTransactionProps` from the `@snowplow/react-native-tracker` library, which includes properties like `orderId`, `totalValue`, `items`, `currency`, and other e-commerce transaction details.
 
 ---
 
@@ -665,7 +926,7 @@ Note: `OrderEventPayload` is an alias for `EcommerceTransactionProps` from the `
 
 Tracks when a user views a page or navigates to a new screen.
 
-**Event Tracked:** `page_view` - Records page navigation and screen views for understanding user browsing behavior, measuring page performance, and tracking user journeys through the application.
+**Event Tracked:** Snowplow page view (`pv`) - Records page navigation and screen views for understanding user browsing behavior, measuring page performance, and tracking user journeys through the application.
 
 **Parameters:**
 
@@ -710,14 +971,12 @@ function HomePage() {
 **PageViewEventPayload Type:**
 
 ```typescript
-type PageViewEventPayload = PageViewProps;
+type PageViewEventPayload = {
+  pageUrl: string; // The URL of the page being viewed
+  pageTitle?: string; // The title of the page
+  referrer?: string; // The referrer URL
+};
 ```
-
-Note: `PageViewEventPayload` is an alias for `PageViewProps` from the `@snowplow/react-native-tracker` library, which includes properties such as:
-
-- `pageUrl`: The URL of the page being viewed
-- `pageTitle`: The title of the page (optional)
-- `referrer`: The referrer URL (optional)
 
 ---
 
@@ -725,11 +984,13 @@ Note: `PageViewEventPayload` is an alias for `PageViewProps` from the `@snowplow
 
 Tracks user identification events such as login, registration, or profile updates.
 
-**Event Tracked:** `identify` - Records user identification information to enhance personalization and link user sessions across devices.
+**Event Tracked:** `iglu:com.dressipi/identify/jsonschema/1-0-0` - Records user identification information to enhance personalization and link user sessions across devices.
 
 **Parameters:**
 
-- `identification: IdentifyEventPayload` - User identification details including customer ID and email
+- `identification: IdentifyEventPayload` - User identification details. Both `customerId` and `email` are required; if either is missing, no event is sent and an error is logged.
+
+The email is not sent in plain text: it is hashed with SHA-256 (together with your `namespaceId`) before tracking.
 
 **Usage:**
 
@@ -772,11 +1033,12 @@ function LoginScreen() {
 ```typescript
 type IdentifyEventPayload = {
   /**
-   * The customer ID.
+   * The customer ID. Required by the identify event.
    */
   customerId?: string;
   /**
-   * The email address of the user.
+   * The email address of the user. Required by the identify event;
+   * sent as a SHA-256 hash.
    */
   email?: string;
 };
@@ -788,7 +1050,7 @@ type IdentifyEventPayload = {
 
 Tracks when a user views a product detail page (PDP).
 
-**Event Tracked:** `product_display_page` - Records product page views for understanding user interest, improving recommendations, and measuring engagement.
+**Event Tracked:** `iglu:com.dressipi/item_view/jsonschema/1-0-0` - Records product page views for understanding user interest, improving recommendations, and measuring engagement.
 
 **Parameters:**
 
@@ -913,7 +1175,7 @@ type ProductPayload = {
 
 Tracks when a user views a product listing page (PLP) such as category pages or search results.
 
-**Event Tracked:** `product_list_page` - Records product list page views with information about displayed items, applied filters, and pagination for understanding browsing patterns.
+**Event Tracked:** `iglu:com.dressipi/listings_view/jsonschema/1-0-0` - Records product list page views with information about displayed items, applied filters, and pagination for understanding browsing patterns.
 
 **Parameters:**
 
@@ -1023,7 +1285,7 @@ type ProductListPageFilterItem = {
 
 Tracks when a user clicks on a tab in the interface.
 
-**Event Tracked:** `tab_click` - Records tab interactions for understanding user navigation patterns and content engagement.
+**Event Tracked:** `iglu:com.dressipi/tab_click/jsonschema/1-0-0` - Records tab interactions for understanding user navigation patterns and content engagement.
 
 **Parameters:**
 
@@ -1073,7 +1335,7 @@ type TabClickEventPayload = {
 
 Tracks when a user clicks on an item in a quick view interface.
 
-**Event Tracked:** `item_click_quick_view` - Records item clicks in quick view contexts for understanding user engagement with product previews.
+**Event Tracked:** `iglu:com.dressipi/item_click_quickview/jsonschema/1-0-0` - Records item clicks in quick view contexts for understanding user engagement with product previews.
 
 **Parameters:**
 
@@ -1129,7 +1391,7 @@ type ItemClickQuickViewEventPayload = {
 
 Tracks when a user clicks on an item on a product detail page (PDP).
 
-**Event Tracked:** `item_click_pdp` - Records item clicks on product detail pages for understanding user interaction with related products and recommendations.
+**Event Tracked:** `iglu:com.dressipi/item_click_pdp/jsonschema/1-0-0` - Records item clicks on product detail pages for understanding user interaction with related products and recommendations.
 
 **Parameters:**
 
@@ -1205,11 +1467,19 @@ This hook takes no parameters.
 
 #### Consent Behavior
 
-The consent status directly affects how the SDK operates:
+The consent status controls authentication, API calls and tracking:
 
-- **`true` (Consented)**: Full SDK functionality is enabled, including authentication, API calls, and tracking
-- **`false` (Rejected)**: API calls are disabled, no authentication occurs, and no tracking data is sent
-- **`null` (Not Set)**: Behavior depends on the `defaultConsent` prop set in `DressipiProvider`
+| Consent state                              | Behavior                                                                                                                                                                                                                                                |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`null`** (not set)                       | No authentication, and `useRelatedItems`/`useFacettedSearch` wait. No tracking data is sent, but tracked events are kept in memory and sent once the user consents. Set `defaultConsent` on `DressipiProvider` to start from `true` or `false` instead. |
+| **`true`** (consented)                     | The SDK authenticates with the Dressipi API and stores the tokens securely. API calls are authenticated and tracking events are sent, including events kept in memory before consent.                                                                   |
+| **`false`** (rejected)                     | No authentication, and stored Dressipi API tokens are deleted. `useRelatedItems`/`useFacettedSearch` still call the API, without authentication. No tracking data is sent, but tracked events are kept in memory and sent if the user consents later.   |
+| **Withdrawn** (`true` → `false`)           | Same as `false`. Events the tracker already holds are still delivered. No new events are sent, and automatic background/foreground events stop. Tracking session data stays on the device.                                                              |
+| **Consent given again** (`false` → `true`) | The SDK authenticates again and tracking resumes. Events kept in memory while consent was off are sent.                                                                                                                                                 |
+
+Events kept in memory are lost if the app is closed before the user consents.
+Keep a single `DressipiProvider` mounted for the app's lifetime; unmounting it
+stops tracking and discards its pending events.
 
 #### Storage
 
@@ -1404,7 +1674,8 @@ import { useCompliance, useRelatedItems } from 'mapp-fashion-react-native-sdk';
 function ProductPage({ productId }: { productId: string }) {
   const { hasConsented } = useCompliance();
 
-  // Only fetch recommendations if user has consented
+  // Fetches with authentication when consented, without it when rejected,
+  // and waits while consent is not set.
   const { relatedItems, loading } = useRelatedItems({
     item_id: productId,
     methods: ['outfits', 'similar_items'],
@@ -1446,11 +1717,8 @@ function ProductPage({ productId }: { productId: string }) {
 
 ## Debug Logging
 
-The Dressipi SDK includes comprehensive internal logging for debugging purposes. By default, these logs are disabled to prevent sensitive information from appearing in production applications.
-
-### Enabling Debug Logs
-
-To enable debug logging during development or troubleshooting, set the following configuration on your DressipiProvider:
+Set `enableLogging={true}` on `DressipiProvider` to log Fashion SDK activity.
+The test app already enables it in `app/_layout.tsx`.
 
 ```tsx
 <DressipiProvider
@@ -1463,36 +1731,73 @@ To enable debug logging during development or troubleshooting, set the following
 </DressipiProvider>
 ```
 
-### What Gets Logged
+From SDK 1.0.0, **search for `parentPageViewId` in the DevTools Console** to
+see recommendation clicks before an HTTP request exists. These logs use the
+`[Fashion Tracking]` prefix, so clear any `Fashion HTTP` filter first:
 
-When debug logging is enabled, you'll see detailed information about:
-
-- **API Requests**: URLs, parameters, and request timing
-- **Authentication Flow**: OAuth token acquisition and refresh processes
-- **Response Data**: API responses and data mapping operations
-- **Error Details**: Detailed error messages and stack traces
-- **Storage Operations**: Keychain/SecureStore read/write operations
-
-### Security Note
-
-Debug logs may contain sensitive information such as:
-
-- API endpoints and request parameters
-- Authentication tokens and user identifiers
-- Product data and search queries
-
-**Important**: Only enable debug logging in development environments. Never enable this in production builds distributed to end users.
-
-### Example Debug Output
-
-With debug logging enabled, you'll see console output like:
-
+```text
+[Fashion Tracking] item_click_pdp QUEUED parentPageViewId=<source-page-UUID>
 ```
-[25-06-2025 14:30:15] [auth.ts] Fetching OAuth authorization from Dressipi API.
-[25-06-2025 14:30:16] [auth.ts] Received OAuth authorization from Dressipi API.
-[25-06-2025 14:30:17] [related-items.ts] Fetching Related Items from Dressipi API
-[25-06-2025 14:30:18] [related-items.ts] Received related items from Dressipi API
+
+`QUEUED` means the SDK retained the event while the tracker is unavailable.
+`DISPATCHED` means it handed the event to Snowplow; only the `[Fashion HTTP]`
+request/response pair describes network delivery. The page ID is read from the
+built event's context, and a missing ID is logged as `parentPageViewId=null`.
+A token without the tracking `subn` claim or a saved tracking identity for the
+same profile produces a `Tracking is waiting` warning with
+`reason: missing_network_user_id`; this warning contains no credentials.
+From SDK 1.0.0, every affected queued event also includes this specific reason
+in its log line and details instead of the generic `tracker_not_ready`.
+From SDK 1.0.0, OAuth refresh preserves a previously issued `subn` in local
+`trackingIdentity` metadata alongside the credentials. The SDK reuses it only
+when the refreshed token has the same profile (`sub`), including after a storage
+round trip or app restart. A new token's `subn` takes precedence. The SDK does
+not change the JWT or use `sub` as the tracking ID.
+
+If stored credentials already lost `subn` before this update and have no saved
+identity, refreshing cannot reconstruct it. Recover the identity with the
+Fashion backend, or explicitly create a new demo profile if losing that profile's
+personalization is acceptable. The SDK does not reset profiles automatically.
+
+From Fashion SDK 1.0.0, filter the JavaScript console for **`[Fashion HTTP]`**.
+Each network attempt has a matching `requestId` (for example, `fashion-12`):
+
+- `REQUEST`: HTTP method, full URL/query string, and request body (`null` for no body).
+- `RESPONSE`: status, status text, response body, and `durationMs`.
+- `ERROR`: network/timeout/cancellation errors, or HTTP errors with their status and response body.
+
+This covers OAuth authorization, token exchange/refresh, related items, facetted
+search, and Snowplow collector batches at `/t/t`. Retries have their own request
+IDs. Logs describe actual transport attempts; an event waiting in the SDK queue
+has no HTTP response yet.
+
+Collector requests also include `decodedEvents`, a readable copy of Snowplow's
+base64 event and context fields. From SDK 1.0.0, search for
+`decodedEvents[].parentPageViewId` on product views and recommendation events, and `pageViewId` on
+source page-view events. These diagnostic fields are read from the actual
+serialized `web_page` context's `data.id`; missing context is shown as `null`.
+The encoded request body is preserved in `body`, and the transmitted payload is
+unchanged. `parentPageViewId` is an SDK argument; its wire representation is the
+`web_page` context inside `cx` (base64) or `co` (JSON), as in Mapp's web tracker.
+
+Example output (body fields abbreviated):
+
+```text
+[Fashion HTTP] fashion-12 REQUEST
+{ "requestId": "fashion-12", "method": "POST", "url": "https://fashion.example/t/t", "body": { "data": [...] }, "decodedEvents": [...] }
+[Fashion HTTP] fashion-12 RESPONSE
+{ "requestId": "fashion-12", "method": "POST", "url": "https://fashion.example/t/t", "status": 200, "statusText": "OK", "durationMs": 128, "body": "" }
 ```
+
+Empty responses remain empty strings; JSON responses are displayed as objects.
+Authorization headers, OAuth codes/verifiers, tokens, and password fields are
+masked as `[REDACTED]` in diagnostic copies by default. From SDK 1.0.0, set
+`logTokens={true}` alongside `enableLogging={true}` to print complete
+`access_token` and `refresh_token` fields in HTTP response bodies and cached
+credential logs. For development builds, use `logTokens={__DEV__}`. Search for
+`access_token` or `refresh_token` in the DevTools Console after reloading the app.
+Set `logTokens={false}` to restore token redaction, or `enableLogging={false}` to
+turn off all SDK logging. Logging does not change requests or credentials.
 
 ## Types
 
@@ -1517,8 +1822,8 @@ type DetailedItem = {
   image_url: string; // Primary image URL
   best_model_image?: string; // Best model image URL
   best_product_image?: string; // Best product image URL
-  has_outfits: boolean; // Whether item has outfit recommendations
-  status: 'in stock' | 'out of stock'; // Availability status
+  has_outfits?: boolean; // Whether item has outfit recommendations
+  status?: 'in stock' | 'out of stock'; // Availability status
   style_id?: string; // Style identifier
 };
 ```
@@ -1570,11 +1875,12 @@ Type for the processed related items response:
 
 ```typescript
 type RelatedItemsMappedResponse = {
-  response_id: string; // Unique response identifier
+  response_id: string; // First endpoint's event ID; deprecated for combined tracking
   outfits?: Outfit[]; // Outfit recommendations
   partner_outfits?: Outfit[]; // Partner outfit recommendations
   similar_items?: {
     // Similar items group
+    response_id: string; // This endpoint's event ID
     content_id: string; // Content identifier
     items: DetailedItem[]; // Array of similar items
   };
@@ -1591,6 +1897,7 @@ type FacettedSearchApiRequest = {
   response_format?: ResponseFormat; // Response detail level
   page?: number; // Page number
   per_page?: number; // Items per page
+  root_event_id?: string; // First page's response_id for subsequent pages
 };
 ```
 
@@ -1654,3 +1961,23 @@ function ProductWithErrorHandling({ productId }: { productId: string }) {
   );
 }
 ```
+
+## Development
+
+Use Node.js 22.13 or a newer supported 22.x release for development. The security
+updates use ESLint 10 and Vitest 4; validation was performed with Node.js 22.23.2.
+
+```bash
+npm ci
+npm run build
+npm test -- --run
+npm run lint:check
+npm run audit:check
+npm run test:tracker
+```
+
+The `minimatch` overrides apply only to ESLint, `@eslint/config-array`, and
+`@typescript-eslint/typescript-estree`. They select the patched 11.x named-export
+API used by these development tools. Overrides in this package do not control an
+application's dependency resolution; the updated Axios and Lodash minimums are declared directly so that
+application installs also receive those runtime fixes.

@@ -16,12 +16,26 @@ vi.mock('react-native-keychain', () => ({
   },
 }));
 
+vi.mock('@react-native-async-storage/async-storage', () => ({
+  default: {
+    getItem: vi.fn().mockResolvedValue(null),
+    setItem: vi.fn().mockResolvedValue(undefined),
+    multiRemove: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
+vi.mock('react-native', () => ({
+  Dimensions: { get: vi.fn(() => ({ width: 400, height: 800 })) },
+  PixelRatio: { get: vi.fn(() => 2) },
+}));
+
 vi.mock('@snowplow/react-native-tracker', () => ({
-  createTracker: vi.fn(),
+  newTracker: vi.fn(),
   removeTracker: vi.fn(),
 }));
 
 vi.mock('react-native-uuid', () => ({
+  default: { v4: vi.fn(() => 'mock-uuid-1234') },
   v4: vi.fn(() => 'mock-uuid-1234'),
 }));
 

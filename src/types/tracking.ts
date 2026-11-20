@@ -1,8 +1,4 @@
-import type {
-  EcommerceTransactionProps,
-  PageViewProps,
-  ReactNativeTracker,
-} from '@snowplow/react-native-tracker';
+import type { FashionTracker } from '../tracking/tracker';
 
 /**
  * Represents the tracking interface for the Dressipi application.
@@ -29,7 +25,7 @@ export type TrackingState = {
  * Represents a queue (list) of events for the React Native Tracker
  * from Snowplow.
  */
-export type Queue<T extends keyof ReactNativeTracker> = QueuedEvent<T>[];
+export type Queue<T extends keyof FashionTracker> = QueuedEvent<T>[];
 
 /**
  * Represents a queued event for the React Native Tracker from Snowplow.
@@ -37,13 +33,13 @@ export type Queue<T extends keyof ReactNativeTracker> = QueuedEvent<T>[];
  * before being sent to the tracker.
  *
  * @property {T} event - The name of the event to be tracked.
- * @property {Parameters<ReactNativeTracker[T]>} data - The parameters
+ * @property {Parameters<FashionTracker[T]>} data - The parameters
  * for the event, which are the arguments expected by the
  * tracker method for that event.
  */
-export type QueuedEvent<T extends keyof ReactNativeTracker> = {
+export type QueuedEvent<T extends keyof FashionTracker> = {
   event: T;
-  data: Parameters<ReactNativeTracker[T]>;
+  data: Parameters<FashionTracker[T]>;
 };
 
 /**
@@ -152,7 +148,13 @@ export type ProductPayload = {
 /**
  * Represents the payload for a product detail page view event.
  */
-export type ProductDetailPageEventPayload = ProductPayload;
+export type ProductDetailPageEventPayload = ProductPayload & {
+  /**
+   * Overrides the most recent pageView's Snowplow web_page context UUID.
+   * Omit to link automatically; an empty string disables the parent context.
+   */
+  parentPageViewId?: string;
+};
 
 /**
  * Represents the payload for a product list page view event.
@@ -248,7 +250,25 @@ export type RemoveFromBasketEventPayload = {
 /**
  * Represents the payload for an order event.
  */
-export type OrderEventPayload = EcommerceTransactionProps;
+export type OrderEventPayload = {
+  orderId: string;
+  totalValue: number;
+  items: {
+    sku: string;
+    price: number;
+    quantity: number;
+    name?: string;
+    category?: string;
+    currency?: string;
+  }[];
+  affiliation?: string;
+  taxValue?: number;
+  shipping?: number;
+  city?: string;
+  state?: string;
+  country?: string;
+  currency?: string;
+};
 
 /**
  * Represents the identification information for a user or customer.
@@ -264,10 +284,17 @@ export type IdentifyEventPayload = {
   email?: string;
 };
 
-/**
- * Represents the payload for a tab click event.
- */
-export type TabClickEventPayload = {
+/** Optional source page context for recommendation interactions. */
+export type RecommendationPageContext = {
+  /**
+   * Overrides the most recent pageView's Snowplow web_page context UUID.
+   * Omit to link automatically; an empty string disables the parent context.
+   */
+  parentPageViewId?: string;
+};
+
+/** Represents the payload for a tab click event. */
+export type TabClickEventPayload = RecommendationPageContext & {
   /**
    * The id of request to the server that generated the content,
    * returned in the response as event_id.
@@ -282,7 +309,7 @@ export type TabClickEventPayload = {
 /**
  * Represents the payload for an item click quick view event.
  */
-export type ItemClickQuickViewEventPayload = {
+export type ItemClickQuickViewEventPayload = RecommendationPageContext & {
   /**
    * The id of request to the server that generated the content,
    * returned in the response as event_id.
@@ -303,7 +330,7 @@ export type ItemClickQuickViewEventPayload = {
 /**
  * Represents the payload for an item click on a product detail page event.
  */
-export type ItemClickPdpEventPayload = {
+export type ItemClickPdpEventPayload = RecommendationPageContext & {
   /**
    * The id of request to the server that generated the content,
    * returned in the response as event_id.
@@ -324,4 +351,10 @@ export type ItemClickPdpEventPayload = {
 /**
  * Represents the context of the parent event.
  */
-export type PageViewEventPayload = PageViewProps;
+export type PageViewEventPayload = {
+  pageUrl: string;
+  pageTitle?: string;
+  referrer?: string;
+  /** Optional context UUID. The SDK generates one per pageView call if omitted. */
+  pageViewId?: string;
+};
